@@ -2,8 +2,10 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:eng_friend/features/chat/domain/entities/suggestion.dart';
 import 'package:eng_friend/features/chat/presentation/providers/chat_provider.dart';
+import 'package:eng_friend/features/settings/presentation/providers/settings_provider.dart';
 import 'package:eng_friend/di/service_providers.dart';
 import 'package:eng_friend/services/ai/ai_service.dart';
+import 'package:eng_friend/services/language/app_language.dart';
 
 enum SuggestionMode { immediate, delayed }
 
@@ -38,11 +40,19 @@ class SuggestionState {
 class SuggestionNotifier extends StateNotifier<SuggestionState> {
   final AiService _aiService;
   final ChatNotifier _chatNotifier;
+  final AppLanguage Function() _getNativeLanguage;
+  final AppLanguage Function() _getTargetLanguage;
   Timer? _delayTimer;
   bool _wasAiTyping = false;
 
-  SuggestionNotifier(this._aiService, this._chatNotifier)
-      : super(const SuggestionState());
+  SuggestionNotifier(
+    this._aiService,
+    this._chatNotifier, {
+    required AppLanguage Function() getNativeLanguage,
+    required AppLanguage Function() getTargetLanguage,
+  })  : _getNativeLanguage = getNativeLanguage,
+        _getTargetLanguage = getTargetLanguage,
+        super(const SuggestionState());
 
   /// chatProvider의 상태 변화를 감지하여 호출
   void onChatStateChanged(ChatState chatState) {
@@ -73,6 +83,8 @@ class SuggestionNotifier extends StateNotifier<SuggestionState> {
       final suggestions = await _aiService.generateSuggestions(
         conversationHistory: chatState.messages,
         userLevel: chatState.userLevel,
+        nativeLanguage: _getNativeLanguage(),
+        targetLanguage: _getTargetLanguage(),
       );
       state = state.copyWith(suggestions: suggestions, isLoading: false);
     } catch (_) {
@@ -113,7 +125,12 @@ final suggestionProvider =
   final aiService = ref.watch(aiServiceProvider);
   final chatNotifier = ref.watch(chatProvider.notifier);
 
-  final notifier = SuggestionNotifier(aiService, chatNotifier);
+  final notifier = SuggestionNotifier(
+    aiService,
+    chatNotifier,
+    getNativeLanguage: () => ref.read(settingsProvider).nativeLanguage,
+    getTargetLanguage: () => ref.read(settingsProvider).targetLanguage,
+  );
 
   // chatProvider 상태 변화 감지
   ref.listen(chatProvider, (prev, next) {

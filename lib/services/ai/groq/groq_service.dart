@@ -6,6 +6,7 @@ import 'package:eng_friend/features/level/domain/entities/level_assessment.dart'
 import 'package:eng_friend/services/ai/ai_service.dart';
 import 'package:eng_friend/services/ai/prompts/level_prompts.dart';
 import 'package:eng_friend/services/ai/prompts/suggestion_prompt.dart';
+import 'package:eng_friend/services/language/app_language.dart';
 
 /// Groq API — OpenAI 호환 포맷, 무료 + 초고속
 class GroqService implements AiService {
@@ -29,11 +30,11 @@ class GroqService implements AiService {
   String _handleError(DioException e) {
     final statusCode = e.response?.statusCode;
     if (statusCode == 401) {
-      return 'Groq API 키가 유효하지 않습니다. Settings에서 확인해 주세요.';
+      return 'Invalid Groq API key. Please check in Settings.';
     } else if (statusCode == 429) {
-      return 'Groq 무료 한도 초과. 잠시 후 다시 시도해 주세요.';
+      return 'Groq rate limit exceeded. Please try again later.';
     }
-    return 'Groq API 오류 ($statusCode): ${e.message}';
+    return 'Groq API error ($statusCode): ${e.message}';
   }
 
   @override
@@ -115,6 +116,8 @@ class GroqService implements AiService {
   @override
   Future<LevelAssessment> assessLevel({
     required List<Message> recentMessages,
+    required AppLanguage nativeLanguage,
+    required AppLanguage targetLanguage,
   }) async {
     final userMessages = recentMessages
         .where((m) => m.role == MessageRole.user)
@@ -125,7 +128,7 @@ class GroqService implements AiService {
       final response = await _dio.post('/chat/completions', data: {
         'model': _model,
         'messages': [
-          {'role': 'system', 'content': LevelPrompt.build()},
+          {'role': 'system', 'content': LevelPrompt.build(nativeLanguage: nativeLanguage, targetLanguage: targetLanguage)},
           {'role': 'user', 'content': userMessages},
         ],
       });
@@ -148,7 +151,9 @@ class GroqService implements AiService {
   Future<List<Suggestion>> generateSuggestions({
     required List<Message> conversationHistory,
     required int userLevel,
-    int count = 3,
+    required AppLanguage nativeLanguage,
+    required AppLanguage targetLanguage,
+    int count = 2,
   }) async {
     final messages = conversationHistory
         .map((m) => {
@@ -159,7 +164,7 @@ class GroqService implements AiService {
 
     messages.add({
       'role': 'user',
-      'content': SuggestionPrompt.build(userLevel: userLevel, count: count),
+      'content': SuggestionPrompt.build(userLevel: userLevel, nativeLanguage: nativeLanguage, targetLanguage: targetLanguage, count: count),
     });
 
     try {

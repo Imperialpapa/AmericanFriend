@@ -8,6 +8,7 @@ import 'package:eng_friend/features/chat/presentation/widgets/chat_input_bar.dar
 import 'package:eng_friend/features/chat/presentation/widgets/suggestion_chips.dart';
 import 'package:eng_friend/features/chat/domain/entities/message.dart';
 import 'package:eng_friend/features/level/presentation/providers/level_provider.dart';
+import 'package:eng_friend/features/settings/presentation/providers/settings_provider.dart';
 import 'package:eng_friend/features/voice/presentation/providers/voice_provider.dart';
 import 'package:eng_friend/features/settings/presentation/screens/settings_screen.dart';
 
@@ -177,6 +178,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   Widget _buildWelcomeMessage() {
+    final targetLang = ref.watch(settingsProvider.select((s) => s.targetLanguage));
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -195,7 +198,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              '영어로 편하게 대화해 봐!\nI\'m here to help you practice English.',
+              'I\'m here to help you practice ${targetLang.displayName}.\nLet\'s start a conversation!',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                     color: Colors.grey,

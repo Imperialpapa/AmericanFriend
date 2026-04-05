@@ -1,6 +1,7 @@
 import 'package:eng_friend/features/chat/domain/entities/message.dart';
 import 'package:eng_friend/features/chat/domain/entities/suggestion.dart';
 import 'package:eng_friend/features/level/domain/entities/level_assessment.dart';
+import 'package:eng_friend/services/language/app_language.dart';
 
 /// AI 서비스 추상 인터페이스
 /// Claude, OpenAI 등 구체 구현체가 이 인터페이스를 구현한다.
@@ -22,12 +23,16 @@ abstract class AiService {
   /// 사용자 레벨 평가
   Future<LevelAssessment> assessLevel({
     required List<Message> recentMessages,
+    required AppLanguage nativeLanguage,
+    required AppLanguage targetLanguage,
   });
 
   /// 대화 제안 생성
   Future<List<Suggestion>> generateSuggestions({
     required List<Message> conversationHistory,
     required int userLevel,
-    int count = 3,
+    required AppLanguage nativeLanguage,
+    required AppLanguage targetLanguage,
+    int count = 2,
   });
 }

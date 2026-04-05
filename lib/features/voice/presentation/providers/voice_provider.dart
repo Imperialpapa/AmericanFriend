@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 import 'package:eng_friend/features/voice/domain/entities/voice_state.dart';
 import 'package:eng_friend/features/chat/presentation/providers/chat_provider.dart';
+import 'package:eng_friend/features/settings/presentation/providers/settings_provider.dart';
 import 'package:eng_friend/di/service_providers.dart';
 import 'package:eng_friend/services/pipeline/tts_queue.dart';
 
@@ -9,9 +10,11 @@ class VoiceNotifier extends StateNotifier<VoiceState> {
   final SpeechToText _stt;
   final TtsQueue _ttsQueue;
   final ChatNotifier _chatNotifier;
+  final String Function() _getSttLocale;
 
-  VoiceNotifier(this._stt, this._ttsQueue, this._chatNotifier)
-      : super(const VoiceState());
+  VoiceNotifier(this._stt, this._ttsQueue, this._chatNotifier, {required String Function() getSttLocale})
+      : _getSttLocale = getSttLocale,
+        super(const VoiceState());
 
   /// STT 초기화 + TTS 상태 구독
   Future<void> initialize() async {
@@ -75,7 +78,7 @@ class VoiceNotifier extends StateNotifier<VoiceState> {
       listenOptions: SpeechListenOptions(
         listenMode: ListenMode.dictation,
       ),
-      localeId: 'en-US',
+      localeId: _getSttLocale(),
     );
   }
 
@@ -123,5 +126,10 @@ final voiceProvider = StateNotifierProvider<VoiceNotifier, VoiceState>((ref) {
   final stt = ref.watch(speechToTextProvider);
   final ttsQueue = ref.watch(ttsQueueProvider);
   final chatNotifier = ref.watch(chatProvider.notifier);
-  return VoiceNotifier(stt, ttsQueue, chatNotifier);
+  return VoiceNotifier(
+    stt,
+    ttsQueue,
+    chatNotifier,
+    getSttLocale: () => ref.read(settingsProvider).sttLanguage,
+  );
 });

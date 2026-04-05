@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:eng_friend/features/chat/domain/entities/message.dart' show Message, MessageRole;
 import 'package:eng_friend/services/ai/prompts/system_prompt.dart';
+import 'package:eng_friend/services/language/app_language.dart';
 import 'package:eng_friend/services/local_db/app_database.dart' hide Message;
 import 'package:eng_friend/services/pipeline/conversation_pipeline.dart';
 import 'package:eng_friend/services/pipeline/pipeline_event.dart';
@@ -50,12 +51,28 @@ class ChatNotifier extends StateNotifier<ChatState> {
   final ConversationPipeline _pipeline;
   final AppDatabase _db;
   final bool Function() _hasApiKey;
-  final bool Function() _showKoreanHint;
+  final bool Function() _showNativeHint;
+  final bool Function() _getTargetTtsEnabled;
+  final bool Function() _getNativeTtsEnabled;
+  final AppLanguage Function() _getNativeLanguage;
+  final AppLanguage Function() _getTargetLanguage;
   StreamSubscription<PipelineEvent>? _pipelineSubscription;
 
-  ChatNotifier(this._pipeline, this._db, {required bool Function() hasApiKey, required bool Function() showKoreanHint})
-      : _hasApiKey = hasApiKey,
-        _showKoreanHint = showKoreanHint,
+  ChatNotifier(
+    this._pipeline,
+    this._db, {
+    required bool Function() hasApiKey,
+    required bool Function() showNativeHint,
+    required bool Function() getTargetTtsEnabled,
+    required bool Function() getNativeTtsEnabled,
+    required AppLanguage Function() getNativeLanguage,
+    required AppLanguage Function() getTargetLanguage,
+  })  : _hasApiKey = hasApiKey,
+        _showNativeHint = showNativeHint,
+        _getTargetTtsEnabled = getTargetTtsEnabled,
+        _getNativeTtsEnabled = getNativeTtsEnabled,
+        _getNativeLanguage = getNativeLanguage,
+        _getTargetLanguage = getTargetLanguage,
         super(const ChatState());
 
   /// 기존 대화 불러오기
@@ -90,7 +107,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
 
     if (!_hasApiKey()) {
       state = state.copyWith(
-        error: 'API 키를 설정해 주세요 (Settings에서 입력)',
+        error: 'Please set your API key in Settings.',
       );
       return;
     }
@@ -139,8 +156,15 @@ class ChatNotifier extends StateNotifier<ChatState> {
     final eventStream = _pipeline.processTextInput(
       text: text,
       conversationHistory: state.messages,
-      systemPrompt: SystemPrompt.build(userLevel: state.userLevel, showKoreanHint: _showKoreanHint()),
+      systemPrompt: SystemPrompt.build(
+        userLevel: state.userLevel,
+        nativeLanguage: _getNativeLanguage(),
+        targetLanguage: _getTargetLanguage(),
+        showNativeHint: _showNativeHint(),
+      ),
       userLevel: state.userLevel,
+      targetTtsEnabled: _getTargetTtsEnabled(),
+      nativeTtsEnabled: _getNativeTtsEnabled(),
     );
 
     _pipelineSubscription?.cancel();
@@ -270,8 +294,20 @@ final chatProvider = StateNotifierProvider<ChatNotifier, ChatState>((ref) {
       final key = s.activeApiKey;
       return key.isNotEmpty;
     },
-    showKoreanHint: () {
-      return ref.read(settingsProvider).showKoreanHint;
+    showNativeHint: () {
+      return ref.read(settingsProvider).showNativeHint;
+    },
+    getTargetTtsEnabled: () {
+      return ref.read(settingsProvider).targetTtsEnabled;
+    },
+    getNativeTtsEnabled: () {
+      return ref.read(settingsProvider).nativeTtsEnabled;
+    },
+    getNativeLanguage: () {
+      return ref.read(settingsProvider).nativeLanguage;
+    },
+    getTargetLanguage: () {
+      return ref.read(settingsProvider).targetLanguage;
     },
   );
 });

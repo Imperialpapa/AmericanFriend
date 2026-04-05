@@ -4,8 +4,10 @@ import 'package:eng_friend/core/constants/level_constants.dart';
 import 'package:eng_friend/features/chat/domain/entities/message.dart';
 import 'package:eng_friend/features/chat/presentation/providers/chat_provider.dart';
 import 'package:eng_friend/features/level/domain/entities/level_assessment.dart';
+import 'package:eng_friend/features/settings/presentation/providers/settings_provider.dart';
 import 'package:eng_friend/di/service_providers.dart';
 import 'package:eng_friend/services/ai/ai_service.dart';
+import 'package:eng_friend/services/language/app_language.dart';
 
 const _levelKey = 'user_level';
 const _messageCountKey = 'messages_since_assessment';
@@ -41,9 +43,18 @@ class LevelState {
 class LevelNotifier extends StateNotifier<LevelState> {
   final AiService _aiService;
   final SharedPreferences _prefs;
+  final AppLanguage Function() _getNativeLanguage;
+  final AppLanguage Function() _getTargetLanguage;
   int _messagesSinceAssessment = 0;
 
-  LevelNotifier(this._aiService, this._prefs) : super(const LevelState()) {
+  LevelNotifier(
+    this._aiService,
+    this._prefs, {
+    required AppLanguage Function() getNativeLanguage,
+    required AppLanguage Function() getTargetLanguage,
+  })  : _getNativeLanguage = getNativeLanguage,
+        _getTargetLanguage = getTargetLanguage,
+        super(const LevelState()) {
     _load();
   }
 
@@ -86,6 +97,8 @@ class LevelNotifier extends StateNotifier<LevelState> {
 
       final assessment = await _aiService.assessLevel(
         recentMessages: recent,
+        nativeLanguage: _getNativeLanguage(),
+        targetLanguage: _getTargetLanguage(),
       );
 
       // 급격한 변동 방지: 최대 1단계 변경
@@ -125,7 +138,12 @@ class LevelNotifier extends StateNotifier<LevelState> {
 final levelProvider = StateNotifierProvider<LevelNotifier, LevelState>((ref) {
   final aiService = ref.watch(aiServiceProvider);
   final prefs = ref.watch(sharedPreferencesProvider);
-  final notifier = LevelNotifier(aiService, prefs);
+  final notifier = LevelNotifier(
+    aiService,
+    prefs,
+    getNativeLanguage: () => ref.read(settingsProvider).nativeLanguage,
+    getTargetLanguage: () => ref.read(settingsProvider).targetLanguage,
+  );
 
   // chatProvider 상태 변화 감지
   ref.listen(chatProvider, (prev, next) {

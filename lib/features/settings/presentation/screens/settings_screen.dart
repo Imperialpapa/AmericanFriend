@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:eng_friend/core/constants/level_constants.dart';
+import 'package:eng_friend/features/level/presentation/providers/level_provider.dart';
 import 'package:eng_friend/features/settings/presentation/providers/settings_provider.dart';
 import 'package:eng_friend/features/chat/presentation/providers/suggestion_provider.dart';
 import 'package:eng_friend/services/ai/ai_provider_type.dart';
+import 'package:eng_friend/services/language/app_language.dart';
 import 'package:eng_friend/features/settings/domain/entities/user_settings.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -41,6 +44,35 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          // ===== Language =====
+          Text('Language', style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 8),
+
+          _buildLanguageDropdown(
+            label: 'Native Language',
+            value: settings.nativeLanguage,
+            disabledValue: settings.targetLanguage,
+            onChanged: (lang) => notifier.setNativeLanguage(lang),
+          ),
+          const SizedBox(height: 12),
+
+          _buildLanguageDropdown(
+            label: 'Target Language',
+            value: settings.targetLanguage,
+            disabledValue: settings.nativeLanguage,
+            onChanged: (lang) => notifier.setTargetLanguage(lang),
+          ),
+
+          // 언어-모델 호환성 경고
+          _buildLanguageWarning(settings),
+
+          const Divider(height: 32),
+
+          // ===== Level =====
+          _buildLevelSection(context, ref),
+
+          const Divider(height: 32),
+
           // ===== AI Model 선택 =====
           Text('AI Model', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 8),
@@ -130,21 +162,40 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
           const Divider(height: 32),
 
-          // ===== Korean Hint =====
-          Text('한글 번역', style: Theme.of(context).textTheme.titleMedium),
+          // ===== Target Language Options =====
+          Text('${settings.targetLanguage.displayName} (Target)',
+              style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 4),
-          Text(
-            'AI 응답과 제안에 한글 번역을 함께 표시합니다',
-            style: Theme.of(context)
-                .textTheme
-                .bodySmall
-                ?.copyWith(color: Colors.grey),
+          SwitchListTile(
+            title: const Text('Show text'),
+            subtitle: const Text('Display AI response text on screen'),
+            value: settings.showTargetText,
+            onChanged: (v) => notifier.setShowTargetText(v),
           ),
           SwitchListTile(
-            title: const Text('한글 번역 표시'),
-            subtitle: const Text('영어 표현 옆에 (한국어 번역) 표시'),
-            value: settings.showKoreanHint,
-            onChanged: (v) => notifier.setShowKoreanHint(v),
+            title: const Text('Read aloud'),
+            subtitle: const Text('TTS playback of AI responses'),
+            value: settings.targetTtsEnabled,
+            onChanged: (v) => notifier.setTargetTtsEnabled(v),
+          ),
+
+          const Divider(height: 32),
+
+          // ===== Native Language Options =====
+          Text('${settings.nativeLanguage.displayName} (Native)',
+              style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 4),
+          SwitchListTile(
+            title: const Text('Show translation'),
+            subtitle: Text('Display (${settings.nativeLanguage.displayName}) hints in responses'),
+            value: settings.showNativeHint,
+            onChanged: (v) => notifier.setShowNativeHint(v),
+          ),
+          SwitchListTile(
+            title: const Text('Read translation aloud'),
+            subtitle: Text('Include ${settings.nativeLanguage.displayName} in TTS playback'),
+            value: settings.nativeTtsEnabled,
+            onChanged: (v) => notifier.setNativeTtsEnabled(v),
           ),
 
           const Divider(height: 32),
@@ -157,12 +208,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             segments: const [
               ButtonSegment(
                 value: TtsVoiceGender.female,
-                label: Text('여성'),
+                label: Text('Female'),
                 icon: Icon(Icons.female),
               ),
               ButtonSegment(
                 value: TtsVoiceGender.male,
-                label: Text('남성'),
+                label: Text('Male'),
                 icon: Icon(Icons.male),
               ),
             ],
@@ -191,6 +242,167 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildLevelSection(BuildContext context, WidgetRef ref) {
+    final levelState = ref.watch(levelProvider);
+    final level = levelState.currentLevel;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Level', style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 4),
+        Text(
+          'Adjusts vocabulary difficulty and response length',
+          style: Theme.of(context)
+              .textTheme
+              .bodySmall
+              ?.copyWith(color: Colors.grey),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Text(
+              '$level',
+              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    LevelConstants.levelNames[level],
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                  ),
+                  Text(
+                    _levelDescription(level),
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodySmall
+                        ?.copyWith(color: Colors.grey),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        Slider(
+          value: level.toDouble(),
+          min: LevelConstants.minLevel.toDouble(),
+          max: LevelConstants.maxLevel.toDouble(),
+          divisions: LevelConstants.maxLevel - LevelConstants.minLevel,
+          label: '$level',
+          onChanged: (v) {
+            ref.read(levelProvider.notifier).setLevel(v.round());
+          },
+        ),
+        const Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text('Beginner', style: TextStyle(fontSize: 11, color: Colors.grey)),
+            Text('Native', style: TextStyle(fontSize: 11, color: Colors.grey)),
+          ],
+        ),
+      ],
+    );
+  }
+
+  String _levelDescription(int level) {
+    return switch (level) {
+      1 => '1 sentence, basic words',
+      2 => '1-2 sentences, everyday words',
+      3 => '2 sentences, simple phrases',
+      4 => '2-3 sentences, common idioms',
+      5 => '2-3 sentences, natural conversation',
+      6 => '3-4 sentences, idioms & phrasal verbs',
+      7 => '3-4 sentences, rich vocabulary',
+      8 => '4-5 sentences, advanced expressions',
+      9 => '4-5 sentences, near-native nuance',
+      10 => '5 sentences, full native level',
+      _ => '',
+    };
+  }
+
+  Widget _buildLanguageWarning(UserSettings settings) {
+    final warnings = <String>[];
+
+    final nativeSupport = settings.aiProvider.supportFor(settings.nativeLanguage);
+    final targetSupport = settings.aiProvider.supportFor(settings.targetLanguage);
+
+    if (nativeSupport.warningMessage != null) {
+      warnings.add(nativeSupport.warningMessage!);
+    }
+    if (targetSupport.warningMessage != null) {
+      warnings.add(targetSupport.warningMessage!);
+    }
+
+    if (warnings.isEmpty) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.orange.shade900.withValues(alpha: 0.2),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.orange.shade700.withValues(alpha: 0.5)),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(Icons.warning_amber_rounded,
+                color: Colors.orange.shade300, size: 20),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                warnings.join('\n'),
+                style: TextStyle(
+                  color: Colors.orange.shade200,
+                  fontSize: 13,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLanguageDropdown({
+    required String label,
+    required AppLanguage value,
+    required AppLanguage disabledValue,
+    required void Function(AppLanguage) onChanged,
+  }) {
+    return DropdownButtonFormField<AppLanguage>(
+      value: value,
+      decoration: InputDecoration(
+        labelText: label,
+        border: const OutlineInputBorder(),
+      ),
+      items: AppLanguage.values.map((lang) {
+        final isDisabled = lang == disabledValue;
+        return DropdownMenuItem<AppLanguage>(
+          value: lang,
+          enabled: !isDisabled,
+          child: Text(
+            lang.label,
+            style: isDisabled
+                ? TextStyle(color: Colors.grey.shade400)
+                : null,
+          ),
+        );
+      }).toList(),
+      onChanged: (lang) {
+        if (lang != null) onChanged(lang);
+      },
     );
   }
 
@@ -242,22 +454,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       AiProviderType.gemini => _ProviderInfo(
           name: 'Google Gemini',
           description: 'Free tier: 1,500 req/day',
-          keyHint: 'https://aistudio.google.com/apikey 에서 발급',
+          keyHint: 'Get your key at aistudio.google.com/apikey',
         ),
       AiProviderType.groq => _ProviderInfo(
           name: 'Groq (Llama 3.3)',
           description: 'Free tier: 14,400 req/day, ultra fast',
-          keyHint: 'https://console.groq.com/keys 에서 발급',
+          keyHint: 'Get your key at console.groq.com/keys',
         ),
       AiProviderType.claude => _ProviderInfo(
           name: 'Claude (Sonnet)',
           description: 'Paid — highest quality',
-          keyHint: 'https://console.anthropic.com 에서 발급',
+          keyHint: 'Get your key at console.anthropic.com',
         ),
       AiProviderType.openai => _ProviderInfo(
           name: 'OpenAI (GPT-4o)',
           description: 'Paid',
-          keyHint: 'https://platform.openai.com/api-keys 에서 발급',
+          keyHint: 'Get your key at platform.openai.com/api-keys',
         ),
     };
   }

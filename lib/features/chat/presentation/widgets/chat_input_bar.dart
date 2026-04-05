@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:eng_friend/features/settings/presentation/providers/settings_provider.dart';
 import 'package:eng_friend/features/voice/domain/entities/voice_state.dart';
 import 'package:eng_friend/features/voice/presentation/providers/voice_provider.dart';
 
@@ -40,6 +41,7 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar> {
   @override
   Widget build(BuildContext context) {
     final voiceState = ref.watch(voiceProvider);
+    final targetLang = ref.watch(settingsProvider.select((s) => s.targetLanguage));
     final isListening = voiceState.status == VoiceStatus.listening;
 
     return SafeArea(
@@ -106,7 +108,7 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar> {
                   child: TextField(
                     controller: _controller,
                     decoration: InputDecoration(
-                      hintText: isListening ? 'Listening...' : 'Type in English...',
+                      hintText: isListening ? 'Listening...' : 'Type in ${targetLang.displayName}...',
                       border: const OutlineInputBorder(
                         borderRadius: BorderRadius.all(Radius.circular(24)),
                       ),

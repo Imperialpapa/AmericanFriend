@@ -9,7 +9,7 @@ class SuggestionChips extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final suggestionState = ref.watch(suggestionProvider);
-    final showKorean = ref.watch(settingsProvider.select((s) => s.showKoreanHint));
+    final showKorean = ref.watch(settingsProvider.select((s) => s.showNativeHint));
 
     if (suggestionState.suggestions.isEmpty && !suggestionState.isLoading) {
       return const SizedBox.shrink();
@@ -23,7 +23,7 @@ class SuggestionChips extends ConsumerWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            '이렇게 말해 볼까요?',
+            'Try saying...',
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
                   color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
@@ -39,41 +39,59 @@ class SuggestionChips extends ConsumerWidget {
               ),
             )
           else
-            Wrap(
-              spacing: 8,
-              runSpacing: 4,
-              children: suggestionState.suggestions.map((suggestion) {
-                return ActionChip(
-                  label: Text.rich(
-                    TextSpan(
-                      children: [
-                        TextSpan(
-                          text: '[${suggestion.text}]',
-                          style: const TextStyle(
-                            color: Color(0xFFFFD54F), // 노란색
-                          ),
-                        ),
-                        if (showKorean &&
-                            suggestion.koreanHint != null &&
-                            suggestion.koreanHint!.isNotEmpty)
-                          TextSpan(
-                            text: ' (${suggestion.koreanHint})',
-                            style: const TextStyle(
-                              color: Color(0xFF64B5F6), // 파란색
-                              fontSize: 12,
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                  onPressed: () {
+            ...suggestionState.suggestions.map((suggestion) {
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(12),
+                  onTap: () {
                     ref
                         .read(suggestionProvider.notifier)
                         .selectSuggestion(suggestion);
                   },
-                );
-              }).toList(),
-            ),
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context)
+                          .colorScheme
+                          .surfaceContainerHighest
+                          .withOpacity(0.5),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: Theme.of(context)
+                            .colorScheme
+                            .outline
+                            .withOpacity(0.3),
+                      ),
+                    ),
+                    child: Text.rich(
+                      TextSpan(
+                        children: [
+                          TextSpan(
+                            text: suggestion.text,
+                            style: const TextStyle(
+                              color: Color(0xFFFFD54F),
+                            ),
+                          ),
+                          if (showKorean &&
+                              suggestion.koreanHint != null &&
+                              suggestion.koreanHint!.isNotEmpty)
+                            TextSpan(
+                              text: '\n${suggestion.koreanHint}',
+                              style: const TextStyle(
+                                color: Color(0xFF64B5F6),
+                                fontSize: 12,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }),
         ],
       ),
     );

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:eng_friend/core/constants/app_constants.dart';
 import 'package:eng_friend/core/constants/level_constants.dart';
 import 'package:eng_friend/features/level/presentation/providers/level_provider.dart';
+import 'package:eng_friend/features/settings/presentation/providers/settings_provider.dart';
 import 'package:eng_friend/features/settings/presentation/screens/settings_screen.dart';
 import 'package:eng_friend/di/service_providers.dart';
 
@@ -45,6 +46,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   }
 
   Widget _buildWelcomePage() {
+    final targetLang = ref.watch(settingsProvider.select((s) => s.targetLanguage));
+
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
@@ -60,7 +63,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         ),
         const SizedBox(height: 12),
         Text(
-          '나는 한국말도 할 줄 아는 미국인이야.\n영어 공부를 도와줄게!',
+          'I\'m your friendly language tutor.\nLet\'s practice ${targetLang.displayName} together!',
           textAlign: TextAlign.center,
           style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                 color: Colors.grey,
@@ -69,7 +72,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         ),
         const SizedBox(height: 12),
         Text(
-          'We\'re going to have fun learning English\ntogether through real conversations!',
+          'We\'re going to have fun learning\nthrough real conversations!',
           textAlign: TextAlign.center,
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 height: 1.6,
@@ -96,7 +99,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             style: Theme.of(context).textTheme.headlineSmall),
         const SizedBox(height: 8),
         Text(
-          '대화를 하려면 AI API 키가 필요해요.\n설정에서 입력해 주세요.',
+          'You need an AI API key to start chatting.\nPlease set it up in Settings.',
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 color: Colors.grey,
               ),
@@ -105,7 +108,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         Card(
           child: ListTile(
             leading: const Icon(Icons.key),
-            title: const Text('API 키 설정하기'),
+            title: const Text('Set up API Key'),
             trailing: const Icon(Icons.arrow_forward_ios, size: 16),
             onTap: () {
               Navigator.of(context).push(
@@ -137,11 +140,11 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SizedBox(height: 40),
-        Text('Your English Level',
+        Text('Your Level',
             style: Theme.of(context).textTheme.headlineSmall),
         const SizedBox(height: 8),
         Text(
-          '현재 영어 실력을 대략 선택해 주세요.\n대화하면서 자동으로 조절돼요!',
+          'Choose your approximate level.\nIt will adjust automatically as we chat!',
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 color: Colors.grey,
               ),

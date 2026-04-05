@@ -6,6 +6,7 @@ import 'package:eng_friend/features/level/domain/entities/level_assessment.dart'
 import 'package:eng_friend/services/ai/ai_service.dart';
 import 'package:eng_friend/services/ai/prompts/level_prompts.dart';
 import 'package:eng_friend/services/ai/prompts/suggestion_prompt.dart';
+import 'package:eng_friend/services/language/app_language.dart';
 
 class ClaudeService implements AiService {
   final String apiKey;
@@ -30,16 +31,16 @@ class ClaudeService implements AiService {
     final statusCode = e.response?.statusCode;
     final body = e.response?.data;
     if (statusCode == 401) {
-      return 'Claude API 키가 유효하지 않습니다. Settings에서 확인해 주세요.';
+      return 'Invalid Claude API key. Please check in Settings.';
     } else if (statusCode == 403) {
-      return 'Claude API 접근이 거부되었습니다. 키 권한을 확인해 주세요.';
+      return 'Claude API access denied. Please check your key permissions.';
     } else if (statusCode == 429) {
-      return 'API 요청 한도 초과. 잠시 후 다시 시도해 주세요.';
+      return 'Rate limit exceeded. Please try again later.';
     } else if (statusCode == 400) {
       final msg = (body is Map) ? (body['error']?['message'] ?? '') : '';
-      return 'API 요청 오류: $msg';
+      return 'API request error: $msg';
     }
-    return 'API 오류 ($statusCode): ${e.message}';
+    return 'API error ($statusCode): ${e.message}';
   }
 
   @override
@@ -124,6 +125,8 @@ class ClaudeService implements AiService {
   @override
   Future<LevelAssessment> assessLevel({
     required List<Message> recentMessages,
+    required AppLanguage nativeLanguage,
+    required AppLanguage targetLanguage,
   }) async {
     final userMessages = recentMessages
         .where((m) => m.role == MessageRole.user)
@@ -133,7 +136,7 @@ class ClaudeService implements AiService {
     final response = await _dio.post('/messages', data: {
       'model': _model,
       'max_tokens': 256,
-      'system': LevelPrompt.build(),
+      'system': LevelPrompt.build(nativeLanguage: nativeLanguage, targetLanguage: targetLanguage),
       'messages': [
         {'role': 'user', 'content': userMessages},
       ],
@@ -162,7 +165,9 @@ class ClaudeService implements AiService {
   Future<List<Suggestion>> generateSuggestions({
     required List<Message> conversationHistory,
     required int userLevel,
-    int count = 3,
+    required AppLanguage nativeLanguage,
+    required AppLanguage targetLanguage,
+    int count = 2,
   }) async {
     final messages = conversationHistory
         .map((m) => {
@@ -173,7 +178,7 @@ class ClaudeService implements AiService {
 
     messages.add({
       'role': 'user',
-      'content': SuggestionPrompt.build(userLevel: userLevel, count: count),
+      'content': SuggestionPrompt.build(userLevel: userLevel, nativeLanguage: nativeLanguage, targetLanguage: targetLanguage, count: count),
     });
 
     final response = await _dio.post('/messages', data: {

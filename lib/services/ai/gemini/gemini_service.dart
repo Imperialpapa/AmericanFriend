@@ -6,6 +6,7 @@ import 'package:eng_friend/features/level/domain/entities/level_assessment.dart'
 import 'package:eng_friend/services/ai/ai_service.dart';
 import 'package:eng_friend/services/ai/prompts/level_prompts.dart';
 import 'package:eng_friend/services/ai/prompts/suggestion_prompt.dart';
+import 'package:eng_friend/services/language/app_language.dart';
 
 class GeminiService implements AiService {
   final String apiKey;
@@ -41,7 +42,7 @@ class GeminiService implements AiService {
         rethrow;
       }
     }
-    throw Exception('Gemini: 최대 재시도 횟수 초과');
+    throw Exception('Gemini: max retries exceeded');
   }
 
   String _handleError(DioException e) {
@@ -52,13 +53,13 @@ class GeminiService implements AiService {
         : '';
 
     if (statusCode == 400 && detail.contains('API_KEY')) {
-      return 'Gemini API 키가 유효하지 않습니다. Settings에서 확인해 주세요.';
+      return 'Invalid Gemini API key. Please check in Settings.';
     } else if (statusCode == 400) {
-      return 'Gemini 요청 오류: $detail';
+      return 'Gemini request error: $detail';
     } else if (statusCode == 403) {
-      return 'Gemini API 접근 거부. 키 권한 또는 프로젝트 설정을 확인해 주세요.\n$detail';
+      return 'Gemini API access denied. Please check key permissions.\n$detail';
     } else if (statusCode == 429) {
-      return 'Gemini 요청 한도 초과입니다. 잠시 후 다시 시도해 주세요.\n$detail';
+      return 'Gemini rate limit exceeded. Please try again later.\n$detail';
     }
     final url = e.requestOptions.uri.toString();
     return 'Gemini ($statusCode): $detail\nURL: $url';
@@ -166,6 +167,8 @@ class GeminiService implements AiService {
   @override
   Future<LevelAssessment> assessLevel({
     required List<Message> recentMessages,
+    required AppLanguage nativeLanguage,
+    required AppLanguage targetLanguage,
   }) async {
     final userMessages = recentMessages
         .where((m) => m.role == MessageRole.user)
@@ -178,7 +181,7 @@ class GeminiService implements AiService {
         data: {
           'system_instruction': {
             'parts': [
-              {'text': LevelPrompt.build()}
+              {'text': LevelPrompt.build(nativeLanguage: nativeLanguage, targetLanguage: targetLanguage)}
             ]
           },
           'contents': [
@@ -211,13 +214,15 @@ class GeminiService implements AiService {
   Future<List<Suggestion>> generateSuggestions({
     required List<Message> conversationHistory,
     required int userLevel,
-    int count = 3,
+    required AppLanguage nativeLanguage,
+    required AppLanguage targetLanguage,
+    int count = 2,
   }) async {
     final contents = _buildContents(conversationHistory, '');
     contents.add({
       'role': 'user',
       'parts': [
-        {'text': SuggestionPrompt.build(userLevel: userLevel, count: count)}
+        {'text': SuggestionPrompt.build(userLevel: userLevel, nativeLanguage: nativeLanguage, targetLanguage: targetLanguage, count: count)}
       ]
     });
 

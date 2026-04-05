@@ -1,7 +1,7 @@
 abstract class LevelConstants {
   static const int minLevel = 1;
   static const int maxLevel = 10;
-  static const int defaultLevel = 5;
+  static const int defaultLevel = 1;
 
   /// 레벨 평가를 위한 최소 메시지 수
   static const int messagesPerAssessment = 5;

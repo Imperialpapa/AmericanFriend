@@ -36,7 +36,7 @@ final aiServiceProvider = Provider<AiService>((ref) {
 final flutterTtsProvider = Provider<FlutterTts>((ref) {
   final settings = ref.watch(settingsProvider);
   final tts = FlutterTts();
-  tts.setLanguage('en-US');
+  tts.setLanguage(settings.ttsLanguage);
   tts.setSpeechRate(settings.ttsSpeechRate);
   // 여성: 높은 피치, 남성: 낮은 피치
   tts.setPitch(settings.ttsVoiceGender == TtsVoiceGender.female ? 1.2 : 0.8);

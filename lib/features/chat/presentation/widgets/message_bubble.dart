@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:eng_friend/di/service_providers.dart';
+import 'package:eng_friend/features/settings/presentation/providers/settings_provider.dart';
 import 'package:eng_friend/services/pipeline/tts_queue.dart';
 
 class MessageBubble extends ConsumerStatefulWidget {
@@ -21,6 +22,7 @@ class MessageBubble extends ConsumerStatefulWidget {
 
 class _MessageBubbleState extends ConsumerState<MessageBubble> {
   bool _isSpeaking = false;
+  bool _revealed = false;
 
   Future<void> _speak() async {
     final ttsQueue = ref.read(ttsQueueProvider);
@@ -31,11 +33,12 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
       return;
     }
 
-    // 한글 번역 괄호 + 잔여 한글 문자 제거 후 영어만 읽기
-    final englishOnly = widget.content
-        .replaceAll(RegExp(r'\s*\([^)]*[가-힣]+[^)]*\)'), '')
-        .replaceAll(RegExp(r'[가-힣ㄱ-ㅎㅏ-ㅣ]+'), '')
-        .replaceAll(RegExp(r'\s{2,}'), ' ');
+    final settings = ref.read(settingsProvider);
+    final ttsText = settings.nativeTtsEnabled
+        ? widget.content.trim()
+        : widget.content
+            .replaceAll(RegExp(r'\s*\([^)]*\)'), '')
+            .replaceAll(RegExp(r'\s{2,}'), ' ');
 
     setState(() => _isSpeaking = true);
 
@@ -46,7 +49,7 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
       }
     });
 
-    await ttsQueue.enqueue(englishOnly.trim());
+    await ttsQueue.enqueue(ttsText.trim());
 
     // idle 상태가 되면 구독 해제
     await for (final state in ttsQueue.stateStream) {
@@ -55,24 +58,27 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
     sub.cancel();
   }
 
-  /// AI 응답에서 영어는 흰색, 한글(괄호)은 밝은 회색으로 표시
-  TextSpan _buildColoredContent(BuildContext context, String text) {
+  /// AI 응답을 대상 언어(기본색) + 모국어 힌트(회색) 로 분리 표시
+  /// showNativeHint=false 이면 괄호 부분을 숨김
+  TextSpan _buildColoredContent(BuildContext context, String text, {required bool showNative}) {
     final style = Theme.of(context).textTheme.bodyMedium;
-    final koreanPattern = RegExp(r'(\([^)]*[가-힣]+[^)]*\))');
+    final hintPattern = RegExp(r'(\s*\([^)]+\))');
     final parts = <TextSpan>[];
     int lastEnd = 0;
 
-    for (final match in koreanPattern.allMatches(text)) {
+    for (final match in hintPattern.allMatches(text)) {
       if (match.start > lastEnd) {
         parts.add(TextSpan(
           text: text.substring(lastEnd, match.start),
           style: style,
         ));
       }
-      parts.add(TextSpan(
-        text: match.group(0),
-        style: style?.copyWith(color: Colors.grey[400], fontSize: 13),
-      ));
+      if (showNative) {
+        parts.add(TextSpan(
+          text: match.group(0),
+          style: style?.copyWith(color: Colors.grey[400], fontSize: 13),
+        ));
+      }
       lastEnd = match.end;
     }
 
@@ -89,64 +95,81 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final settings = ref.watch(settingsProvider);
+    final showTarget = settings.showTargetText;
+    final showNative = settings.showNativeHint;
+
+    // showTargetText가 off이면 탭해서 공개
+    final isHidden = !widget.isUser && !showTarget && !_revealed;
 
     return Align(
       alignment: widget.isUser ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 4),
-        constraints: BoxConstraints(
-          maxWidth: MediaQuery.of(context).size.width * 0.75,
-        ),
-        decoration: BoxDecoration(
-          color: widget.isUser
-              ? colorScheme.primaryContainer
-              : colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.only(
-            topLeft: const Radius.circular(16),
-            topRight: const Radius.circular(16),
-            bottomLeft: Radius.circular(widget.isUser ? 16 : 4),
-            bottomRight: Radius.circular(widget.isUser ? 4 : 16),
+      child: GestureDetector(
+        onTap: isHidden ? () => setState(() => _revealed = true) : null,
+        child: Container(
+          margin: const EdgeInsets.symmetric(vertical: 4),
+          constraints: BoxConstraints(
+            maxWidth: MediaQuery.of(context).size.width * 0.75,
           ),
-        ),
-        child: widget.isTyping
-            ? const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                child: _TypingDots(),
-              )
-            : Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
-                    child: widget.isUser
-                        ? Text(
-                            widget.content,
-                            style: Theme.of(context).textTheme.bodyMedium,
-                          )
-                        : Text.rich(
-                            _buildColoredContent(context, widget.content),
+          decoration: BoxDecoration(
+            color: widget.isUser
+                ? colorScheme.primaryContainer
+                : colorScheme.surfaceContainerHighest,
+            borderRadius: BorderRadius.only(
+              topLeft: const Radius.circular(16),
+              topRight: const Radius.circular(16),
+              bottomLeft: Radius.circular(widget.isUser ? 16 : 4),
+              bottomRight: Radius.circular(widget.isUser ? 4 : 16),
+            ),
+          ),
+          child: widget.isTyping
+              ? const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  child: _TypingDots(),
+                )
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+                      child: widget.isUser
+                          ? Text(
+                              widget.content,
+                              style: Theme.of(context).textTheme.bodyMedium,
+                            )
+                          : isHidden
+                              ? Text(
+                                  'Tap to reveal',
+                                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                        color: Colors.grey[500],
+                                        fontStyle: FontStyle.italic,
+                                      ),
+                                )
+                              : Text.rich(
+                                  _buildColoredContent(context, widget.content, showNative: showNative),
+                                ),
+                    ),
+                    if (!widget.isUser)
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: IconButton(
+                          icon: Icon(
+                            _isSpeaking ? Icons.stop_circle : Icons.volume_up,
+                            size: 18,
+                            color: colorScheme.onSurfaceVariant,
                           ),
-                  ),
-                  if (!widget.isUser)
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: IconButton(
-                        icon: Icon(
-                          _isSpeaking ? Icons.stop_circle : Icons.volume_up,
-                          size: 18,
-                          color: colorScheme.onSurfaceVariant,
+                          tooltip: _isSpeaking ? 'Stop' : 'Listen',
+                          visualDensity: VisualDensity.compact,
+                          padding: const EdgeInsets.only(right: 8, bottom: 4),
+                          constraints: const BoxConstraints(),
+                          onPressed: _speak,
                         ),
-                        tooltip: _isSpeaking ? '중지' : '다시 듣기',
-                        visualDensity: VisualDensity.compact,
-                        padding: const EdgeInsets.only(right: 8, bottom: 4),
-                        constraints: const BoxConstraints(),
-                        onPressed: _speak,
-                      ),
-                    )
-                  else
-                    const SizedBox(height: 10),
-                ],
-              ),
+                      )
+                    else
+                      const SizedBox(height: 10),
+                  ],
+                ),
+        ),
       ),
     );
   }

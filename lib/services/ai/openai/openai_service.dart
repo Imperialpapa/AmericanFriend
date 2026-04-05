@@ -6,6 +6,7 @@ import 'package:eng_friend/features/level/domain/entities/level_assessment.dart'
 import 'package:eng_friend/services/ai/ai_service.dart';
 import 'package:eng_friend/services/ai/prompts/level_prompts.dart';
 import 'package:eng_friend/services/ai/prompts/suggestion_prompt.dart';
+import 'package:eng_friend/services/language/app_language.dart';
 
 class OpenAiService implements AiService {
   final String apiKey;
@@ -28,15 +29,15 @@ class OpenAiService implements AiService {
   String _handleError(DioException e) {
     final statusCode = e.response?.statusCode;
     if (statusCode == 401) {
-      return 'OpenAI API 키가 유효하지 않습니다. Settings에서 확인해 주세요.';
+      return 'Invalid OpenAI API key. Please check in Settings.';
     } else if (statusCode == 429) {
-      return 'API 요청 한도 초과. 잠시 후 다시 시도해 주세요.';
+      return 'Rate limit exceeded. Please try again later.';
     } else if (statusCode == 400) {
       final body = e.response?.data;
       final msg = (body is Map) ? (body['error']?['message'] ?? '') : '';
-      return 'API 요청 오류: $msg';
+      return 'API request error: $msg';
     }
-    return 'API 오류 ($statusCode): ${e.message}';
+    return 'API error ($statusCode): ${e.message}';
   }
 
   @override
@@ -118,6 +119,8 @@ class OpenAiService implements AiService {
   @override
   Future<LevelAssessment> assessLevel({
     required List<Message> recentMessages,
+    required AppLanguage nativeLanguage,
+    required AppLanguage targetLanguage,
   }) async {
     final userMessages = recentMessages
         .where((m) => m.role == MessageRole.user)
@@ -127,7 +130,7 @@ class OpenAiService implements AiService {
     final response = await _dio.post('/chat/completions', data: {
       'model': _model,
       'messages': [
-        {'role': 'system', 'content': LevelPrompt.build()},
+        {'role': 'system', 'content': LevelPrompt.build(nativeLanguage: nativeLanguage, targetLanguage: targetLanguage)},
         {'role': 'user', 'content': userMessages},
       ],
     });
@@ -155,7 +158,9 @@ class OpenAiService implements AiService {
   Future<List<Suggestion>> generateSuggestions({
     required List<Message> conversationHistory,
     required int userLevel,
-    int count = 3,
+    required AppLanguage nativeLanguage,
+    required AppLanguage targetLanguage,
+    int count = 2,
   }) async {
     final messages = conversationHistory
         .map((m) => {
@@ -166,7 +171,7 @@ class OpenAiService implements AiService {
 
     messages.add({
       'role': 'user',
-      'content': SuggestionPrompt.build(userLevel: userLevel, count: count),
+      'content': SuggestionPrompt.build(userLevel: userLevel, nativeLanguage: nativeLanguage, targetLanguage: targetLanguage, count: count),
     });
 
     final response = await _dio.post('/chat/completions', data: {
