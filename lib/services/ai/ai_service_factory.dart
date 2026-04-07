@@ -9,12 +9,13 @@ class AiServiceFactory {
   static AiService create({
     required AiProviderType provider,
     required String apiKey,
+    required String modelId,
   }) {
     return switch (provider) {
-      AiProviderType.claude => ClaudeService(apiKey: apiKey),
-      AiProviderType.openai => OpenAiService(apiKey: apiKey),
-      AiProviderType.gemini => GeminiService(apiKey: apiKey),
-      AiProviderType.groq => GroqService(apiKey: apiKey),
+      AiProviderType.claude => ClaudeService(apiKey: apiKey, model: modelId),
+      AiProviderType.openai => OpenAiService(apiKey: apiKey, model: modelId),
+      AiProviderType.gemini => GeminiService(apiKey: apiKey, model: modelId),
+      AiProviderType.groq => GroqService(apiKey: apiKey, model: modelId),
     };
   }
 }

@@ -11,12 +11,12 @@ import 'package:eng_friend/services/language/app_language.dart';
 /// Groq API — OpenAI 호환 포맷, 무료 + 초고속
 class GroqService implements AiService {
   final String apiKey;
+  final String model;
   final Dio _dio;
 
   static const _baseUrl = 'https://api.groq.com/openai/v1';
-  static const _model = 'llama-3.3-70b-versatile';
 
-  GroqService({required this.apiKey})
+  GroqService({required this.apiKey, this.model = 'llama-3.3-70b-versatile'})
       : _dio = Dio(BaseOptions(
           baseUrl: _baseUrl,
           connectTimeout: const Duration(seconds: 30),
@@ -45,7 +45,7 @@ class GroqService implements AiService {
   }) async {
     try {
       final response = await _dio.post('/chat/completions', data: {
-        'model': _model,
+        'model': model,
         'messages': [
           {'role': 'system', 'content': systemPrompt},
           ...conversationHistory.map((m) => {
@@ -73,7 +73,7 @@ class GroqService implements AiService {
       response = await _dio.post(
         '/chat/completions',
         data: {
-          'model': _model,
+          'model': model,
           'stream': true,
           'messages': [
             {'role': 'system', 'content': systemPrompt},
@@ -126,7 +126,7 @@ class GroqService implements AiService {
 
     try {
       final response = await _dio.post('/chat/completions', data: {
-        'model': _model,
+        'model': model,
         'messages': [
           {'role': 'system', 'content': LevelPrompt.build(nativeLanguage: nativeLanguage, targetLanguage: targetLanguage)},
           {'role': 'user', 'content': userMessages},
@@ -154,6 +154,7 @@ class GroqService implements AiService {
     required AppLanguage nativeLanguage,
     required AppLanguage targetLanguage,
     int count = 2,
+    String? lastAiMessage,
   }) async {
     final messages = conversationHistory
         .map((m) => {
@@ -164,12 +165,12 @@ class GroqService implements AiService {
 
     messages.add({
       'role': 'user',
-      'content': SuggestionPrompt.build(userLevel: userLevel, nativeLanguage: nativeLanguage, targetLanguage: targetLanguage, count: count),
+      'content': SuggestionPrompt.build(userLevel: userLevel, nativeLanguage: nativeLanguage, targetLanguage: targetLanguage, count: count, lastAiMessage: lastAiMessage),
     });
 
     try {
       final response = await _dio.post('/chat/completions', data: {
-        'model': _model,
+        'model': model,
         'messages': messages,
       });
 

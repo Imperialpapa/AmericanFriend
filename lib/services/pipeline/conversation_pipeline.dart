@@ -42,7 +42,9 @@ class ConversationPipeline {
           final ttsText = nativeTtsEnabled
               ? sentence.trim()
               : sentence
-                  .replaceAll(RegExp(r'\s*\([^)]*\)'), '')
+                  .replaceAll(RegExp(r'\s*\([^)]*\)'), '')   // 완전한 괄호 제거
+                  .replaceAll(RegExp(r'\s*\([^)]*$'), '')     // 끝에 열린 괄호 제거
+                  .replaceAll(RegExp(r'^[^(]*\)\s*'), '')     // 앞에 닫힌 괄호 제거
                   .replaceAll(RegExp(r'\s{2,}'), ' ')
                   .trim();
           if (ttsText.isNotEmpty) {

@@ -10,12 +10,12 @@ import 'package:eng_friend/services/language/app_language.dart';
 
 class ClaudeService implements AiService {
   final String apiKey;
+  final String model;
   final Dio _dio;
 
   static const _baseUrl = 'https://api.anthropic.com/v1';
-  static const _model = 'claude-sonnet-4-20250514';
 
-  ClaudeService({required this.apiKey})
+  ClaudeService({required this.apiKey, this.model = 'claude-sonnet-4-20250514'})
       : _dio = Dio(BaseOptions(
           baseUrl: _baseUrl,
           connectTimeout: const Duration(seconds: 30),
@@ -51,7 +51,7 @@ class ClaudeService implements AiService {
   }) async {
     try {
       final response = await _dio.post('/messages', data: {
-        'model': _model,
+        'model': model,
         'max_tokens': 1024,
         'system': systemPrompt,
         'messages': conversationHistory
@@ -80,7 +80,7 @@ class ClaudeService implements AiService {
       response = await _dio.post(
         '/messages',
         data: {
-          'model': _model,
+          'model': model,
           'max_tokens': 1024,
           'stream': true,
           'system': systemPrompt,
@@ -134,7 +134,7 @@ class ClaudeService implements AiService {
         .join('\n');
 
     final response = await _dio.post('/messages', data: {
-      'model': _model,
+      'model': model,
       'max_tokens': 256,
       'system': LevelPrompt.build(nativeLanguage: nativeLanguage, targetLanguage: targetLanguage),
       'messages': [
@@ -168,6 +168,7 @@ class ClaudeService implements AiService {
     required AppLanguage nativeLanguage,
     required AppLanguage targetLanguage,
     int count = 2,
+    String? lastAiMessage,
   }) async {
     final messages = conversationHistory
         .map((m) => {
@@ -178,11 +179,11 @@ class ClaudeService implements AiService {
 
     messages.add({
       'role': 'user',
-      'content': SuggestionPrompt.build(userLevel: userLevel, nativeLanguage: nativeLanguage, targetLanguage: targetLanguage, count: count),
+      'content': SuggestionPrompt.build(userLevel: userLevel, nativeLanguage: nativeLanguage, targetLanguage: targetLanguage, count: count, lastAiMessage: lastAiMessage),
     });
 
     final response = await _dio.post('/messages', data: {
-      'model': _model,
+      'model': model,
       'max_tokens': 512,
       'messages': messages,
     });

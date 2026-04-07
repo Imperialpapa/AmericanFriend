@@ -30,6 +30,17 @@ class UserSettings {
   final double ttsSpeechRate;
   final TtsVoiceGender ttsVoiceGender;
 
+  /// 프로바이더별 선택된 모델 ID
+  final String? claudeModelId;
+  final String? openaiModelId;
+  final String? geminiModelId;
+  final String? groqModelId;
+
+  /// 알림 설정
+  final bool reminderEnabled;
+  final int reminderHour;
+  final int reminderMinute;
+
   const UserSettings({
     this.claudeApiKey = '',
     this.openaiApiKey = '',
@@ -46,6 +57,13 @@ class UserSettings {
     this.suggestionDelaySec = 5,
     this.ttsSpeechRate = 0.5,
     this.ttsVoiceGender = TtsVoiceGender.female,
+    this.claudeModelId,
+    this.openaiModelId,
+    this.geminiModelId,
+    this.groqModelId,
+    this.reminderEnabled = false,
+    this.reminderHour = 20,
+    this.reminderMinute = 0,
   });
 
   /// 현재 선택된 프로바이더의 API 키
@@ -55,6 +73,14 @@ class UserSettings {
         AiProviderType.gemini => geminiApiKey,
         AiProviderType.groq => groqApiKey,
       };
+
+  /// 현재 선택된 프로바이더의 모델 ID (유효성 검증 포함)
+  String get activeModelId => aiProvider.resolveModelId(switch (aiProvider) {
+        AiProviderType.claude => claudeModelId,
+        AiProviderType.openai => openaiModelId,
+        AiProviderType.gemini => geminiModelId,
+        AiProviderType.groq => groqModelId,
+      });
 
   /// TTS용 언어 코드 (대상 언어 기반)
   String get ttsLanguage => targetLanguage.ttsCode;
@@ -78,6 +104,13 @@ class UserSettings {
     int? suggestionDelaySec,
     double? ttsSpeechRate,
     TtsVoiceGender? ttsVoiceGender,
+    String? claudeModelId,
+    String? openaiModelId,
+    String? geminiModelId,
+    String? groqModelId,
+    bool? reminderEnabled,
+    int? reminderHour,
+    int? reminderMinute,
   }) {
     return UserSettings(
       claudeApiKey: claudeApiKey ?? this.claudeApiKey,
@@ -95,6 +128,13 @@ class UserSettings {
       suggestionDelaySec: suggestionDelaySec ?? this.suggestionDelaySec,
       ttsSpeechRate: ttsSpeechRate ?? this.ttsSpeechRate,
       ttsVoiceGender: ttsVoiceGender ?? this.ttsVoiceGender,
+      claudeModelId: claudeModelId ?? this.claudeModelId,
+      openaiModelId: openaiModelId ?? this.openaiModelId,
+      geminiModelId: geminiModelId ?? this.geminiModelId,
+      groqModelId: groqModelId ?? this.groqModelId,
+      reminderEnabled: reminderEnabled ?? this.reminderEnabled,
+      reminderHour: reminderHour ?? this.reminderHour,
+      reminderMinute: reminderMinute ?? this.reminderMinute,
     );
   }
 }

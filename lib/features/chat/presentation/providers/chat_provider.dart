@@ -8,6 +8,7 @@ import 'package:eng_friend/services/pipeline/conversation_pipeline.dart';
 import 'package:eng_friend/services/pipeline/pipeline_event.dart';
 import 'package:eng_friend/features/settings/presentation/providers/settings_provider.dart';
 import 'package:eng_friend/di/service_providers.dart';
+import 'package:eng_friend/features/topic/presentation/providers/topic_provider.dart';
 
 /// 채팅 상태
 class ChatState {
@@ -48,7 +49,7 @@ class ChatState {
 
 /// 채팅 상태 관리 프로바이더
 class ChatNotifier extends StateNotifier<ChatState> {
-  final ConversationPipeline _pipeline;
+  final ConversationPipeline Function() _getPipeline;
   final AppDatabase _db;
   final bool Function() _hasApiKey;
   final bool Function() _showNativeHint;
@@ -56,23 +57,33 @@ class ChatNotifier extends StateNotifier<ChatState> {
   final bool Function() _getNativeTtsEnabled;
   final AppLanguage Function() _getNativeLanguage;
   final AppLanguage Function() _getTargetLanguage;
+  final String? Function() _getTopicTitle;
+  final String? Function() _getTopicSituation;
+  final String? Function() _getTopicAiRole;
   StreamSubscription<PipelineEvent>? _pipelineSubscription;
 
   ChatNotifier(
-    this._pipeline,
     this._db, {
+    required ConversationPipeline Function() getPipeline,
     required bool Function() hasApiKey,
     required bool Function() showNativeHint,
     required bool Function() getTargetTtsEnabled,
     required bool Function() getNativeTtsEnabled,
     required AppLanguage Function() getNativeLanguage,
     required AppLanguage Function() getTargetLanguage,
-  })  : _hasApiKey = hasApiKey,
+    required String? Function() getTopicTitle,
+    required String? Function() getTopicSituation,
+    required String? Function() getTopicAiRole,
+  })  : _getPipeline = getPipeline,
+        _hasApiKey = hasApiKey,
         _showNativeHint = showNativeHint,
         _getTargetTtsEnabled = getTargetTtsEnabled,
         _getNativeTtsEnabled = getNativeTtsEnabled,
         _getNativeLanguage = getNativeLanguage,
         _getTargetLanguage = getTargetLanguage,
+        _getTopicTitle = getTopicTitle,
+        _getTopicSituation = getTopicSituation,
+        _getTopicAiRole = getTopicAiRole,
         super(const ChatState());
 
   /// 기존 대화 불러오기
@@ -152,8 +163,9 @@ class ChatNotifier extends StateNotifier<ChatState> {
       await _db.updateConversationTitle(state.conversationId!, title);
     }
 
-    // 파이프라인 실행
-    final eventStream = _pipeline.processTextInput(
+    // 파이프라인 실행 (매번 최신 설정 반영)
+    final pipeline = _getPipeline();
+    final eventStream = pipeline.processTextInput(
       text: text,
       conversationHistory: state.messages,
       systemPrompt: SystemPrompt.build(
@@ -161,6 +173,9 @@ class ChatNotifier extends StateNotifier<ChatState> {
         nativeLanguage: _getNativeLanguage(),
         targetLanguage: _getTargetLanguage(),
         showNativeHint: _showNativeHint(),
+        topicTitle: _getTopicTitle(),
+        topicSituation: _getTopicSituation(),
+        topicAiRole: _getTopicAiRole(),
       ),
       userLevel: state.userLevel,
       targetTtsEnabled: _getTargetTtsEnabled(),
@@ -235,7 +250,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
   /// 사용자 끼어들기
   Future<void> interrupt() async {
     _pipelineSubscription?.cancel();
-    await _pipeline.interrupt();
+    await _getPipeline().interrupt();
 
     if (state.currentAiResponse.isNotEmpty) {
       final aiMsgId =
@@ -283,12 +298,11 @@ class ChatNotifier extends StateNotifier<ChatState> {
 
 /// 채팅 프로바이더
 final chatProvider = StateNotifierProvider<ChatNotifier, ChatState>((ref) {
-  final pipeline = ref.watch(conversationPipelineProvider);
-  final db = ref.watch(appDatabaseProvider);
+  final db = ref.read(appDatabaseProvider);
 
   return ChatNotifier(
-    pipeline,
     db,
+    getPipeline: () => ref.read(conversationPipelineProvider),
     hasApiKey: () {
       final s = ref.read(settingsProvider);
       final key = s.activeApiKey;
@@ -308,6 +322,18 @@ final chatProvider = StateNotifierProvider<ChatNotifier, ChatState>((ref) {
     },
     getTargetLanguage: () {
       return ref.read(settingsProvider).targetLanguage;
+    },
+    getTopicTitle: () {
+      final topic = ref.read(topicProvider).activeTopic;
+      return topic?.title;
+    },
+    getTopicSituation: () {
+      final topic = ref.read(topicProvider).activeTopic;
+      return topic?.situation;
+    },
+    getTopicAiRole: () {
+      final topic = ref.read(topicProvider).activeTopic;
+      return topic?.aiRole;
     },
   );
 });

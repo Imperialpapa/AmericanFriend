@@ -6,6 +6,7 @@ import 'package:eng_friend/features/level/presentation/providers/level_provider.
 import 'package:eng_friend/features/settings/presentation/providers/settings_provider.dart';
 import 'package:eng_friend/features/settings/presentation/screens/settings_screen.dart';
 import 'package:eng_friend/di/service_providers.dart';
+import 'package:eng_friend/services/language/app_language.dart';
 
 const _onboardingCompleteKey = 'onboarding_complete';
 
@@ -27,6 +28,22 @@ class OnboardingScreen extends ConsumerStatefulWidget {
 class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   int _currentPage = 0;
   int _selectedLevel = LevelConstants.defaultLevel;
+  late AppLanguage _nativeLanguage;
+  late AppLanguage _targetLanguage;
+
+  @override
+  void initState() {
+    super.initState();
+    // 기기 시스템 언어로 모국어 기본값 설정
+    final systemLocale =
+        WidgetsBinding.instance.platformDispatcher.locale.languageCode;
+    _nativeLanguage = AppLanguage.fromSystemLocale(systemLocale);
+    // 대상 언어 기본값: 모국어가 영어면 한국어, 아니면 영어
+    _targetLanguage = _nativeLanguage == AppLanguage.englishUS ||
+            _nativeLanguage == AppLanguage.englishUK
+        ? AppLanguage.korean
+        : AppLanguage.englishUS;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -36,8 +53,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           padding: const EdgeInsets.all(24),
           child: switch (_currentPage) {
             0 => _buildWelcomePage(),
-            1 => _buildApiKeyPage(),
-            2 => _buildLevelPage(),
+            1 => _buildLanguagePage(),
+            2 => _buildApiKeyPage(),
+            3 => _buildLevelPage(),
             _ => const SizedBox.shrink(),
           },
         ),
@@ -46,8 +64,6 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   }
 
   Widget _buildWelcomePage() {
-    final targetLang = ref.watch(settingsProvider.select((s) => s.targetLanguage));
-
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
@@ -63,7 +79,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         ),
         const SizedBox(height: 12),
         Text(
-          'I\'m your friendly language tutor.\nLet\'s practice ${targetLang.displayName} together!',
+          'I\'m your friendly language tutor.\nLet\'s practice together!',
           textAlign: TextAlign.center,
           style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                 color: Colors.grey,
@@ -85,6 +101,99 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             onPressed: () => setState(() => _currentPage = 1),
             child: const Text('Let\'s Go!'),
           ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLanguagePage() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 40),
+        Text('Language Setup',
+            style: Theme.of(context).textTheme.headlineSmall),
+        const SizedBox(height: 8),
+        Text(
+          'Choose your native language and the language you want to learn.',
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Colors.grey,
+              ),
+        ),
+        const SizedBox(height: 24),
+
+        // 모국어 (기기 설정 기반 자동 감지)
+        Text('Your native language',
+            style: Theme.of(context).textTheme.titleSmall),
+        const SizedBox(height: 4),
+        Text(
+          'Detected from your device settings',
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Colors.grey,
+              ),
+        ),
+        const SizedBox(height: 8),
+        DropdownButtonFormField<AppLanguage>(
+          initialValue: _nativeLanguage,
+          decoration: const InputDecoration(
+            border: OutlineInputBorder(),
+            prefixIcon: Icon(Icons.translate),
+          ),
+          items: AppLanguage.values
+              .where((lang) => lang != _targetLanguage)
+              .map((lang) => DropdownMenuItem(
+                    value: lang,
+                    child: Text(lang.label),
+                  ))
+              .toList(),
+          onChanged: (lang) {
+            if (lang != null) setState(() => _nativeLanguage = lang);
+          },
+        ),
+
+        const SizedBox(height: 24),
+
+        // 대상 언어 선택
+        Text('Language to learn',
+            style: Theme.of(context).textTheme.titleSmall),
+        const SizedBox(height: 8),
+        DropdownButtonFormField<AppLanguage>(
+          initialValue: _targetLanguage,
+          decoration: const InputDecoration(
+            border: OutlineInputBorder(),
+            prefixIcon: Icon(Icons.school),
+          ),
+          items: AppLanguage.values
+              .where((lang) => lang != _nativeLanguage)
+              .map((lang) => DropdownMenuItem(
+                    value: lang,
+                    child: Text(lang.label),
+                  ))
+              .toList(),
+          onChanged: (lang) {
+            if (lang != null) setState(() => _targetLanguage = lang);
+          },
+        ),
+
+        const Spacer(),
+        Row(
+          children: [
+            TextButton(
+              onPressed: () => setState(() => _currentPage = 0),
+              child: const Text('Back'),
+            ),
+            const Spacer(),
+            FilledButton(
+              onPressed: () async {
+                // 선택한 언어 저장
+                final notifier = ref.read(settingsProvider.notifier);
+                await notifier.setNativeLanguage(_nativeLanguage);
+                await notifier.setTargetLanguage(_targetLanguage);
+                setState(() => _currentPage = 2);
+              },
+              child: const Text('Next'),
+            ),
+          ],
         ),
       ],
     );
@@ -121,12 +230,12 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         Row(
           children: [
             TextButton(
-              onPressed: () => setState(() => _currentPage = 0),
+              onPressed: () => setState(() => _currentPage = 1),
               child: const Text('Back'),
             ),
             const Spacer(),
             FilledButton(
-              onPressed: () => setState(() => _currentPage = 2),
+              onPressed: () => setState(() => _currentPage = 3),
               child: const Text('Next'),
             ),
           ],
@@ -190,7 +299,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         Row(
           children: [
             TextButton(
-              onPressed: () => setState(() => _currentPage = 1),
+              onPressed: () => setState(() => _currentPage = 2),
               child: const Text('Back'),
             ),
             const Spacer(),

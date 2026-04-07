@@ -24,6 +24,11 @@ class SentenceSplitter {
           break;
         }
 
+        // 괄호 안에서는 문장을 분리하지 않음 (모국어 텍스트 보호)
+        if (_hasUnclosedParenthesis(candidate)) {
+          break;
+        }
+
         yield candidate;
         _buffer = _buffer.substring(endIndex);
       }
@@ -42,6 +47,16 @@ class SentenceSplitter {
       if (text.endsWith(abbr)) return true;
     }
     return false;
+  }
+
+  /// 열린 괄호가 닫히지 않았는지 확인
+  bool _hasUnclosedParenthesis(String text) {
+    int depth = 0;
+    for (int i = 0; i < text.length; i++) {
+      if (text.codeUnitAt(i) == 0x28) depth++; // '('
+      if (text.codeUnitAt(i) == 0x29) depth--; // ')'
+    }
+    return depth > 0;
   }
 
   void reset() {

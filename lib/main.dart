@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:eng_friend/app.dart';
 import 'package:eng_friend/di/service_providers.dart';
 import 'package:eng_friend/features/settings/presentation/providers/settings_provider.dart';
+import 'package:eng_friend/services/notification/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -39,6 +40,17 @@ class _AppLoaderState extends ConsumerState<_AppLoader> {
 
   Future<void> _loadSettings() async {
     await ref.read(settingsProvider.notifier).load();
+
+    // 알림이 활성화되어 있으면 스케줄 복원
+    final settings = ref.read(settingsProvider);
+    if (settings.reminderEnabled) {
+      await NotificationService.initialize();
+      await NotificationService.scheduleDailyReminder(
+        hour: settings.reminderHour,
+        minute: settings.reminderMinute,
+      );
+    }
+
     setState(() => _loaded = true);
   }
 

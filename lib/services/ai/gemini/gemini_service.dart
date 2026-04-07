@@ -10,13 +10,13 @@ import 'package:eng_friend/services/language/app_language.dart';
 
 class GeminiService implements AiService {
   final String apiKey;
+  final String model;
   final Dio _dio;
 
   static const _baseUrl = 'https://generativelanguage.googleapis.com';
-  static const _model = 'gemini-2.5-flash';
   static const _maxRetries = 3;
 
-  GeminiService({required this.apiKey})
+  GeminiService({required this.apiKey, this.model = 'gemini-2.5-flash'})
       : _dio = Dio(BaseOptions(
           baseUrl: _baseUrl,
           connectTimeout: const Duration(seconds: 30),
@@ -89,7 +89,7 @@ class GeminiService implements AiService {
   }) async {
     try {
       final response = await _postWithRetry(
-        '/v1beta/models/$_model:generateContent?key=$apiKey',
+        '/v1beta/models/$model:generateContent?key=$apiKey',
         data: {
           'system_instruction': {
             'parts': [
@@ -120,7 +120,7 @@ class GeminiService implements AiService {
     late final Response response;
     try {
       response = await _postWithRetry(
-        '/v1beta/models/$_model:streamGenerateContent?alt=sse&key=$apiKey',
+        '/v1beta/models/$model:streamGenerateContent?alt=sse&key=$apiKey',
         data: {
           'system_instruction': {
             'parts': [
@@ -177,7 +177,7 @@ class GeminiService implements AiService {
 
     try {
       final response = await _postWithRetry(
-        '/v1beta/models/$_model:generateContent?key=$apiKey',
+        '/v1beta/models/$model:generateContent?key=$apiKey',
         data: {
           'system_instruction': {
             'parts': [
@@ -217,18 +217,19 @@ class GeminiService implements AiService {
     required AppLanguage nativeLanguage,
     required AppLanguage targetLanguage,
     int count = 2,
+    String? lastAiMessage,
   }) async {
     final contents = _buildContents(conversationHistory, '');
     contents.add({
       'role': 'user',
       'parts': [
-        {'text': SuggestionPrompt.build(userLevel: userLevel, nativeLanguage: nativeLanguage, targetLanguage: targetLanguage, count: count)}
+        {'text': SuggestionPrompt.build(userLevel: userLevel, nativeLanguage: nativeLanguage, targetLanguage: targetLanguage, count: count, lastAiMessage: lastAiMessage)}
       ]
     });
 
     try {
       final response = await _postWithRetry(
-        '/v1beta/models/$_model:generateContent?key=$apiKey',
+        '/v1beta/models/$model:generateContent?key=$apiKey',
         data: {'contents': contents},
       );
 

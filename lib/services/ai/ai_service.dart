@@ -34,5 +34,6 @@ abstract class AiService {
     required AppLanguage nativeLanguage,
     required AppLanguage targetLanguage,
     int count = 2,
+    String? lastAiMessage,
   });
 }

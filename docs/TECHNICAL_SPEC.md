@@ -1,15 +1,15 @@
-# Language Friend - Technical Specification
+# Language Friend — Technical Specification
 
 ## Overview
 
 | Item | Detail |
 |------|--------|
 | App Name | Language Friend (eng_friend) |
-| Version | 0.1.0+1 (MVP) |
+| Version | 0.1.0+1 |
 | Platform | Android (API 21+), iOS ready |
 | Framework | Flutter 3.x, Dart 3.11+ |
 | Architecture | Feature-first Clean Architecture + Riverpod |
-| Codebase | ~50 Dart files, ~6,000 lines |
+| Concept | AI tutor "Alex" — a friendly native speaker who helps practice through natural conversation |
 
 ---
 
@@ -20,38 +20,45 @@
 | State Management | Riverpod 2.x | Reactive DI, async state |
 | Routing | go_router | Navigation, deep links |
 | Networking | Dio 5.x | HTTP client with interceptors |
-| Local DB | Drift (SQLite) | Conversation history |
+| Local DB | Drift (SQLite) | Conversation history, vocab, activity |
 | Secure Storage | flutter_secure_storage | API key encryption |
 | Preferences | shared_preferences | Settings persistence |
 | TTS | flutter_tts | On-device text-to-speech |
 | STT | speech_to_text | On-device speech recognition |
+| Notifications | flutter_local_notifications | Daily reminders |
+| Email | url_launcher | Feedback email |
 | Models | freezed + json_serializable | Immutable data classes |
 
 ---
 
-## Supported AI Providers
+## Supported AI Providers & Models
 
-| Provider | Model | API Base URL | Pricing |
-|----------|-------|-------------|---------|
-| Google Gemini | gemini-2.5-flash | generativelanguage.googleapis.com | Free (1,500 req/day) |
-| Groq | llama-3.3-70b-versatile | api.groq.com/openai/v1 | Free (14,400 req/day) |
-| Anthropic Claude | claude-sonnet-4-20250514 | api.anthropic.com/v1 | Paid |
-| OpenAI | gpt-4o | api.openai.com/v1 | Paid |
+Each provider supports multiple selectable models. Users choose in Settings > AI Model > Model Version.
+
+| Provider | Available Models | Default | Pricing |
+|----------|-----------------|---------|---------|
+| Google Gemini | Gemini 2.5 Flash, 2.5 Pro, 2.0 Flash | 2.5 Flash | Free (1,500 req/day) |
+| Groq | Llama 3.3 70B, Llama 3.1 8B, Gemma 2 9B | Llama 3.3 70B | Free (14,400 req/day) |
+| Anthropic Claude | Sonnet 4, Haiku 4.5, 3.5 Sonnet | Sonnet 4 | Paid |
+| OpenAI | GPT-4o, GPT-4o Mini, GPT-4.1 Nano | GPT-4o | Paid |
+
+Model list is defined in `AiProviderType.availableModels`. To add a new model, add an `AiModelInfo` entry — no other code changes needed.
 
 All providers implement a common `AiService` interface:
-```
-AiService
-  +sendMessage()      -> Future<String>
-  +streamMessage()    -> Stream<String>
-  +assessLevel()      -> Future<LevelAssessment>
-  +generateSuggestions() -> Future<List<Suggestion>>
+```dart
+abstract class AiService {
+  Future<String> sendMessage({...});
+  Stream<String> streamMessage({...});
+  Future<LevelAssessment> assessLevel({...});
+  Future<List<Suggestion>> generateSuggestions({...});
+}
 ```
 
-Provider switching is handled by `AiServiceFactory` + Riverpod. Changing the provider in Settings instantly recreates the service instance.
+Provider/model switching is handled by `AiServiceFactory` + Riverpod. Settings changes take effect on the next message (lazy getter pattern, no provider recreation).
 
 ---
 
-## Supported Languages
+## Supported Languages (9)
 
 | Language | Code | TTS/STT | AI Name |
 |----------|------|---------|---------|
@@ -65,39 +72,36 @@ Provider switching is handled by `AiServiceFactory` + Riverpod. Changing the pro
 | French | fr-FR | fr-FR | French |
 | Italian | it-IT | it-IT | Italian |
 
-### Language Compatibility Matrix
+### First Launch
+- Native language auto-detected from device system locale
+- Target language selected by user during onboarding
+- Saved to SharedPreferences; subsequent launches skip selection
 
-| Provider | Full Support | Limited (warning shown) |
-|----------|-------------|------------------------|
-| Gemini | All 9 | - |
-| Claude | All 9 | - |
-| OpenAI | All 9 | - |
-| Groq | 6 languages | Cantonese, Mandarin, Italian |
+### Language Compatibility
+- Gemini, Claude, OpenAI: All 9 languages fully supported
+- Groq (Llama 3.3): Warning for Cantonese, Mandarin, Italian
 
 ---
 
 ## Level System
 
-### Configuration
-- Range: 1-10
-- Default: 1 (Absolute Beginner)
-- Auto-assessment: Every 5 user messages
-- Max change per assessment: +/- 1 level
-- Manual override: Available in Settings
+| Config | Value |
+|--------|-------|
+| Range | 1–10 |
+| Default | 1 (Absolute Beginner) |
+| Auto-assessment | Every 5 user messages |
+| Max change | ±1 per assessment |
+| Manual override | Settings slider |
 
-### Level Response Guidelines
+### Response Guidelines by Level
 
-| Level | Response Length | Vocabulary | Native Hints |
-|-------|---------------|------------|--------------|
+| Level | Length | Vocabulary | Native Hints |
+|-------|--------|------------|--------------|
 | 1 | 1 sentence | Most basic words | Every sentence |
-| 2 | 1-2 sentences | Basic everyday | Key words |
-| 3 | 2 sentences | Simple phrases | New words |
-| 4 | 2-3 sentences | Common idioms | New expressions |
-| 5 | 2-3 sentences | Natural varied | When needed |
-| 6 | 3-4 sentences | Idioms freely | Minimal |
-| 7 | 3-4 sentences | Rich vocabulary | Cultural only |
-| 8 | 4-5 sentences | Advanced + slang | Almost none |
-| 9 | 4-5 sentences | Native-level nuance | Only if asked |
+| 2-3 | 1-2 sentences | Basic everyday | Key/new words |
+| 4-5 | 2-3 sentences | Common idioms, natural | When needed |
+| 6-7 | 3-4 sentences | Idioms, rich vocabulary | Minimal/cultural |
+| 8-9 | 4-5 sentences | Advanced, native nuance | Almost none |
 | 10 | ~5 sentences | Full native range | None |
 
 ---
@@ -106,38 +110,38 @@ Provider switching is handled by `AiServiceFactory` + Riverpod. Changing the pro
 
 ```
 User Input (text/voice)
-  -> [On-device STT] (if voice)
-    -> [AI Streaming] (token by token)
-      -> [SentenceSplitter] (detect sentence boundaries)
-        -> [UI Update] (display sentence)
-        -> [TTS Queue] (read aloud if enabled)
-          -> [Audio Output]
+  → [On-device STT] (if voice)
+    → [AI Streaming] (token by token)
+      → [SentenceSplitter] (sentence boundaries, parenthesis-aware)
+        → [UI Update] (display sentence)
+        → [TTS Queue] (read aloud, native text stripped via regex)
+          → [Audio Output]
 ```
-
-### Latency Targets
-
-| Stage | Target | Method |
-|-------|--------|--------|
-| Voice -> Text | < 0.5s | On-device STT |
-| Text -> First AI token | < 1s | Connection pooling |
-| First token -> First sentence | < 1-2s | Streaming + sentence detection |
-| First sentence -> TTS start | < 0.3s | On-device TTS |
-| **Total perceived latency** | **< 2-3s** | Pipeline parallelism |
 
 ### Key Components
 
 | Component | File | Responsibility |
 |-----------|------|---------------|
-| ConversationPipeline | `services/pipeline/conversation_pipeline.dart` | Orchestrates the full loop |
-| SentenceSplitter | `services/pipeline/sentence_splitter.dart` | Splits token stream into sentences |
+| ConversationPipeline | `services/pipeline/conversation_pipeline.dart` | Orchestrates full loop |
+| SentenceSplitter | `services/pipeline/sentence_splitter.dart` | Token → sentence stream, parenthesis-aware |
 | TtsQueue | `services/pipeline/tts_queue.dart` | Sequential TTS playback queue |
 | PipelineEvent | `services/pipeline/pipeline_event.dart` | Typed events for UI updates |
 
-### TTS Filtering Logic
-- Native language translations always wrapped in `(parentheses)` by AI
-- TTS strips `\([^)]*\)` pattern before reading (target language only)
-- If `nativeTtsEnabled = true`, parentheses are kept for TTS
-- If `targetTtsEnabled = false`, TTS is skipped entirely
+### TTS Filtering
+- Native translations wrapped in `(parentheses)` by AI (space before `(` enforced in prompt)
+- TTS strips `\([^)]*\)` + unclosed parenthesis fragments before reading
+- `nativeTtsEnabled = true`: keeps parenthetical text for TTS
+- `targetTtsEnabled = false`: skips TTS entirely
+
+### Latency Targets
+
+| Stage | Target | Method |
+|-------|--------|--------|
+| Voice → Text | < 0.5s | On-device STT |
+| Text → First AI token | < 1s | Connection pooling |
+| First token → First sentence | < 1-2s | Streaming + sentence detection |
+| First sentence → TTS start | < 0.3s | On-device TTS |
+| **Total perceived** | **< 2-3s** | Pipeline parallelism |
 
 ---
 
@@ -148,26 +152,58 @@ User Input (text/voice)
 | Type | Storage | Data |
 |------|---------|------|
 | API Keys | FlutterSecureStorage (encrypted) | claude, openai, gemini, groq keys |
-| Preferences | SharedPreferences | All other settings |
+| Model IDs | SharedPreferences | Per-provider selected model |
+| All others | SharedPreferences | Language, TTS, suggestions, etc. |
 
 ### Settings Fields
 
-| Field | Type | Default | Storage Key |
-|-------|------|---------|-------------|
-| aiProvider | AiProviderType | gemini | `ai_provider` |
-| nativeLanguage | AppLanguage | korean | `native_language` |
-| targetLanguage | AppLanguage | englishUS | `target_language` |
-| showNativeHint | bool | true | `show_native_hint` |
-| nativeTtsEnabled | bool | false | `native_tts_enabled` |
-| showTargetText | bool | true | `show_target_text` |
-| targetTtsEnabled | bool | true | `target_tts_enabled` |
-| suggestionMode | SuggestionMode | immediate | `suggestion_mode` |
-| suggestionDelaySec | int | 5 | `suggestion_delay` |
-| ttsSpeechRate | double | 0.5 | `tts_speech_rate` |
-| ttsVoiceGender | TtsVoiceGender | female | `tts_voice_gender` |
+| Field | Type | Default |
+|-------|------|---------|
+| aiProvider | AiProviderType | gemini |
+| *Model IDs | String? | Provider default |
+| nativeLanguage | AppLanguage | (device locale) |
+| targetLanguage | AppLanguage | englishUS |
+| showNativeHint | bool | true |
+| nativeTtsEnabled | bool | false |
+| showTargetText | bool | true |
+| targetTtsEnabled | bool | true |
+| suggestionMode | SuggestionMode | immediate |
+| suggestionDelaySec | int | 5 |
+| ttsSpeechRate | double | 0.5 |
+| ttsVoiceGender | TtsVoiceGender | female |
+| reminderEnabled | bool | false |
+| reminderHour/Minute | int | 20:00 |
 
 ### Reactivity
-Settings changes are propagated via Riverpod `ref.watch(settingsProvider)`. Any widget or provider watching settings automatically rebuilds when values change.
+- Settings changes propagated via Riverpod
+- ChatProvider and SuggestionProvider use **lazy getter functions** (`ref.read`) instead of `ref.watch` for pipeline/AI service to avoid state loss on settings change
+- Pipeline and AI service are recreated on demand, not eagerly
+
+---
+
+## Database Schema (Drift, version 5)
+
+| Table | Key Fields |
+|-------|-----------|
+| Conversations | id, title, createdAt, updatedAt |
+| Messages | id, conversationId, content, role, timestamp |
+| LevelHistory | level, reasoning, assessedAt |
+| DailyActivity | date (PK), messageCount, streakCount, goalReached |
+| TopicSessions | topicId, topicTitle, category, turnCount, startedAt, endedAt |
+| MissionCompletions | missionId, turnCount, starsEarned, completedAt |
+| VocabularyItems | expression, meaning, example, correctCount, intervalDays, nextReviewAt |
+
+---
+
+## System Prompt Architecture
+
+Dynamically built from: target language, native language, user level (1-10), showNativeHint flag, topic context.
+
+### Critical Rules
+- All native text in parentheses: `"sentence (translation)"`
+- Space before `(` enforced
+- Level controls response length, vocabulary, hint frequency
+- Topic Focus Mode constrains conversation to specific scenario
 
 ---
 
@@ -175,121 +211,84 @@ Settings changes are propagated via Riverpod `ref.watch(settingsProvider)`. Any 
 
 ```
 lib/
-├── main.dart                              # Entry point, ProviderScope setup
+├── main.dart                    # Entry, SharedPreferences init
+├── app.dart                     # MaterialApp, onboarding check
 ├── core/
-│   ├── constants/
-│   │   ├── app_constants.dart             # AI character name, etc.
-│   │   └── level_constants.dart           # Level range, names, assessment config
-│   └── error/
-│       └── failures.dart                  # Error types
-│
+│   ├── constants/               # app_constants, level_constants
+│   └── error/                   # failures
 ├── di/
-│   └── service_providers.dart             # Riverpod providers (AI, TTS, DB, Pipeline)
-│
+│   └── service_providers.dart   # Riverpod providers (AI, TTS, DB, Pipeline)
 ├── features/
-│   ├── chat/
-│   │   ├── domain/entities/               # Message, Suggestion
-│   │   └── presentation/
-│   │       ├── providers/                 # ChatNotifier, SuggestionNotifier
-│   │       ├── screens/chat_screen.dart   # Main chat UI
-│   │       └── widgets/                   # MessageBubble, ChatInputBar, SuggestionChips
-│   │
-│   ├── voice/
-│   │   ├── domain/entities/voice_state.dart
-│   │   └── presentation/providers/voice_provider.dart
-│   │
-│   ├── level/
-│   │   ├── domain/entities/level_assessment.dart
-│   │   └── presentation/providers/level_provider.dart
-│   │
-│   ├── settings/
-│   │   ├── domain/entities/user_settings.dart
-│   │   └── presentation/
-│   │       ├── providers/settings_provider.dart
-│   │       └── screens/settings_screen.dart
-│   │
-│   └── onboarding/
-│       └── presentation/screens/onboarding_screen.dart
-│
+│   ├── chat/                    # ChatNotifier, SuggestionNotifier, UI
+│   ├── voice/                   # VoiceProvider (STT + barge-in)
+│   ├── level/                   # LevelProvider, auto-assessment
+│   ├── settings/                # UserSettings, SettingsNotifier, SettingsScreen
+│   ├── onboarding/              # 4-step: Welcome → Language → API Key → Level
+│   ├── streak/                  # Daily streak tracking
+│   ├── topic/                   # Topic system + focus mode
+│   ├── mission/                 # Role play missions
+│   ├── report/                  # Weekly report
+│   └── vocabulary/              # Vocabulary + spaced repetition
 ├── services/
-│   ├── ai/
-│   │   ├── ai_service.dart                # Abstract interface
-│   │   ├── ai_service_factory.dart        # Factory pattern
-│   │   ├── ai_provider_type.dart          # Enum + language support info
-│   │   ├── claude/claude_service.dart
-│   │   ├── openai/openai_service.dart
-│   │   ├── gemini/gemini_service.dart
-│   │   ├── groq/groq_service.dart
-│   │   └── prompts/
-│   │       ├── system_prompt.dart         # Dynamic prompt builder (level + languages)
-│   │       ├── suggestion_prompt.dart
-│   │       └── level_prompts.dart
-│   │
-│   ├── language/
-│   │   └── app_language.dart              # 9-language enum with TTS/STT codes
-│   │
-│   ├── pipeline/
-│   │   ├── conversation_pipeline.dart     # Streaming orchestrator
-│   │   ├── pipeline_event.dart            # Typed events
-│   │   ├── sentence_splitter.dart         # Token -> sentence stream
-│   │   └── tts_queue.dart                 # Sequential TTS queue
-│   │
-│   ├── feature_flags/
-│   │   ├── feature_flag_service.dart
-│   │   └── local_feature_flags.dart
-│   │
-│   └── local_db/
-│       └── app_database.dart              # Drift SQLite (conversations, messages)
-│
-└── docs/                                  # Documentation
+│   ├── ai/                      # AiService interface + 4 implementations
+│   │   ├── claude/openai/gemini/groq/
+│   │   └── prompts/             # system_prompt, suggestion_prompt, level_prompts
+│   ├── language/                # AppLanguage enum (9 languages)
+│   ├── pipeline/                # ConversationPipeline, SentenceSplitter, TtsQueue
+│   ├── feature_flags/           # Local feature flags
+│   ├── local_db/                # Drift database + tables
+│   └── notification/            # Daily reminder service
 ```
 
 ---
 
-## System Prompt Architecture
+## Onboarding Flow
 
-The system prompt is dynamically built from:
-1. **Target language** - determines the primary language of responses
-2. **Native language** - determines translation language
-3. **User level** (1-10) - controls vocabulary, response length, hint frequency
-4. **showNativeHint** - whether to include translations
-
-### Critical Format Rule
-All native language text MUST be in parentheses. This enables:
-- TTS to strip translations via regex `\([^)]*\)`
-- UI to color-code translations (grey) vs target text (white)
-- Toggle visibility of translations without re-prompting
+1. **Welcome** — Meet Alex
+2. **Language Setup** — Native (auto-detected) + Target (user picks)
+3. **API Key** — Link to Settings for key entry
+4. **Level Selection** — Slider 1-10, start chatting
 
 ---
 
-## Data Flow
+## Implemented Features
 
-```
-[Settings] --watch--> [AiServiceFactory] --creates--> [AiService instance]
-                              |
-[Settings] --read--> [SystemPrompt.build()] --passes--> [ConversationPipeline]
-                              |
-[ChatNotifier] --controls--> [ConversationPipeline] --emits--> [PipelineEvent]
-                              |
-[PipelineEvent] --updates--> [ChatState] --rebuilds--> [ChatScreen UI]
-                              |
-[SuggestionNotifier] --listens--> [ChatState.isAiTyping] --triggers--> [AI.generateSuggestions()]
-                              |
-[LevelNotifier] --counts--> [user messages] --every 5--> [AI.assessLevel()]
-```
+- Free conversation with AI (text + voice)
+- 4 AI providers with per-provider model selection
+- 9 language pairs (native + target)
+- 10-level system with auto-assessment
+- Conversation suggestions (immediate/delayed)
+- TTS (gender, speed, selective reading)
+- STT with barge-in
+- Daily streak + goals
+- Topic focus mode (8 categories)
+- Role play missions (Easy/Medium/Hard)
+- Vocabulary with spaced repetition
+- Weekly report (chart + stats)
+- Daily reminder notifications
+- Feedback email
 
 ---
 
 ## Build & Deployment
 
-| Command | Output |
-|---------|--------|
-| `flutter build apk --release` | `build/app/outputs/flutter-apk/app-release.apk` |
-| `flutter build appbundle --release` | `build/app/outputs/bundle/release/app-release.aab` |
-| `flutter run --release` | Install on connected device |
+```bash
+flutter pub get
+dart run build_runner build --delete-conflicting-outputs
+flutter run --release
+flutter build apk --release    # → build/app/outputs/flutter-apk/app-release.apk
+flutter build appbundle --release
+```
 
-### APK Size
-- Release APK: ~55 MB (includes all TTS/STT assets)
+- Release APK: ~55 MB
+- Min SDK: Android API 21
 
-### Min SDK
-- Android API 21 (Android 5.0 Lollipop)
+---
+
+## Design Principles
+
+- **Modular architecture** — features as independent modules
+- **AI abstraction layer** — swap providers/models without touching feature code
+- **Lazy settings** — settings changes don't recreate stateful providers
+- **Feature flags** — enable/disable features without code changes
+- **Extensible DB** — Drift schema versioning for smooth migrations

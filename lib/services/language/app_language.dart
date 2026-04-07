@@ -110,4 +110,17 @@ enum AppLanguage {
       orElse: () => AppLanguage.korean,
     );
   }
+
+  /// 시스템 로케일(languageCode)로 가장 가까운 AppLanguage 찾기
+  static AppLanguage fromSystemLocale(String languageCode) {
+    return switch (languageCode) {
+      'ko' => AppLanguage.korean,
+      'ja' => AppLanguage.japanese,
+      'zh' => AppLanguage.chineseMandarin,
+      'es' => AppLanguage.spanish,
+      'fr' => AppLanguage.french,
+      'it' => AppLanguage.italian,
+      _ => AppLanguage.englishUS, // en 및 기타
+    };
+  }
 }

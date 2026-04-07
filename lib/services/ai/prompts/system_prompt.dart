@@ -6,9 +6,21 @@ class SystemPrompt {
     required AppLanguage nativeLanguage,
     required AppLanguage targetLanguage,
     bool showNativeHint = true,
+    String? topicTitle,
+    String? topicSituation,
+    String? topicAiRole,
   }) {
     final native = nativeLanguage.aiName;
     final target = targetLanguage.aiName;
+
+    final topicBlock = (topicTitle != null && topicSituation != null && topicAiRole != null)
+        ? _topicFocusBlock(
+            title: topicTitle,
+            situation: topicSituation,
+            aiRole: topicAiRole,
+            target: target,
+          )
+        : '';
 
     return '''
 You are a friendly language tutor named Alex.
@@ -25,9 +37,11 @@ ${showNativeHint ? _nativeHintRule(native: native, target: target) : _noHintRule
 CRITICAL FORMAT RULE:
 - ALL $native text MUST be wrapped in parentheses like ($native text here)
 - NEVER write $native text outside of parentheses
+- ALWAYS put a space before the opening parenthesis: "sentence ($native)" NOT "sentence($native)"
 - Your main response must be in $target only
 - Example: "That sounds great! (좋은 생각이야!) When are you free? (언제 시간 돼?)"
 
+$topicBlock
 RULES:
 - Always respond primarily in $target
 - Naturally correct grammar mistakes by rephrasing (don't lecture)
@@ -139,5 +153,23 @@ LEVEL 10 (Native-like):
 ''',
       _ => '',
     };
+  }
+
+  static String _topicFocusBlock({
+    required String title,
+    required String situation,
+    required String aiRole,
+    required String target,
+  }) {
+    return '''
+TOPIC FOCUS MODE — "$title":
+- SITUATION: $situation
+- YOUR ROLE: You are playing $aiRole (while still being Alex the tutor underneath)
+- Stay in character and keep the conversation within this scenario
+- Use vocabulary and expressions naturally relevant to this situation
+- If the user tries to change the topic, gently guide them back: "Let's keep practicing this scenario a bit more!"
+- Introduce useful $target phrases and expressions specific to this situation
+- Do NOT break character unless the user explicitly asks to end the topic
+''';
   }
 }

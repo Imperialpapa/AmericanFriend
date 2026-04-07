@@ -7,6 +7,10 @@ import 'package:eng_friend/features/chat/presentation/providers/suggestion_provi
 import 'package:eng_friend/services/ai/ai_provider_type.dart';
 import 'package:eng_friend/services/language/app_language.dart';
 import 'package:eng_friend/features/settings/domain/entities/user_settings.dart';
+import 'package:eng_friend/services/notification/notification_service.dart';
+import 'package:eng_friend/features/report/presentation/screens/weekly_report_screen.dart';
+import 'package:eng_friend/features/vocabulary/presentation/screens/vocabulary_screen.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -44,6 +48,38 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          // ===== Weekly Report =====
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.bar_chart, color: Colors.orange),
+              title: const Text('Weekly Report'),
+              subtitle: const Text('View your learning progress'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const WeeklyReportScreen()),
+                );
+              },
+            ),
+          ),
+
+          const SizedBox(height: 8),
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.book, color: Colors.blue),
+              title: const Text('My Vocabulary'),
+              subtitle: const Text('Review saved words & expressions'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const VocabularyScreen()),
+                );
+              },
+            ),
+          ),
+
+          const Divider(height: 32),
+
           // ===== Language =====
           Text('Language', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 8),
@@ -88,6 +124,39 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               subtitle: Text(info.description),
               secondary: isSelected
                   ? Icon(Icons.check_circle,
+                      color: Theme.of(context).colorScheme.primary)
+                  : null,
+            );
+          }),
+
+          const SizedBox(height: 12),
+
+          // ===== 선택된 프로바이더의 모델 선택 =====
+          Text('Model Version',
+              style: Theme.of(context).textTheme.titleSmall),
+          const SizedBox(height: 4),
+          Text(
+            'Choose a specific model for ${_providerInfo(settings.aiProvider).name}',
+            style: Theme.of(context)
+                .textTheme
+                .bodySmall
+                ?.copyWith(color: Colors.grey),
+          ),
+          const SizedBox(height: 8),
+          ...settings.aiProvider.availableModels.map((model) {
+            final isSelected = settings.activeModelId == model.id;
+            return RadioListTile<String>(
+              value: model.id,
+              groupValue: settings.activeModelId,
+              onChanged: (v) {
+                if (v != null) notifier.setModelId(settings.aiProvider, v);
+              },
+              title: Text(model.displayName),
+              subtitle: Text(model.description),
+              dense: true,
+              secondary: isSelected
+                  ? Icon(Icons.check_circle_outline,
+                      size: 20,
                       color: Theme.of(context).colorScheme.primary)
                   : null,
             );
@@ -239,6 +308,69 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ),
               Text(_speedLabel(settings.ttsSpeechRate)),
             ],
+          ),
+
+          const Divider(height: 32),
+
+          // ===== Daily Reminder =====
+          Text('Daily Reminder',
+              style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 4),
+          SwitchListTile(
+            title: const Text('Enable reminder'),
+            subtitle: const Text('Get notified to practice daily'),
+            value: settings.reminderEnabled,
+            onChanged: (v) async {
+              await notifier.setReminderEnabled(v);
+              if (v) {
+                await NotificationService.initialize();
+                await NotificationService.scheduleDailyReminder(
+                  hour: settings.reminderHour,
+                  minute: settings.reminderMinute,
+                );
+              } else {
+                await NotificationService.cancelAll();
+              }
+            },
+          ),
+          if (settings.reminderEnabled)
+            ListTile(
+              title: const Text('Reminder time'),
+              subtitle: Text(
+                '${settings.reminderHour.toString().padLeft(2, '0')}:${settings.reminderMinute.toString().padLeft(2, '0')}',
+              ),
+              trailing: const Icon(Icons.access_time),
+              onTap: () async {
+                final picked = await showTimePicker(
+                  context: context,
+                  initialTime: TimeOfDay(
+                    hour: settings.reminderHour,
+                    minute: settings.reminderMinute,
+                  ),
+                );
+                if (picked != null) {
+                  await notifier.setReminderTime(picked.hour, picked.minute);
+                  await NotificationService.scheduleDailyReminder(
+                    hour: picked.hour,
+                    minute: picked.minute,
+                  );
+                }
+              },
+            ),
+
+          const Divider(height: 32),
+
+          // ===== Feedback =====
+          Text('Feedback', style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 8),
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.mail_outline, color: Colors.green),
+              title: const Text('Send Feedback'),
+              subtitle: const Text('Suggest improvements or report issues'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => _launchFeedbackEmail(settings),
+            ),
           ),
         ],
       ),
@@ -472,6 +604,27 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           keyHint: 'Get your key at platform.openai.com/api-keys',
         ),
     };
+  }
+
+  Future<void> _launchFeedbackEmail(UserSettings settings) async {
+    final uri = Uri(
+      scheme: 'mailto',
+      path: 'raphael70kim@gmail.com',
+      queryParameters: {
+        'subject': '[EngFriend] Feedback',
+        'body':
+            '\n\n---\nApp: EngFriend v0.1.0\nAI: ${settings.aiProvider.name} (${settings.activeModelId})\nLevel: ${ref.read(levelProvider).currentLevel}\nNative: ${settings.nativeLanguage.displayName}\nTarget: ${settings.targetLanguage.displayName}',
+      },
+    );
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri);
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not open email app')),
+        );
+      }
+    }
   }
 
   String _speedLabel(double rate) {

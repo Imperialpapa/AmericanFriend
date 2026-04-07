@@ -10,12 +10,12 @@ import 'package:eng_friend/services/language/app_language.dart';
 
 class OpenAiService implements AiService {
   final String apiKey;
+  final String model;
   final Dio _dio;
 
   static const _baseUrl = 'https://api.openai.com/v1';
-  static const _model = 'gpt-4o';
 
-  OpenAiService({required this.apiKey})
+  OpenAiService({required this.apiKey, this.model = 'gpt-4o'})
       : _dio = Dio(BaseOptions(
           baseUrl: _baseUrl,
           connectTimeout: const Duration(seconds: 30),
@@ -48,7 +48,7 @@ class OpenAiService implements AiService {
   }) async {
     try {
       final response = await _dio.post('/chat/completions', data: {
-        'model': _model,
+        'model': model,
         'messages': [
           {'role': 'system', 'content': systemPrompt},
           ...conversationHistory.map((m) => {
@@ -76,7 +76,7 @@ class OpenAiService implements AiService {
       response = await _dio.post(
         '/chat/completions',
         data: {
-          'model': _model,
+          'model': model,
           'stream': true,
           'messages': [
             {'role': 'system', 'content': systemPrompt},
@@ -128,7 +128,7 @@ class OpenAiService implements AiService {
         .join('\n');
 
     final response = await _dio.post('/chat/completions', data: {
-      'model': _model,
+      'model': model,
       'messages': [
         {'role': 'system', 'content': LevelPrompt.build(nativeLanguage: nativeLanguage, targetLanguage: targetLanguage)},
         {'role': 'user', 'content': userMessages},
@@ -161,6 +161,7 @@ class OpenAiService implements AiService {
     required AppLanguage nativeLanguage,
     required AppLanguage targetLanguage,
     int count = 2,
+    String? lastAiMessage,
   }) async {
     final messages = conversationHistory
         .map((m) => {
@@ -171,11 +172,11 @@ class OpenAiService implements AiService {
 
     messages.add({
       'role': 'user',
-      'content': SuggestionPrompt.build(userLevel: userLevel, nativeLanguage: nativeLanguage, targetLanguage: targetLanguage, count: count),
+      'content': SuggestionPrompt.build(userLevel: userLevel, nativeLanguage: nativeLanguage, targetLanguage: targetLanguage, count: count, lastAiMessage: lastAiMessage),
     });
 
     final response = await _dio.post('/chat/completions', data: {
-      'model': _model,
+      'model': model,
       'messages': messages,
     });
 

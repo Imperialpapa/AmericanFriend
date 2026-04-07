@@ -22,6 +22,13 @@ const _nativeTtsEnabledKey = 'native_tts_enabled';
 const _showTargetTextKey = 'show_target_text';
 const _targetTtsEnabledKey = 'target_tts_enabled';
 const _ttsVoiceGenderKey = 'tts_voice_gender';
+const _claudeModelKey = 'claude_model_id';
+const _openaiModelKey = 'openai_model_id';
+const _geminiModelKey = 'gemini_model_id';
+const _groqModelKey = 'groq_model_id';
+const _reminderEnabledKey = 'reminder_enabled';
+const _reminderHourKey = 'reminder_hour';
+const _reminderMinuteKey = 'reminder_minute';
 
 final secureStorageProvider = Provider<FlutterSecureStorage>(
   (ref) => const FlutterSecureStorage(),
@@ -53,6 +60,13 @@ class SettingsNotifier extends StateNotifier<UserSettings> {
     final showTargetText = _prefs.getBool(_showTargetTextKey) ?? true;
     final targetTtsEnabled = _prefs.getBool(_targetTtsEnabledKey) ?? true;
     final genderStr = _prefs.getString(_ttsVoiceGenderKey);
+    final claudeModelId = _prefs.getString(_claudeModelKey);
+    final openaiModelId = _prefs.getString(_openaiModelKey);
+    final geminiModelId = _prefs.getString(_geminiModelKey);
+    final groqModelId = _prefs.getString(_groqModelKey);
+    final reminderEnabled = _prefs.getBool(_reminderEnabledKey) ?? false;
+    final reminderHour = _prefs.getInt(_reminderHourKey) ?? 20;
+    final reminderMinute = _prefs.getInt(_reminderMinuteKey) ?? 0;
 
     state = UserSettings(
       claudeApiKey: claudeKey,
@@ -81,6 +95,13 @@ class SettingsNotifier extends StateNotifier<UserSettings> {
       ttsVoiceGender: genderStr == 'male'
           ? TtsVoiceGender.male
           : TtsVoiceGender.female,
+      claudeModelId: claudeModelId,
+      openaiModelId: openaiModelId,
+      geminiModelId: geminiModelId,
+      groqModelId: groqModelId,
+      reminderEnabled: reminderEnabled,
+      reminderHour: reminderHour,
+      reminderMinute: reminderMinute,
     );
   }
 
@@ -157,6 +178,34 @@ class SettingsNotifier extends StateNotifier<UserSettings> {
   Future<void> setTtsVoiceGender(TtsVoiceGender gender) async {
     await _prefs.setString(_ttsVoiceGenderKey, gender.name);
     state = state.copyWith(ttsVoiceGender: gender);
+  }
+
+  Future<void> setModelId(AiProviderType provider, String modelId) async {
+    switch (provider) {
+      case AiProviderType.claude:
+        await _prefs.setString(_claudeModelKey, modelId);
+        state = state.copyWith(claudeModelId: modelId);
+      case AiProviderType.openai:
+        await _prefs.setString(_openaiModelKey, modelId);
+        state = state.copyWith(openaiModelId: modelId);
+      case AiProviderType.gemini:
+        await _prefs.setString(_geminiModelKey, modelId);
+        state = state.copyWith(geminiModelId: modelId);
+      case AiProviderType.groq:
+        await _prefs.setString(_groqModelKey, modelId);
+        state = state.copyWith(groqModelId: modelId);
+    }
+  }
+
+  Future<void> setReminderEnabled(bool enabled) async {
+    await _prefs.setBool(_reminderEnabledKey, enabled);
+    state = state.copyWith(reminderEnabled: enabled);
+  }
+
+  Future<void> setReminderTime(int hour, int minute) async {
+    await _prefs.setInt(_reminderHourKey, hour);
+    await _prefs.setInt(_reminderMinuteKey, minute);
+    state = state.copyWith(reminderHour: hour, reminderMinute: minute);
   }
 }
 

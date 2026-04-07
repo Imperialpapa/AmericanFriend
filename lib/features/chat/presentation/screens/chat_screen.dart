@@ -11,6 +11,12 @@ import 'package:eng_friend/features/level/presentation/providers/level_provider.
 import 'package:eng_friend/features/settings/presentation/providers/settings_provider.dart';
 import 'package:eng_friend/features/voice/presentation/providers/voice_provider.dart';
 import 'package:eng_friend/features/settings/presentation/screens/settings_screen.dart';
+import 'package:eng_friend/features/streak/presentation/providers/streak_provider.dart';
+import 'package:eng_friend/features/streak/presentation/widgets/streak_badge.dart';
+import 'package:eng_friend/features/topic/presentation/providers/topic_provider.dart';
+import 'package:eng_friend/features/topic/presentation/widgets/topic_bottom_sheet.dart';
+import 'package:eng_friend/features/mission/presentation/providers/mission_provider.dart';
+import 'package:eng_friend/features/mission/presentation/widgets/mission_bottom_sheet.dart';
 
 /// 메인 채팅 화면
 class ChatScreen extends ConsumerStatefulWidget {
@@ -36,11 +42,62 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   Widget build(BuildContext context) {
     final chatState = ref.watch(chatProvider);
     final levelState = ref.watch(levelProvider);
+    final topicState = ref.watch(topicProvider);
 
     // 레벨 변경 시 채팅에 반영
     ref.listen(levelProvider, (prev, next) {
       if (prev?.currentLevel != next.currentLevel) {
         ref.read(chatProvider.notifier).updateLevel(next.currentLevel);
+      }
+    });
+
+    // streak 목표 달성 축하
+    ref.listen(streakProvider, (prev, next) {
+      if (next.justReachedGoal) {
+        ref.read(streakProvider.notifier).clearJustReachedGoal();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.local_fire_department, color: Colors.orange),
+                const SizedBox(width: 8),
+                Text(
+                  'Daily goal reached! Streak: ${next.currentStreak} day${next.currentStreak > 1 ? 's' : ''}',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.orange.shade800,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    });
+
+    // 미션 완료 축하
+    ref.listen(missionProvider, (prev, next) {
+      if (next.justCompleted) {
+        ref.read(missionProvider.notifier).clearJustCompleted();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.emoji_events, color: Colors.amber),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Mission Complete! +${next.starsJustEarned} star${next.starsJustEarned > 1 ? 's' : ''}',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.amber.shade800,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 3),
+          ),
+        );
       }
     });
 
@@ -61,20 +118,57 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               child: Text('A', style: TextStyle(fontWeight: FontWeight.bold)),
             ),
             const SizedBox(width: 8),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(AppConstants.aiCharacterName,
-                    style: TextStyle(fontSize: 16)),
-                Text(
-                  'Lv.${levelState.currentLevel} · ${levelState.levelName}',
-                  style: const TextStyle(fontSize: 12, color: Colors.grey),
-                ),
-              ],
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (topicState.isActive)
+                    Row(
+                      children: [
+                        const Icon(Icons.auto_awesome, size: 14, color: Colors.orange),
+                        const SizedBox(width: 4),
+                        Flexible(
+                          child: Text(
+                            topicState.activeTopic!.title,
+                            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.orange),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        InkWell(
+                          onTap: () => ref.read(topicProvider.notifier).endTopic(),
+                          child: const Icon(Icons.close, size: 16, color: Colors.orange),
+                        ),
+                      ],
+                    )
+                  else
+                    const Text(AppConstants.aiCharacterName,
+                        style: TextStyle(fontSize: 16)),
+                  Text(
+                    'Lv.${levelState.currentLevel} · ${levelState.levelName}',
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
         actions: [
+          const StreakBadge(),
+          const SizedBox(width: 4),
+          IconButton(
+            icon: Icon(
+              Icons.topic,
+              color: topicState.isActive ? Colors.orange : null,
+            ),
+            tooltip: 'Topics',
+            onPressed: () => TopicBottomSheet.show(context),
+          ),
+          IconButton(
+            icon: const Icon(Icons.emoji_events),
+            tooltip: 'Missions',
+            onPressed: () => MissionBottomSheet.show(context),
+          ),
           IconButton(
             icon: const Icon(Icons.settings),
             onPressed: () {
@@ -131,8 +225,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
           // 입력 바
           ChatInputBar(
-            onSendText: (text) =>
-                ref.read(chatProvider.notifier).sendMessage(text),
+            onSendText: (text) {
+              ref.read(chatProvider.notifier).sendMessage(text);
+              ref.read(streakProvider.notifier).recordMessage();
+              ref.read(topicProvider.notifier).recordTurn();
+              ref.read(missionProvider.notifier).recordTurn();
+            },
           ),
         ],
       ),

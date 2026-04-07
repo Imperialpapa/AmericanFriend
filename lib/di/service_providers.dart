@@ -22,13 +22,14 @@ final featureFlagServiceProvider = Provider<FeatureFlagService>((ref) {
   return LocalFeatureFlags(prefs);
 });
 
-/// AI 서비스 — settingsProvider에서 프로바이더와 API 키를 실시간으로 읽음
+/// AI 서비스 — settingsProvider에서 프로바이더, API 키, 모델을 실시간으로 읽음
 final aiServiceProvider = Provider<AiService>((ref) {
   final settings = ref.watch(settingsProvider);
 
   return AiServiceFactory.create(
     provider: settings.aiProvider,
     apiKey: settings.activeApiKey,
+    modelId: settings.activeModelId,
   );
 });
 

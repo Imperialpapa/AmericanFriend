@@ -37,10 +37,15 @@ dependencies:
   freezed_annotation: ^2.4.4
   json_annotation: ^4.9.0
 
+  # Notifications
+  flutter_local_notifications: ^18.0.1
+  timezone: ^0.10.0
+
   # Utils
   uuid: ^4.5.1
   path_provider: ^2.1.5
   path: ^1.9.1
+  url_launcher: ^6.3.1
 
 dev_dependencies:
   flutter_test:

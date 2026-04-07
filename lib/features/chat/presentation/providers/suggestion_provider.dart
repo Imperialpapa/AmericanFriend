@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:eng_friend/features/chat/domain/entities/message.dart' show MessageRole;
 import 'package:eng_friend/features/chat/domain/entities/suggestion.dart';
 import 'package:eng_friend/features/chat/presentation/providers/chat_provider.dart';
 import 'package:eng_friend/features/settings/presentation/providers/settings_provider.dart';
@@ -38,7 +39,7 @@ class SuggestionState {
 }
 
 class SuggestionNotifier extends StateNotifier<SuggestionState> {
-  final AiService _aiService;
+  final AiService Function() _getAiService;
   final ChatNotifier _chatNotifier;
   final AppLanguage Function() _getNativeLanguage;
   final AppLanguage Function() _getTargetLanguage;
@@ -46,11 +47,12 @@ class SuggestionNotifier extends StateNotifier<SuggestionState> {
   bool _wasAiTyping = false;
 
   SuggestionNotifier(
-    this._aiService,
     this._chatNotifier, {
+    required AiService Function() getAiService,
     required AppLanguage Function() getNativeLanguage,
     required AppLanguage Function() getTargetLanguage,
-  })  : _getNativeLanguage = getNativeLanguage,
+  })  : _getAiService = getAiService,
+        _getNativeLanguage = getNativeLanguage,
         _getTargetLanguage = getTargetLanguage,
         super(const SuggestionState());
 
@@ -79,12 +81,22 @@ class SuggestionNotifier extends StateNotifier<SuggestionState> {
   Future<void> _fetchSuggestions(ChatState chatState) async {
     state = state.copyWith(isLoading: true);
 
+    // 마지막 AI 메시지 추출
+    String? lastAiMsg;
+    for (int i = chatState.messages.length - 1; i >= 0; i--) {
+      if (chatState.messages[i].role == MessageRole.assistant) {
+        lastAiMsg = chatState.messages[i].content;
+        break;
+      }
+    }
+
     try {
-      final suggestions = await _aiService.generateSuggestions(
+      final suggestions = await _getAiService().generateSuggestions(
         conversationHistory: chatState.messages,
         userLevel: chatState.userLevel,
         nativeLanguage: _getNativeLanguage(),
         targetLanguage: _getTargetLanguage(),
+        lastAiMessage: lastAiMsg,
       );
       state = state.copyWith(suggestions: suggestions, isLoading: false);
     } catch (_) {
@@ -122,12 +134,11 @@ class SuggestionNotifier extends StateNotifier<SuggestionState> {
 
 final suggestionProvider =
     StateNotifierProvider<SuggestionNotifier, SuggestionState>((ref) {
-  final aiService = ref.watch(aiServiceProvider);
   final chatNotifier = ref.watch(chatProvider.notifier);
 
   final notifier = SuggestionNotifier(
-    aiService,
     chatNotifier,
+    getAiService: () => ref.read(aiServiceProvider),
     getNativeLanguage: () => ref.read(settingsProvider).nativeLanguage,
     getTargetLanguage: () => ref.read(settingsProvider).targetLanguage,
   );

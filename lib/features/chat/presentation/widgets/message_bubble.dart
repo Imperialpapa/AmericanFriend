@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:eng_friend/di/service_providers.dart';
 import 'package:eng_friend/features/settings/presentation/providers/settings_provider.dart';
 import 'package:eng_friend/services/pipeline/tts_queue.dart';
+import 'package:eng_friend/features/vocabulary/presentation/providers/vocabulary_provider.dart';
 
 class MessageBubble extends ConsumerStatefulWidget {
   final String content;
@@ -23,6 +24,47 @@ class MessageBubble extends ConsumerStatefulWidget {
 class _MessageBubbleState extends ConsumerState<MessageBubble> {
   bool _isSpeaking = false;
   bool _revealed = false;
+
+  void _showSaveToVocab(BuildContext context) {
+    final controller = TextEditingController(text: widget.content);
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Save to Vocabulary'),
+        content: TextField(
+          controller: controller,
+          maxLines: 3,
+          decoration: const InputDecoration(
+            hintText: 'Edit expression to save',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (controller.text.trim().isNotEmpty) {
+                ref.read(vocabularyProvider.notifier).addWord(
+                      expression: controller.text.trim(),
+                    );
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Saved to vocabulary!'),
+                    behavior: SnackBarBehavior.floating,
+                    duration: Duration(seconds: 2),
+                  ),
+                );
+              }
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+  }
 
   Future<void> _speak() async {
     final ttsQueue = ref.read(ttsQueueProvider);
@@ -106,6 +148,7 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
       alignment: widget.isUser ? Alignment.centerRight : Alignment.centerLeft,
       child: GestureDetector(
         onTap: isHidden ? () => setState(() => _revealed = true) : null,
+        onLongPress: widget.isTyping ? null : () => _showSaveToVocab(context),
         child: Container(
           margin: const EdgeInsets.symmetric(vertical: 4),
           constraints: BoxConstraints(
