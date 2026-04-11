@@ -312,6 +312,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
           const Divider(height: 32),
 
+          // ===== Avatar =====
+          Text('Avatar', style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 4),
+          SwitchListTile(
+            title: const Text('Show avatar'),
+            subtitle: const Text('Display animated avatar during conversation'),
+            value: settings.avatarEnabled,
+            onChanged: (v) => notifier.setAvatarEnabled(v),
+          ),
+
+          const Divider(height: 32),
+
           // ===== Daily Reminder =====
           Text('Daily Reminder',
               style: Theme.of(context).textTheme.titleMedium),

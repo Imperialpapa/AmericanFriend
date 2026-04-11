@@ -36,6 +36,9 @@ class UserSettings {
   final String? geminiModelId;
   final String? groqModelId;
 
+  /// 아바타 표시
+  final bool avatarEnabled;
+
   /// 알림 설정
   final bool reminderEnabled;
   final int reminderHour;
@@ -61,6 +64,7 @@ class UserSettings {
     this.openaiModelId,
     this.geminiModelId,
     this.groqModelId,
+    this.avatarEnabled = false,
     this.reminderEnabled = false,
     this.reminderHour = 20,
     this.reminderMinute = 0,
@@ -108,6 +112,7 @@ class UserSettings {
     String? openaiModelId,
     String? geminiModelId,
     String? groqModelId,
+    bool? avatarEnabled,
     bool? reminderEnabled,
     int? reminderHour,
     int? reminderMinute,
@@ -132,6 +137,7 @@ class UserSettings {
       openaiModelId: openaiModelId ?? this.openaiModelId,
       geminiModelId: geminiModelId ?? this.geminiModelId,
       groqModelId: groqModelId ?? this.groqModelId,
+      avatarEnabled: avatarEnabled ?? this.avatarEnabled,
       reminderEnabled: reminderEnabled ?? this.reminderEnabled,
       reminderHour: reminderHour ?? this.reminderHour,
       reminderMinute: reminderMinute ?? this.reminderMinute,

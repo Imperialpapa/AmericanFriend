@@ -27,6 +27,11 @@ abstract class AiService {
     required AppLanguage targetLanguage,
   });
 
+  /// 발음 평가
+  Future<Map<String, dynamic>> evaluatePronunciation({
+    required String prompt,
+  });
+
   /// 대화 제안 생성
   Future<List<Suggestion>> generateSuggestions({
     required List<Message> conversationHistory,

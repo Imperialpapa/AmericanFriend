@@ -211,6 +211,34 @@ class GeminiService implements AiService {
   }
 
   @override
+  Future<Map<String, dynamic>> evaluatePronunciation({
+    required String prompt,
+  }) async {
+    try {
+      final response = await _postWithRetry(
+        '/v1beta/models/$model:generateContent?key=$apiKey',
+        data: {
+          'contents': [
+            {
+              'role': 'user',
+              'parts': [
+                {'text': prompt}
+              ]
+            }
+          ],
+        },
+      );
+
+      final candidates = response.data['candidates'] as List;
+      var text = (candidates.first['content']['parts'] as List).first['text'] as String;
+      text = text.replaceAll(RegExp(r'```json\s*'), '').replaceAll(RegExp(r'```\s*'), '').trim();
+      return jsonDecode(text) as Map<String, dynamic>;
+    } catch (e) {
+      return {'score': 0, 'feedback': [], 'overall': 'Evaluation failed: $e'};
+    }
+  }
+
+  @override
   Future<List<Suggestion>> generateSuggestions({
     required List<Message> conversationHistory,
     required int userLevel,

@@ -38,7 +38,7 @@ class ConversationPipeline {
         fullResponse.write('$sentence ');
         yield AiSentenceComplete(sentence);
 
-        if (targetTtsEnabled) {
+        if (targetTtsEnabled && !sentence.trimLeft().startsWith('💡')) {
           final ttsText = nativeTtsEnabled
               ? sentence.trim()
               : sentence
@@ -47,9 +47,10 @@ class ConversationPipeline {
                   .replaceAll(RegExp(r'^[^(]*\)\s*'), '')     // 앞에 닫힌 괄호 제거
                   .replaceAll(RegExp(r'\s{2,}'), ' ')
                   .trim();
-          if (ttsText.isNotEmpty) {
-            yield TtsSpeakingStarted(ttsText);
-            await ttsQueue.enqueue(ttsText);
+          final cleanTts = _stripSpecialChars(ttsText);
+          if (cleanTts.isNotEmpty) {
+            yield TtsSpeakingStarted(cleanTts);
+            await ttsQueue.enqueue(cleanTts);
           }
         }
       }
@@ -63,6 +64,23 @@ class ConversationPipeline {
   Future<void> interrupt() async {
     await ttsQueue.interrupt();
     _splitter.reset();
+  }
+
+  static final _specialCharPattern = RegExp(
+    r'[\u{1F000}-\u{1FFFF}]|'  // 이모지
+    r'[\u{2600}-\u{27BF}]|'    // 기호 & 딩뱃
+    r'[\u{FE00}-\u{FE0F}]|'    // 변형 선택자
+    r'[\u{200D}]|'              // Zero width joiner
+    r'[→←↑↓↔↕]|'               // 화살표
+    r'[*_~`]',                  // 마크다운 서식
+    unicode: true,
+  );
+
+  static String _stripSpecialChars(String text) {
+    return text
+        .replaceAll(_specialCharPattern, '')
+        .replaceAll(RegExp(r'\s{2,}'), ' ')
+        .trim();
   }
 
   void dispose() {

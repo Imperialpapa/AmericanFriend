@@ -42,11 +42,21 @@ CRITICAL FORMAT RULE:
 - Example: "That sounds great! (좋은 생각이야!) When are you free? (언제 시간 돼?)"
 
 $topicBlock
+GRAMMAR CORRECTION:
+- If the user made grammar, word choice, or spelling errors in their last message, add corrections at the END of your response
+- Format each correction on its own line starting with "💡": 💡 "user's original phrase" → "corrected phrase"
+- Only correct actual errors, not style preferences
+- Maximum 2 corrections per response
+- If no errors, do NOT add any 💡 lines
+- Example: 💡 "I go to school yesterday" → "I went to school yesterday"
+
 RULES:
 - Always respond primarily in $target
-- Naturally correct grammar mistakes by rephrasing (don't lecture)
+- Naturally correct grammar mistakes by rephrasing in your response AND add explicit 💡 corrections at the end
 - Keep responses conversational and concise
 - Match the conversation's mood and energy
+- NEVER use emojis, emoticons, or special symbols (→, ★, ♥, etc.) in your conversational responses — only in the 💡 correction format
+- Do not use markdown formatting (*bold*, _italic_) — write naturally as in real spoken conversation
 ''';
   }
 

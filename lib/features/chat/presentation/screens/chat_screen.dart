@@ -17,6 +17,7 @@ import 'package:eng_friend/features/topic/presentation/providers/topic_provider.
 import 'package:eng_friend/features/topic/presentation/widgets/topic_bottom_sheet.dart';
 import 'package:eng_friend/features/mission/presentation/providers/mission_provider.dart';
 import 'package:eng_friend/features/mission/presentation/widgets/mission_bottom_sheet.dart';
+import 'package:eng_friend/features/chat/presentation/widgets/avatar_widget.dart';
 
 /// 메인 채팅 화면
 class ChatScreen extends ConsumerStatefulWidget {
@@ -182,6 +183,16 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       ),
       body: Column(
         children: [
+          // 아바타
+          if (ref.watch(settingsProvider.select((s) => s.avatarEnabled)))
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: AvatarWidget(
+                isAnimating: chatState.isAiTyping ||
+                    chatState.currentAiResponse.isNotEmpty,
+              ),
+            ),
+
           // 에러 표시
           if (chatState.error != null)
             MaterialBanner(

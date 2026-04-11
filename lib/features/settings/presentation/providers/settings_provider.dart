@@ -26,6 +26,7 @@ const _claudeModelKey = 'claude_model_id';
 const _openaiModelKey = 'openai_model_id';
 const _geminiModelKey = 'gemini_model_id';
 const _groqModelKey = 'groq_model_id';
+const _avatarEnabledKey = 'avatar_enabled';
 const _reminderEnabledKey = 'reminder_enabled';
 const _reminderHourKey = 'reminder_hour';
 const _reminderMinuteKey = 'reminder_minute';
@@ -64,6 +65,7 @@ class SettingsNotifier extends StateNotifier<UserSettings> {
     final openaiModelId = _prefs.getString(_openaiModelKey);
     final geminiModelId = _prefs.getString(_geminiModelKey);
     final groqModelId = _prefs.getString(_groqModelKey);
+    final avatarEnabled = _prefs.getBool(_avatarEnabledKey) ?? false;
     final reminderEnabled = _prefs.getBool(_reminderEnabledKey) ?? false;
     final reminderHour = _prefs.getInt(_reminderHourKey) ?? 20;
     final reminderMinute = _prefs.getInt(_reminderMinuteKey) ?? 0;
@@ -99,6 +101,7 @@ class SettingsNotifier extends StateNotifier<UserSettings> {
       openaiModelId: openaiModelId,
       geminiModelId: geminiModelId,
       groqModelId: groqModelId,
+      avatarEnabled: avatarEnabled,
       reminderEnabled: reminderEnabled,
       reminderHour: reminderHour,
       reminderMinute: reminderMinute,
@@ -195,6 +198,11 @@ class SettingsNotifier extends StateNotifier<UserSettings> {
         await _prefs.setString(_groqModelKey, modelId);
         state = state.copyWith(groqModelId: modelId);
     }
+  }
+
+  Future<void> setAvatarEnabled(bool enabled) async {
+    await _prefs.setBool(_avatarEnabledKey, enabled);
+    state = state.copyWith(avatarEnabled: enabled);
   }
 
   Future<void> setReminderEnabled(bool enabled) async {

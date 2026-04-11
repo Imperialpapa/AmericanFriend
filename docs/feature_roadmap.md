@@ -25,9 +25,10 @@
 ## Next Up
 
 ### High Priority
-- [ ] **Pronunciation assessment** — tap AI sentence to "repeat after me", STT vs original comparison, AI-powered feedback (Korean speaker-specific: L/R, F/P, TH)
+- [x] **Pronunciation assessment** — tap AI sentence to "repeat after me", STT vs original comparison, AI-powered feedback (Korean speaker-specific: L/R, F/P, TH)
+- [x] **Grammar correction** — inline 💡 corrections in AI responses with visual highlighting (strikethrough → bold)
+- [x] **Talking avatar animation** — dotLottie animated avatar in chat, synced with AI response state (idle/speaking)
 - [ ] **Level test expansion** — on-demand 4-skill test (listening, reading, speaking, writing), multi-skill radar chart
-- [ ] **Talking avatar animation** — Lottie/Rive animated face in chat, synced with TTS state (idle/speaking)
 
 ### Medium Priority
 - [ ] **Grammar correction report** — post-conversation grammar error summary
