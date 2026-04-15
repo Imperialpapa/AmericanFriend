@@ -18,6 +18,7 @@ import 'package:eng_friend/features/topic/presentation/widgets/topic_bottom_shee
 import 'package:eng_friend/features/mission/presentation/providers/mission_provider.dart';
 import 'package:eng_friend/features/mission/presentation/widgets/mission_bottom_sheet.dart';
 import 'package:eng_friend/features/chat/presentation/widgets/avatar_widget.dart';
+import 'package:eng_friend/core/widgets/banner_ad_widget.dart';
 
 /// 메인 채팅 화면
 class ChatScreen extends ConsumerStatefulWidget {
@@ -234,14 +235,23 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 : _buildMessageList(chatState),
           ),
 
-          // 입력 바
-          ChatInputBar(
-            onSendText: (text) {
-              ref.read(chatProvider.notifier).sendMessage(text);
-              ref.read(streakProvider.notifier).recordMessage();
-              ref.read(topicProvider.notifier).recordTurn();
-              ref.read(missionProvider.notifier).recordTurn();
-            },
+          // 입력 바 + 배너 광고
+          SafeArea(
+            top: false,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ChatInputBar(
+                  onSendText: (text) {
+                    ref.read(chatProvider.notifier).sendMessage(text);
+                    ref.read(streakProvider.notifier).recordMessage();
+                    ref.read(topicProvider.notifier).recordTurn();
+                    ref.read(missionProvider.notifier).recordTurn();
+                  },
+                ),
+                const BannerAdWidget(),
+              ],
+            ),
           ),
         ],
       ),
@@ -287,7 +297,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   Widget _buildWelcomeMessage() {
-    final targetLang = ref.watch(settingsProvider.select((s) => s.targetLanguage));
+    final settings = ref.watch(settingsProvider);
+    final hasApiKey = settings.activeApiKey.isNotEmpty;
 
     return Center(
       child: Padding(
@@ -307,12 +318,55 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              'I\'m here to help you practice ${targetLang.displayName}.\nLet\'s start a conversation!',
+              'I\'m here to help you practice ${settings.targetLanguage.displayName}.\nLet\'s start a conversation!',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                     color: Colors.grey,
                   ),
             ),
+            if (!hasApiKey) ...[
+              const SizedBox(height: 24),
+              Card(
+                color: Theme.of(context).colorScheme.errorContainer,
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    children: [
+                      Icon(Icons.key_off,
+                          size: 32,
+                          color: Theme.of(context).colorScheme.error),
+                      const SizedBox(height: 8),
+                      Text(
+                        'API Key Required',
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              color: Theme.of(context).colorScheme.onErrorContainer,
+                              fontWeight: FontWeight.bold,
+                            ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'To start chatting, you need an AI API key.\nSet one up in Settings.',
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: Theme.of(context).colorScheme.onErrorContainer,
+                            ),
+                      ),
+                      const SizedBox(height: 12),
+                      FilledButton.icon(
+                        onPressed: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                                builder: (_) => const SettingsScreen()),
+                          );
+                        },
+                        icon: const Icon(Icons.settings),
+                        label: const Text('Go to Settings'),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       ),

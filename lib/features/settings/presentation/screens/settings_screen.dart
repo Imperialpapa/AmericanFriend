@@ -115,17 +115,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
           ...AiProviderType.values.map((provider) {
             final info = _providerInfo(provider);
-            final isSelected = settings.aiProvider == provider;
             return RadioListTile<AiProviderType>(
               value: provider,
               groupValue: settings.aiProvider,
               onChanged: (v) => notifier.setAiProvider(v!),
               title: Text(info.name),
               subtitle: Text(info.description),
-              secondary: isSelected
-                  ? Icon(Icons.check_circle,
-                      color: Theme.of(context).colorScheme.primary)
-                  : null,
+              secondary: IconButton(
+                icon: const Icon(Icons.open_in_new, size: 20),
+                tooltip: 'Get API Key',
+                onPressed: () => _launchApiKeyPage(info.keyUrl),
+              ),
             );
           }),
 
@@ -599,23 +599,34 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           name: 'Google Gemini',
           description: 'Free tier: 1,500 req/day',
           keyHint: 'Get your key at aistudio.google.com/apikey',
+          keyUrl: 'https://aistudio.google.com/apikey',
         ),
       AiProviderType.groq => _ProviderInfo(
           name: 'Groq (Llama 3.3)',
           description: 'Free tier: 14,400 req/day, ultra fast',
           keyHint: 'Get your key at console.groq.com/keys',
+          keyUrl: 'https://console.groq.com/keys',
         ),
       AiProviderType.claude => _ProviderInfo(
           name: 'Claude (Sonnet)',
           description: 'Paid — highest quality',
           keyHint: 'Get your key at console.anthropic.com',
+          keyUrl: 'https://console.anthropic.com/settings/keys',
         ),
       AiProviderType.openai => _ProviderInfo(
           name: 'OpenAI (GPT-4o)',
           description: 'Paid',
           keyHint: 'Get your key at platform.openai.com/api-keys',
+          keyUrl: 'https://platform.openai.com/api-keys',
         ),
     };
+  }
+
+  Future<void> _launchApiKeyPage(String url) async {
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
   }
 
   Future<void> _launchFeedbackEmail(UserSettings settings) async {
@@ -659,10 +670,12 @@ class _ProviderInfo {
   final String name;
   final String description;
   final String keyHint;
+  final String keyUrl;
 
   _ProviderInfo({
     required this.name,
     required this.description,
     required this.keyHint,
+    required this.keyUrl,
   });
 }
