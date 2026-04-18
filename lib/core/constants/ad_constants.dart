@@ -7,7 +7,7 @@ abstract class AdConstants {
 
   /// 프로덕션 배너 Ad Unit ID (AdMob 콘솔에서 발급받은 ID로 교체)
   static const String _prodBannerAdUnitId =
-      'ca-app-pub-XXXXXXXXXXXXXXXX/YYYYYYYYYY';
+      'ca-app-pub-3130573171479694/2870158802';
 
   /// 빌드 모드에 따라 적절한 Ad Unit ID 반환
   static String get bannerAdUnitId =>

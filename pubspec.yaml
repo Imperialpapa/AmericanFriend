@@ -1,7 +1,7 @@
 name: eng_friend
 description: "한국말 잘하는 미국인 친구 - AI 영어 학습 앱"
 publish_to: 'none'
-version: 0.1.0+1
+version: 2.2.0+22
 
 environment:
   sdk: ^3.11.3
@@ -63,6 +63,13 @@ dev_dependencies:
   freezed: ^2.5.7
   json_serializable: ^6.9.0
   drift_dev: ^2.22.1
+  flutter_launcher_icons: ^0.14.1
+
+flutter_launcher_icons:
+  android: "ic_launcher"
+  ios: true
+  image_path: "assets/icon/korean_friend.png"
+  remove_alpha_ios: true
 
 flutter:
   uses-material-design: true

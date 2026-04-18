@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:eng_friend/core/constants/level_constants.dart';
+import 'package:eng_friend/core/widgets/banner_ad_widget.dart';
 import 'package:eng_friend/features/level/presentation/providers/level_provider.dart';
 import 'package:eng_friend/features/settings/presentation/providers/settings_provider.dart';
 import 'package:eng_friend/features/chat/presentation/providers/suggestion_provider.dart';
@@ -45,9 +46,26 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
+      body: Column(
         children: [
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.all(16),
+              children: _buildSettingsItems(context, settings, notifier),
+            ),
+          ),
+          const SafeArea(top: false, child: BannerAdWidget()),
+        ],
+      ),
+    );
+  }
+
+  List<Widget> _buildSettingsItems(
+    BuildContext context,
+    UserSettings settings,
+    SettingsNotifier notifier,
+  ) {
+    return [
           // ===== Weekly Report =====
           Card(
             child: ListTile(
@@ -384,9 +402,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               onTap: () => _launchFeedbackEmail(settings),
             ),
           ),
-        ],
-      ),
-    );
+    ];
   }
 
   Widget _buildLevelSection(BuildContext context, WidgetRef ref) {
@@ -634,9 +650,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       scheme: 'mailto',
       path: 'raphael70kim@gmail.com',
       queryParameters: {
-        'subject': '[EngFriend] Feedback',
+        'subject': '[Korean Friend] Feedback',
         'body':
-            '\n\n---\nApp: EngFriend v0.1.0\nAI: ${settings.aiProvider.name} (${settings.activeModelId})\nLevel: ${ref.read(levelProvider).currentLevel}\nNative: ${settings.nativeLanguage.displayName}\nTarget: ${settings.targetLanguage.displayName}',
+            '\n\n---\nApp: Korean Friend v2.2.0\nAI: ${settings.aiProvider.name} (${settings.activeModelId})\nLevel: ${ref.read(levelProvider).currentLevel}\nNative: ${settings.nativeLanguage.displayName}\nTarget: ${settings.targetLanguage.displayName}',
       },
     );
     if (await canLaunchUrl(uri)) {

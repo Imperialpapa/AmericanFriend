@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:eng_friend/core/constants/app_constants.dart';
 import 'package:eng_friend/core/constants/level_constants.dart';
+import 'package:eng_friend/core/widgets/banner_ad_widget.dart';
 import 'package:eng_friend/features/level/presentation/providers/level_provider.dart';
 import 'package:eng_friend/features/settings/presentation/providers/settings_provider.dart';
-import 'package:eng_friend/features/settings/presentation/screens/settings_screen.dart';
 import 'package:eng_friend/di/service_providers.dart';
+import 'package:eng_friend/services/ai/ai_provider_type.dart';
 import 'package:eng_friend/services/language/app_language.dart';
 
 const _onboardingCompleteKey = 'onboarding_complete';
@@ -30,6 +33,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   int _selectedLevel = LevelConstants.defaultLevel;
   late AppLanguage _nativeLanguage;
   late AppLanguage _targetLanguage;
+  AiProviderType _onboardingProvider = AiProviderType.gemini;
+  final _apiKeyController = TextEditingController();
 
   @override
   void initState() {
@@ -43,21 +48,35 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             _nativeLanguage == AppLanguage.englishUK
         ? AppLanguage.korean
         : AppLanguage.englishUS;
+    _apiKeyController.addListener(() => setState(() {}));
+  }
+
+  @override
+  void dispose() {
+    _apiKeyController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: switch (_currentPage) {
-            0 => _buildWelcomePage(),
-            1 => _buildLanguagePage(),
-            2 => _buildApiKeyPage(),
-            3 => _buildLevelPage(),
-            _ => const SizedBox.shrink(),
-          },
+        child: Column(
+          children: [
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: switch (_currentPage) {
+                  0 => _buildWelcomePage(),
+                  1 => _buildLanguagePage(),
+                  2 => _buildApiKeyPage(),
+                  3 => _buildLevelPage(),
+                  _ => const SizedBox.shrink(),
+                },
+              ),
+            ),
+            const BannerAdWidget(),
+          ],
         ),
       ),
     );
@@ -140,7 +159,6 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             prefixIcon: Icon(Icons.translate),
           ),
           items: AppLanguage.values
-              .where((lang) => lang != _targetLanguage)
               .map((lang) => DropdownMenuItem(
                     value: lang,
                     child: Text(lang.label),
@@ -164,7 +182,6 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             prefixIcon: Icon(Icons.school),
           ),
           items: AppLanguage.values
-              .where((lang) => lang != _nativeLanguage)
               .map((lang) => DropdownMenuItem(
                     value: lang,
                     child: Text(lang.label),
@@ -185,7 +202,16 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             const Spacer(),
             FilledButton(
               onPressed: () async {
-                // 선택한 언어 저장
+                if (_nativeLanguage == _targetLanguage) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'Your native language and the language to learn must be different.',
+                      ),
+                    ),
+                  );
+                  return;
+                }
                 final notifier = ref.read(settingsProvider.notifier);
                 await notifier.setNativeLanguage(_nativeLanguage);
                 await notifier.setTargetLanguage(_targetLanguage);
@@ -200,48 +226,203 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   }
 
   Widget _buildApiKeyPage() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const SizedBox(height: 40),
-        Text('API Key Setup',
-            style: Theme.of(context).textTheme.headlineSmall),
-        const SizedBox(height: 8),
-        Text(
-          'You need an AI API key to start chatting.\nPlease set it up in Settings.',
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Colors.grey,
-              ),
-        ),
-        const SizedBox(height: 24),
-        Card(
-          child: ListTile(
-            leading: const Icon(Icons.key),
-            title: const Text('Set up API Key'),
-            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-            onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const SettingsScreen()),
-              );
-            },
+    final keyUrl = _onboardingProvider == AiProviderType.gemini
+        ? 'https://aistudio.google.com/apikey'
+        : 'https://console.groq.com/keys';
+    final hasKey = _apiKeyController.text.trim().isNotEmpty;
+
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 24),
+          Text('Get Your Free API Key',
+              style: Theme.of(context).textTheme.headlineSmall),
+          const SizedBox(height: 4),
+          Text(
+            'Both providers offer free tiers — no credit card needed.',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Colors.grey,
+                ),
           ),
-        ),
-        const Spacer(),
-        Row(
+          const SizedBox(height: 20),
+
+          // 프로바이더 선택
+          SegmentedButton<AiProviderType>(
+            segments: const [
+              ButtonSegment(
+                value: AiProviderType.gemini,
+                label: Text('Gemini'),
+                icon: Icon(Icons.auto_awesome),
+              ),
+              ButtonSegment(
+                value: AiProviderType.groq,
+                label: Text('Groq'),
+                icon: Icon(Icons.bolt),
+              ),
+            ],
+            selected: {_onboardingProvider},
+            onSelectionChanged: (s) =>
+                setState(() => _onboardingProvider = s.first),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            _onboardingProvider == AiProviderType.gemini
+                ? 'Google Gemini — 1,500 requests/day free'
+                : 'Groq (Llama 3.3) — 14,400 requests/day, ultra fast',
+            style: Theme.of(context)
+                .textTheme
+                .bodySmall
+                ?.copyWith(color: Colors.grey),
+          ),
+
+          const SizedBox(height: 20),
+
+          // Step 1
+          _buildStepCard(
+            step: '1',
+            title: 'Open the key page',
+            subtitle: keyUrl,
+            action: OutlinedButton.icon(
+              icon: const Icon(Icons.open_in_new, size: 18),
+              label: const Text('Open in browser'),
+              onPressed: () => _launchUrl(keyUrl),
+            ),
+          ),
+
+          const SizedBox(height: 12),
+
+          // Step 2
+          _buildStepCard(
+            step: '2',
+            title: 'Create & copy the key',
+            subtitle: 'Sign in → create new key → copy it',
+          ),
+
+          const SizedBox(height: 12),
+
+          // Step 3: Paste
+          _buildStepCard(
+            step: '3',
+            title: 'Paste it here',
+            action: TextField(
+              controller: _apiKeyController,
+              decoration: InputDecoration(
+                hintText: 'Your API key',
+                border: const OutlineInputBorder(),
+                suffixIcon: IconButton(
+                  icon: const Icon(Icons.paste),
+                  tooltip: 'Paste from clipboard',
+                  onPressed: _pasteFromClipboard,
+                ),
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 24),
+          Row(
+            children: [
+              TextButton(
+                onPressed: () => setState(() => _currentPage = 1),
+                child: const Text('Back'),
+              ),
+              const Spacer(),
+              TextButton(
+                onPressed: () => setState(() => _currentPage = 3),
+                child: const Text('Skip'),
+              ),
+              const SizedBox(width: 8),
+              FilledButton(
+                onPressed: hasKey ? _saveKeyAndContinue : null,
+                child: const Text('Next'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStepCard({
+    required String step,
+    required String title,
+    String? subtitle,
+    Widget? action,
+  }) {
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            TextButton(
-              onPressed: () => setState(() => _currentPage = 1),
-              child: const Text('Back'),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                CircleAvatar(
+                  radius: 14,
+                  backgroundColor: Theme.of(context).colorScheme.primary,
+                  child: Text(step,
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13)),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(title,
+                          style: Theme.of(context).textTheme.titleSmall),
+                      if (subtitle != null) ...[
+                        const SizedBox(height: 2),
+                        Text(subtitle,
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodySmall
+                                ?.copyWith(color: Colors.grey)),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
             ),
-            const Spacer(),
-            FilledButton(
-              onPressed: () => setState(() => _currentPage = 3),
-              child: const Text('Next'),
-            ),
+            if (action != null) ...[
+              const SizedBox(height: 12),
+              SizedBox(width: double.infinity, child: action),
+            ],
           ],
         ),
-      ],
+      ),
     );
+  }
+
+  Future<void> _launchUrl(String url) async {
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
+  Future<void> _pasteFromClipboard() async {
+    final data = await Clipboard.getData(Clipboard.kTextPlain);
+    final text = data?.text?.trim();
+    if (text != null && text.isNotEmpty) {
+      _apiKeyController.text = text;
+    }
+  }
+
+  Future<void> _saveKeyAndContinue() async {
+    final key = _apiKeyController.text.trim();
+    final notifier = ref.read(settingsProvider.notifier);
+    await notifier.setAiProvider(_onboardingProvider);
+    if (_onboardingProvider == AiProviderType.gemini) {
+      await notifier.setGeminiApiKey(key);
+    } else {
+      await notifier.setGroqApiKey(key);
+    }
+    if (mounted) setState(() => _currentPage = 3);
   }
 
   Widget _buildLevelPage() {
