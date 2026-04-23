@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=1440, initial-scale=1"/>
+<title>Korean Friend — Redesign</title>
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css">
+<style>
+  html, body { margin: 0; padding: 0; background: #f0eee9; font-family: 'Pretendard Variable', system-ui, sans-serif; }
+  * { box-sizing: border-box; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel" src="ios-frame.jsx"></script>
+<script type="text/babel" src="android-frame.jsx"></script>
+<script type="text/babel" src="tokens.jsx"></script>
+<script type="text/babel" src="alex.jsx"></script>
+<script type="text/babel" src="ui-bits.jsx"></script>
+<script type="text/babel" src="chat-screen.jsx"></script>
+<script type="text/babel" src="onboarding-screen.jsx"></script>
+<script type="text/babel" src="settings-screen.jsx"></script>
+
+<script type="text/babel" data-presets="react">
+const TWEAKS = /*EDITMODE-BEGIN*/{
+  "darkMode": true,
+  "showAndroid": true,
+  "showAlexStudy": true
+}/*EDITMODE-END*/;
+
+// ---- Tweaks panel ----
+function TweaksPanel({ state, setState, visible }) {
+  if (!visible) return null;
+  return (
+    <div style={{
+      position: 'fixed', right: 20, bottom: 20, zIndex: 9999,
+      width: 260, padding: 16, borderRadius: 16,
+      background: '#1a1e1b', color: '#fff',
+      fontFamily: "'Pretendard Variable', system-ui, sans-serif",
+      fontSize: 13, boxShadow: '0 16px 40px rgba(0,0,0,0.3)',
+    }}>
+      <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1.2,
+        textTransform: 'uppercase', color: 'rgba(255,255,255,0.6)', marginBottom: 10 }}>Tweaks</div>
+      {[
+        { key: 'darkMode', label: 'Dark mode' },
+        { key: 'showAndroid', label: 'Show Android frames' },
+        { key: 'showAlexStudy', label: 'Show mascot study' },
+      ].map(t => (
+        <label key={t.key} style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '8px 0', cursor: 'pointer',
+        }}>
+          <span>{t.label}</span>
+          <div
+            onClick={() => setState({ [t.key]: !state[t.key] })}
+            style={{
+              width: 36, height: 20, borderRadius: 10,
+              background: state[t.key] ? 'oklch(0.72 0.10 155)' : 'rgba(255,255,255,0.18)',
+              position: 'relative', transition: 'background .15s',
+            }}>
+            <div style={{
+              position: 'absolute', top: 2,
+              left: state[t.key] ? 18 : 2,
+              width: 16, height: 16, borderRadius: 8, background: '#fff',
+              transition: 'left .15s',
+            }}/>
+          </div>
+        </label>
+      ))}
+    </div>
+  );
+}
+
+// ---- Mascot study ----
+function MascotStudy({ dark }) {
+  const c = dark ? KF.dark : KF.light;
+  const emotions = ['calm', 'listening', 'thinking', 'celebrate'];
+  return (
+    <div style={{
+      width: 520, padding: '22px 22px 18px',
+      background: c.card, borderRadius: 24,
+      border: `1px solid ${c.hairline}`,
+    }}>
+      <div style={{
+        fontFamily: KF_TYPE.family, fontSize: 11, fontWeight: 700,
+        letterSpacing: 1.2, textTransform: 'uppercase', color: c.ink3,
+      }}>Alex · mascot</div>
+      <div style={{
+        fontFamily: KF_TYPE.family, fontSize: 22, fontWeight: 700,
+        color: c.ink, letterSpacing: -0.4, marginTop: 4,
+      }}>Pebble, not a face</div>
+      <div style={{
+        fontFamily: KF_TYPE.family, fontSize: 13, fontWeight: 500,
+        color: c.ink2, lineHeight: 1.5, marginTop: 6, maxWidth: 440,
+      }}>
+        Abstract, gender-neutral. Body shape shifts with mood; eye dots do the
+        rest. Mustard cheek glow signals warmth without leaning cute.
+      </div>
+      <div style={{
+        marginTop: 18, display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10,
+      }}>
+        {emotions.map(e => (
+          <div key={e} style={{
+            display: 'flex', flexDirection: 'column', alignItems: 'center',
+            gap: 10, padding: '16px 0', background: c.beige, borderRadius: 16,
+          }}>
+            <Alex size={60} emotion={e} dark={dark}/>
+            <div style={{
+              fontFamily: KF_TYPE.family, fontSize: 11, fontWeight: 600,
+              color: c.ink2, letterSpacing: 0.4, textTransform: 'uppercase',
+            }}>{e}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ---- Palette card ----
+function PaletteCard({ dark }) {
+  const c = dark ? KF.dark : KF.light;
+  const swatches = [
+    { n: 'Sage',    v: c.sage,     fg: '#fff' },
+    { n: 'Deep',    v: c.sageDeep, fg: '#fff' },
+    { n: 'Wash',    v: c.sageWash, fg: c.ink },
+    { n: 'Beige',   v: c.beige,    fg: c.ink },
+    { n: 'Mustard', v: c.mustard,  fg: '#2a1f05' },
+    { n: 'Ink',     v: c.ink,      fg: '#fff' },
+  ];
+  return (
+    <div style={{
+      width: 520, padding: '22px 22px 18px',
+      background: c.card, borderRadius: 24,
+      border: `1px solid ${c.hairline}`,
+    }}>
+      <div style={{
+        fontFamily: KF_TYPE.family, fontSize: 11, fontWeight: 700,
+        letterSpacing: 1.2, textTransform: 'uppercase', color: c.ink3,
+      }}>Palette · modern sage</div>
+      <div style={{
+        fontFamily: KF_TYPE.family, fontSize: 22, fontWeight: 700,
+        color: c.ink, letterSpacing: -0.4, marginTop: 4,
+      }}>Warm, grounded, not-blue</div>
+      <div style={{
+        fontFamily: KF_TYPE.family, fontSize: 13, fontWeight: 500,
+        color: c.ink2, lineHeight: 1.5, marginTop: 6, maxWidth: 440,
+      }}>
+        Sage primary, beige secondary, mustard accent. Accents share L/C band —
+        only hue varies.
+      </div>
+      <div style={{
+        marginTop: 18, display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 8,
+      }}>
+        {swatches.map(s => (
+          <div key={s.n} style={{
+            height: 96, background: s.v, color: s.fg,
+            borderRadius: 14, padding: 10,
+            display: 'flex', flexDirection: 'column', justifyContent: 'flex-end',
+            fontFamily: KF_TYPE.family,
+            border: s.n === 'Wash' || s.n === 'Beige' ? `1px solid ${c.hairline}` : 'none',
+          }}>
+            <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: -0.1 }}>{s.n}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ---- Frame wrappers ----
+function IOSHost({ dark, children, keyboard }) {
+  return (
+    <IOSDevice width={390} height={810} dark={dark} keyboard={keyboard}>
+      <div style={{
+        position: 'absolute', inset: 0,
+        paddingTop: 54,  // clear status bar + island
+      }}>
+        <div style={{ height: '100%' }}>{children}</div>
+      </div>
+    </IOSDevice>
+  );
+}
+
+function AndroidHost({ dark, children }) {
+  return (
+    <AndroidDevice width={390} height={810} dark={dark}>
+      <div style={{ position: 'absolute', inset: 0, paddingTop: 38 }}>
+        <div style={{ height: '100%' }}>{children}</div>
+      </div>
+    </AndroidDevice>
+  );
+}
+
+// ---- App ----
+function App() {
+  const [state, setState] = React.useState(TWEAKS);
+  const [tweaksOpen, setTweaksOpen] = React.useState(false);
+  const setTweak = (patch) => {
+    setState(s => {
+      const next = { ...s, ...patch };
+      try { window.parent.postMessage({ type: '__edit_mode_set_keys', edits: patch }, '*'); } catch (e) {}
+      return next;
+    });
+  };
+  React.useEffect(() => {
+    const handler = (e) => {
+      if (e.data?.type === '__activate_edit_mode') setTweaksOpen(true);
+      if (e.data?.type === '__deactivate_edit_mode') setTweaksOpen(false);
+    };
+    window.addEventListener('message', handler);
+    try { window.parent.postMessage({ type: '__edit_mode_available' }, '*'); } catch (e) {}
+    return () => window.removeEventListener('message', handler);
+  }, []);
+
+  const dark = state.darkMode;
+
+  return (
+    <>
+      <DesignCanvas>
+        <DCSection id="sys" title="Design system" subtitle="Modern Sage · Pretendard · pebble mascot">
+          <DCArtboard id="palette" label="Palette" width={520} height={280}>
+            <div style={{ padding: 0, height: '100%', background: dark ? KF.dark.canvas : KF.light.canvas, borderRadius: 12 }}>
+              <PaletteCard dark={dark}/>
+            </div>
+          </DCArtboard>
+          {state.showAlexStudy && (
+            <DCArtboard id="mascot" label="Mascot · Alex" width={520} height={280}>
+              <div style={{ padding: 0, height: '100%', background: dark ? KF.dark.canvas : KF.light.canvas, borderRadius: 12 }}>
+                <MascotStudy dark={dark}/>
+              </div>
+            </DCArtboard>
+          )}
+        </DCSection>
+
+        <DCSection id="chat" title="ChatScreen" subtitle="Main surface · learning-layer drawer · restrained gamification">
+          <DCArtboard id="chat-ios-light" label="iOS · Light" width={390} height={810}>
+            <IOSHost dark={false}><ChatScreen dark={false} platform="ios"/></IOSHost>
+          </DCArtboard>
+          <DCArtboard id="chat-ios-dark" label="iOS · Dark" width={390} height={810}>
+            <IOSHost dark={true}><ChatScreen dark={true} platform="ios"/></IOSHost>
+          </DCArtboard>
+          {state.showAndroid && (
+            <DCArtboard id="chat-android" label="Android · Light" width={390} height={810}>
+              <AndroidHost dark={false}><ChatScreen dark={false} platform="android"/></AndroidHost>
+            </DCArtboard>
+          )}
+        </DCSection>
+
+        <DCSection id="onboarding" title="OnboardingScreen" subtitle="Goal picker · Alex narrates · step 2 of 4">
+          <DCArtboard id="onb-ios-light" label="iOS · Light" width={390} height={810}>
+            <IOSHost dark={false}><OnboardingScreen dark={false}/></IOSHost>
+          </DCArtboard>
+          <DCArtboard id="onb-ios-dark" label="iOS · Dark" width={390} height={810}>
+            <IOSHost dark={true}><OnboardingScreen dark={true}/></IOSHost>
+          </DCArtboard>
+          {state.showAndroid && (
+            <DCArtboard id="onb-android" label="Android · Light" width={390} height={810}>
+              <AndroidHost dark={false}><OnboardingScreen dark={false}/></AndroidHost>
+            </DCArtboard>
+          )}
+        </DCSection>
+
+        <DCSection id="settings" title="SettingsScreen" subtitle="Profile-forward dashboard · Vocabulary + Weekly Report promoted">
+          <DCArtboard id="set-ios-light" label="iOS · Light" width={390} height={810}>
+            <IOSHost dark={false}><SettingsScreen dark={false}/></IOSHost>
+          </DCArtboard>
+          <DCArtboard id="set-ios-dark" label="iOS · Dark" width={390} height={810}>
+            <IOSHost dark={true}><SettingsScreen dark={true}/></IOSHost>
+          </DCArtboard>
+          {state.showAndroid && (
+            <DCArtboard id="set-android" label="Android · Light" width={390} height={810}>
+              <AndroidHost dark={false}><SettingsScreen dark={false}/></AndroidHost>
+            </DCArtboard>
+          )}
+        </DCSection>
+      </DesignCanvas>
+      <TweaksPanel state={state} setState={setTweak} visible={tweaksOpen}/>
+    </>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>
