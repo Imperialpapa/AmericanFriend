@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -42,11 +44,36 @@ class SettingsNotifier extends StateNotifier<UserSettings> {
   SettingsNotifier(this._secureStorage, this._prefs)
       : super(const UserSettings());
 
+  /// 복호화 실패(BadPaddingException 등)는 키스토어/저장된 데이터 불일치로
+  /// 주로 안드로이드 보안 업데이트·디바이스 변경·백업 복원 후 발생.
+  /// 이 경우 저장소 전체를 비워서 앱이 정상 부팅되도록 한다 (API 키 재입력 필요).
+  Future<String> _safeReadKey(String key) async {
+    try {
+      return await _secureStorage.read(key: key) ?? '';
+    } on PlatformException catch (e) {
+      debugPrint('[Settings] secure storage read failed for $key: $e');
+      rethrow;
+    }
+  }
+
   Future<void> load() async {
-    final claudeKey = await _secureStorage.read(key: _claudeKeyKey) ?? '';
-    final openaiKey = await _secureStorage.read(key: _openaiKeyKey) ?? '';
-    final geminiKey = await _secureStorage.read(key: _geminiKeyKey) ?? '';
-    final groqKey = await _secureStorage.read(key: _groqKeyKey) ?? '';
+    String claudeKey = '';
+    String openaiKey = '';
+    String geminiKey = '';
+    String groqKey = '';
+    try {
+      claudeKey = await _safeReadKey(_claudeKeyKey);
+      openaiKey = await _safeReadKey(_openaiKeyKey);
+      geminiKey = await _safeReadKey(_geminiKeyKey);
+      groqKey = await _safeReadKey(_groqKeyKey);
+    } on PlatformException {
+      debugPrint('[Settings] secure storage corrupt — wiping all entries');
+      try {
+        await _secureStorage.deleteAll();
+      } catch (err) {
+        debugPrint('[Settings] deleteAll also failed: $err');
+      }
+    }
     final providerStr = _prefs.getString(_aiProviderKey) ?? 'gemini';
     final nativeLangStr = _prefs.getString(_nativeLanguageKey);
     final targetLangStr = _prefs.getString(_targetLanguageKey);

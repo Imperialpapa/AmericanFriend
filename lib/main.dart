@@ -33,6 +33,7 @@ class _AppLoader extends ConsumerStatefulWidget {
 
 class _AppLoaderState extends ConsumerState<_AppLoader> {
   bool _loaded = false;
+  String? _error;
 
   @override
   void initState() {
@@ -41,23 +42,68 @@ class _AppLoaderState extends ConsumerState<_AppLoader> {
   }
 
   Future<void> _loadSettings() async {
-    await ref.read(settingsProvider.notifier).load();
+    try {
+      debugPrint('[AppLoader] load start');
+      await ref
+          .read(settingsProvider.notifier)
+          .load()
+          .timeout(const Duration(seconds: 5));
+      debugPrint('[AppLoader] settings loaded');
 
-    // 알림이 활성화되어 있으면 스케줄 복원
-    final settings = ref.read(settingsProvider);
-    if (settings.reminderEnabled) {
-      await NotificationService.initialize();
-      await NotificationService.scheduleDailyReminder(
-        hour: settings.reminderHour,
-        minute: settings.reminderMinute,
-      );
+      final settings = ref.read(settingsProvider);
+      if (settings.reminderEnabled) {
+        debugPrint('[AppLoader] initializing notifications');
+        await NotificationService.initialize()
+            .timeout(const Duration(seconds: 5));
+        await NotificationService.scheduleDailyReminder(
+          hour: settings.reminderHour,
+          minute: settings.reminderMinute,
+        ).timeout(const Duration(seconds: 5));
+        debugPrint('[AppLoader] notifications ready');
+      }
+
+      if (mounted) setState(() => _loaded = true);
+    } catch (e, st) {
+      debugPrint('[AppLoader] FAILED: $e\n$st');
+      if (mounted) setState(() => _error = '$e');
     }
-
-    setState(() => _loaded = true);
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_error != null) {
+      return MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                  const SizedBox(height: 16),
+                  const Text('Startup error',
+                      style:
+                          TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  Text(_error!, textAlign: TextAlign.center),
+                  const SizedBox(height: 24),
+                  FilledButton(
+                    onPressed: () {
+                      setState(() {
+                        _error = null;
+                        _loaded = true; // skip load and show app anyway
+                      });
+                    },
+                    child: const Text('Continue anyway'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
     if (!_loaded) {
       return const MaterialApp(
         home: Scaffold(
