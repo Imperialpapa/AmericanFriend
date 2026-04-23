@@ -1,166 +1,140 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:eng_friend/core/theme/app_colors.dart';
+import 'package:eng_friend/core/theme/app_radii.dart';
+import 'package:eng_friend/core/theme/app_spacing.dart';
+import 'package:eng_friend/core/theme/app_typography.dart';
 import 'package:eng_friend/features/chat/presentation/providers/suggestion_provider.dart';
 import 'package:eng_friend/features/chat/domain/entities/suggestion.dart';
 import 'package:eng_friend/features/settings/presentation/providers/settings_provider.dart';
-import 'package:eng_friend/di/service_providers.dart';
-import 'package:eng_friend/services/pipeline/tts_queue.dart';
 
+/// Horizontal pill scroll — "Try saying..."
 class SuggestionChips extends ConsumerWidget {
   const SuggestionChips({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final palette = KFPalette.of(context);
     final suggestionState = ref.watch(suggestionProvider);
-    final showKorean = ref.watch(settingsProvider.select((s) => s.showNativeHint));
+    final showNative = ref.watch(settingsProvider.select((s) => s.showNativeHint));
 
     if (suggestionState.suggestions.isEmpty && !suggestionState.isLoading) {
       return const SizedBox.shrink();
     }
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+          KFSpacing.x4, KFSpacing.x2, 0, KFSpacing.x2),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
-            'Try saying...',
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: Text(
+              'Try saying…',
+              style: KFTypography.tiny(color: palette.ink3).copyWith(
+                letterSpacing: 0.4,
+              ),
+            ),
           ),
-          const SizedBox(height: 6),
           if (suggestionState.isLoading)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 4),
+            Padding(
+              padding: const EdgeInsets.only(left: 4),
               child: SizedBox(
-                width: 16,
-                height: 16,
-                child: CircularProgressIndicator(strokeWidth: 2),
+                width: 14,
+                height: 14,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: palette.sage,
+                ),
               ),
             )
           else
-            ...suggestionState.suggestions.map((suggestion) {
-              return _SuggestionChipItem(
-                suggestion: suggestion,
-                showKorean: showKorean,
-              );
-            }),
+            SizedBox(
+              height: 36,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: suggestionState.suggestions.length,
+                separatorBuilder: (_, _) => const SizedBox(width: 6),
+                padding: const EdgeInsets.only(right: KFSpacing.x4),
+                itemBuilder: (_, index) {
+                  final suggestion = suggestionState.suggestions[index];
+                  return _SuggestionPill(
+                    suggestion: suggestion,
+                    showNative: showNative,
+                    isFirst: index == 0,
+                  );
+                },
+              ),
+            ),
         ],
       ),
     );
   }
 }
 
-class _SuggestionChipItem extends ConsumerStatefulWidget {
+class _SuggestionPill extends ConsumerWidget {
   final Suggestion suggestion;
-  final bool showKorean;
+  final bool showNative;
+  final bool isFirst;
 
-  const _SuggestionChipItem({
+  const _SuggestionPill({
     required this.suggestion,
-    required this.showKorean,
+    required this.showNative,
+    required this.isFirst,
   });
 
   @override
-  ConsumerState<_SuggestionChipItem> createState() =>
-      _SuggestionChipItemState();
-}
+  Widget build(BuildContext context, WidgetRef ref) {
+    final palette = KFPalette.of(context);
+    final hasNative =
+        showNative && (suggestion.koreanHint?.isNotEmpty ?? false);
 
-class _SuggestionChipItemState extends ConsumerState<_SuggestionChipItem> {
-  bool _isSpeaking = false;
-
-  Future<void> _speak() async {
-    final ttsQueue = ref.read(ttsQueueProvider);
-
-    if (_isSpeaking) {
-      await ttsQueue.interrupt();
-      setState(() => _isSpeaking = false);
-      return;
-    }
-
-    setState(() => _isSpeaking = true);
-
-    final sub = ttsQueue.stateStream.listen((state) {
-      if (state == TtsQueueState.idle && mounted) {
-        setState(() => _isSpeaking = false);
-      }
-    });
-
-    await ttsQueue.enqueue(widget.suggestion.text.trim());
-
-    await for (final state in ttsQueue.stateStream) {
-      if (state == TtsQueueState.idle) break;
-    }
-    sub.cancel();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
+    return Material(
+      color: Colors.transparent,
       child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: () {
-          ref
-              .read(suggestionProvider.notifier)
-              .selectSuggestion(widget.suggestion);
-        },
+        borderRadius: KFRadii.rFull,
+        onTap: () => ref
+            .read(suggestionProvider.notifier)
+            .selectSuggestion(suggestion),
         child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.fromLTRB(12, 10, 4, 10),
+          padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
           decoration: BoxDecoration(
-            color: Theme.of(context)
-                .colorScheme
-                .surfaceContainerHighest
-                .withOpacity(0.5),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: Theme.of(context)
-                  .colorScheme
-                  .outline
-                  .withOpacity(0.3),
-            ),
+            color: palette.paper,
+            borderRadius: KFRadii.rFull,
+            border: Border.all(color: palette.hairline, width: 1),
           ),
           child: Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Expanded(
-                child: Text.rich(
-                  TextSpan(
-                    children: [
-                      TextSpan(
-                        text: widget.suggestion.text,
-                        style: const TextStyle(
-                          color: Color(0xFFFFD54F),
-                        ),
-                      ),
-                      if (widget.showKorean &&
-                          widget.suggestion.koreanHint != null &&
-                          widget.suggestion.koreanHint!.isNotEmpty)
-                        TextSpan(
-                          text: '\n${widget.suggestion.koreanHint}',
-                          style: const TextStyle(
-                            color: Color(0xFF64B5F6),
-                            fontSize: 12,
-                          ),
-                        ),
-                    ],
+              if (isFirst) ...[
+                Icon(Icons.auto_awesome, size: 11, color: palette.mustard),
+                const SizedBox(width: 5),
+              ],
+              Text(
+                suggestion.text,
+                style: KFTypography.meta(color: palette.ink2).copyWith(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  letterSpacing: -0.1,
+                ),
+              ),
+              if (hasNative) ...[
+                const SizedBox(width: 6),
+                Container(
+                  width: 1,
+                  height: 11,
+                  color: palette.hairline,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  suggestion.koreanHint!,
+                  style: KFTypography.meta(color: palette.ink3).copyWith(
+                    fontSize: 11,
                   ),
                 ),
-              ),
-              IconButton(
-                icon: Icon(
-                  _isSpeaking ? Icons.stop_circle : Icons.volume_up,
-                  size: 18,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-                tooltip: _isSpeaking ? 'Stop' : 'Listen',
-                visualDensity: VisualDensity.compact,
-                constraints: const BoxConstraints(),
-                padding: const EdgeInsets.all(8),
-                onPressed: _speak,
-              ),
+              ],
             ],
           ),
         ),
