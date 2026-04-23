@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:eng_friend/core/constants/app_constants.dart';
+import 'package:eng_friend/core/theme/app_theme.dart';
 import 'package:eng_friend/features/chat/presentation/screens/chat_screen.dart';
 import 'package:eng_friend/features/onboarding/presentation/screens/onboarding_screen.dart';
 
@@ -27,20 +28,8 @@ class _EngFriendAppState extends ConsumerState<EngFriendApp> {
     return MaterialApp(
       title: AppConstants.appName,
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF4A90D9),
-          brightness: Brightness.light,
-        ),
-        useMaterial3: true,
-      ),
-      darkTheme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF4A90D9),
-          brightness: Brightness.dark,
-        ),
-        useMaterial3: true,
-      ),
+      theme: KFTheme.light(),
+      darkTheme: KFTheme.dark(),
       home: (isOnboarded || _onboardingDone)
           ? const ChatScreen()
           : OnboardingScreen(
