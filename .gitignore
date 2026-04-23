@@ -50,3 +50,7 @@ secu/
 *.jks
 *.keystore
 .claude/
+
+# Ad-hoc screenshots / debug images
+screenshot*.jpg
+screenshot*.png
