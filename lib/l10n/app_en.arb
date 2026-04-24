@@ -1,0 +1,304 @@
+{
+  "@@locale": "en",
+  "appName": "Korean Friend",
+
+  "commonCancel": "Cancel",
+  "commonSave": "Save",
+  "commonBack": "Back",
+  "commonContinue": "Continue",
+  "commonSkip": "Skip",
+  "commonCopy": "Copy",
+  "commonCopied": "Copied!",
+  "commonSettings": "Settings",
+  "commonClose": "Close",
+  "commonDone": "Done",
+
+  "chatWelcomeTitle": "Hey! I'm {name}",
+  "@chatWelcomeTitle": {
+    "placeholders": { "name": { "type": "String" } }
+  },
+  "chatWelcomeSubtitle": "I'm here to help you practice {language}.\nLet's start a conversation!",
+  "@chatWelcomeSubtitle": {
+    "placeholders": { "language": { "type": "String" } }
+  },
+  "chatApiKeyRequiredTitle": "API Key Required",
+  "chatApiKeyRequiredBody": "To start chatting, you need an AI API key.\nSet one up in Settings.",
+  "chatApiKeyGoToSettings": "Go to Settings",
+  "chatErrorGoToSettings": "Settings",
+
+  "chatHeaderContext": "Day {day} · Lv.{level} {name}",
+  "@chatHeaderContext": {
+    "placeholders": {
+      "day": { "type": "int" },
+      "level": { "type": "int" },
+      "name": { "type": "String" }
+    }
+  },
+
+  "chatInputHintTyping": "Type or tap mic in {language}…",
+  "@chatInputHintTyping": {
+    "placeholders": { "language": { "type": "String" } }
+  },
+  "chatInputHintListening": "Listening…",
+
+  "chatSuggestionTitle": "Try saying…",
+  "chatMessageTapToReveal": "Tap to reveal",
+
+  "chatDrawerHear": "Hear it",
+  "chatDrawerTry": "Try",
+  "chatDrawerSave": "Save",
+  "chatCorrectionPrefix": "You said ",
+  "chatCorrectionArrow": " → try ",
+
+  "chatSaveToVocabTitle": "Save to Vocabulary",
+  "chatSaveToVocabHint": "Edit expression to save",
+  "chatSaveToVocabDone": "Saved to vocabulary!",
+
+  "chatUserMenuPractice": "Practice pronunciation",
+  "chatUserMenuSave": "Save to vocabulary",
+
+  "chatStreakGoalReached": "Daily goal reached! Streak: {days, plural, =1{1 day} other{{days} days}}",
+  "@chatStreakGoalReached": {
+    "placeholders": { "days": { "type": "int" } }
+  },
+  "chatMissionComplete": "Mission Complete! +{stars, plural, =1{1 star} other{{stars} stars}}",
+  "@chatMissionComplete": {
+    "placeholders": { "stars": { "type": "int" } }
+  },
+
+  "missionStripTodayGoal": "Today's goal · {today} of {goal}",
+  "@missionStripTodayGoal": {
+    "placeholders": {
+      "today": { "type": "int" },
+      "goal": { "type": "int" }
+    }
+  },
+  "missionStripGoalReached": "Goal reached · {today} of {goal}",
+  "@missionStripGoalReached": {
+    "placeholders": {
+      "today": { "type": "int" },
+      "goal": { "type": "int" }
+    }
+  },
+  "missionStripActive": "Mission · {turn} of {total}",
+  "@missionStripActive": {
+    "placeholders": {
+      "turn": { "type": "int" },
+      "total": { "type": "int" }
+    }
+  },
+  "missionStripToGo": "+{n} to go",
+  "@missionStripToGo": {
+    "placeholders": { "n": { "type": "int" } }
+  },
+  "missionStripDone": "✓ Done",
+
+  "onboardStepOf": "Step {step} of {total} · About 30 seconds",
+  "@onboardStepOf": {
+    "placeholders": {
+      "step": { "type": "int" },
+      "total": { "type": "int" }
+    }
+  },
+  "onboardCtaLetsGo": "Let's go",
+  "onboardCtaStartChatting": "Start chatting",
+
+  "onboardWelcomeSubtitle": "Your friendly language tutor.\nLet's practice through real chats.",
+
+  "onboardLanguageBubble": "First — what's your language setup?",
+  "onboardLanguageHeadline1": "Set your\n",
+  "onboardLanguageHeadline2": "native & target",
+  "onboardLanguageHeadline3": ".",
+  "onboardLanguageHelp": "I'll detect your native from device, but you can change it.",
+  "onboardLanguageNativeLabel": "Your native language",
+  "onboardLanguageTargetLabel": "Language to learn",
+  "onboardLanguageMustDiffer": "Native and target must be different.",
+
+  "onboardApiBubble": "I need an API key to chat — both options are free.",
+  "onboardApiHeadline1": "Get your\n",
+  "onboardApiHeadline2": "free key",
+  "onboardApiHeadline3": ".",
+  "onboardApiHelp": "No credit card. Takes about a minute.",
+  "onboardApiGeminiDesc": "Gemini · 1,500 requests/day free",
+  "onboardApiGroqDesc": "Groq (Llama 3.3) · 14,400 requests/day, ultra fast",
+  "onboardApiStep1Title": "Open the key page",
+  "onboardApiStep1Action": "Open in browser",
+  "onboardApiStep2Title": "Create & copy the key",
+  "onboardApiStep2Sub": "Sign in → create new key → copy",
+  "onboardApiStep3Title": "Paste it here",
+  "onboardApiKeyHint": "Your API key",
+  "onboardApiPaste": "Paste",
+  "onboardApiFreeTierHint": "Or skip — you get 20 free messages/day",
+
+  "onboardLevelBubble": "How much can you say already? It auto-adjusts as we chat.",
+  "onboardLevelHeadline1": "Where do\n",
+  "onboardLevelHeadline2": "you start",
+  "onboardLevelHeadline3": "?",
+  "onboardLevelBeginner": "Beginner",
+  "onboardLevelNative": "Native",
+
+  "settingsHeaderTitle": "Profile",
+  "settingsSectionLearning": "Learning",
+  "settingsSectionAi": "AI Setup",
+  "settingsSectionConversation": "Conversation",
+  "settingsSectionVoice": "Voice",
+  "settingsSectionApp": "App",
+
+  "settingsHeroLevelLearner": "Level {level} Learner",
+  "@settingsHeroLevelLearner": {
+    "placeholders": { "level": { "type": "int" } }
+  },
+  "settingsStatStreak": "Streak",
+  "settingsStatStreakSub": "days",
+  "settingsStatWords": "Words",
+  "settingsStatWordsSub": "saved",
+  "settingsStatToday": "Today",
+  "settingsStatTodaySub": "/ {goal}",
+  "@settingsStatTodaySub": {
+    "placeholders": { "goal": { "type": "int" } }
+  },
+
+  "settingsRowVocabulary": "Vocabulary",
+  "settingsRowVocabularyDetail": "Saved words",
+  "settingsRowWeeklyReport": "Weekly report",
+  "settingsRowWeeklyReportDetail": "Last 7 days",
+  "settingsRowLevel": "Level",
+  "settingsRowNativeLanguage": "Native language",
+  "settingsRowTargetLanguage": "Target language",
+
+  "settingsRowProvider": "Provider",
+  "settingsRowModel": "Model",
+  "settingsRowApiKey": "API key",
+  "settingsGetFreeKey": "Get free key at {hint}",
+  "@settingsGetFreeKey": {
+    "placeholders": { "hint": { "type": "String" } }
+  },
+  "settingsApiKeyHint": "paste your key…",
+  "settingsPickerProvider": "AI Provider",
+  "settingsPickerModel": "Model",
+
+  "settingsShowTargetText": "Show {language} text",
+  "@settingsShowTargetText": {
+    "placeholders": { "language": { "type": "String" } }
+  },
+  "settingsShowTargetTextSub": "Display AI response on screen",
+  "settingsShowNativeTranslation": "Show {language} translation",
+  "@settingsShowNativeTranslation": {
+    "placeholders": { "language": { "type": "String" } }
+  },
+  "settingsShowNativeTranslationSub": "Inline hints in parentheses",
+  "settingsSuggestionTiming": "Suggestion timing",
+  "settingsSuggestionImmediate": "Immediate",
+  "settingsSuggestionDelayed": "Delayed",
+
+  "settingsReadTargetAloud": "Read {language} aloud",
+  "@settingsReadTargetAloud": {
+    "placeholders": { "language": { "type": "String" } }
+  },
+  "settingsReadTranslationAloud": "Read translation aloud",
+  "settingsVoiceGender": "Voice gender",
+  "settingsVoiceFemale": "Female",
+  "settingsVoiceMale": "Male",
+  "settingsSpeed": "Speed",
+  "settingsSpeedSlow": "Slow",
+  "settingsSpeedNormal": "Normal",
+  "settingsSpeedFast": "Fast",
+  "settingsMicPause": "Mic pause tolerance",
+  "settingsMicPauseSub": "How long you can pause mid-sentence",
+  "settingsMicPauseQuick": "Quick 3s",
+  "settingsMicPauseNormal": "Normal 5s",
+  "settingsMicPausePatient": "Patient 8s",
+  "settingsAutoSendVoice": "Auto-send voice",
+  "settingsAutoSendVoiceSub": "Off: tap send to confirm what you said",
+
+  "settingsDailyReminder": "Daily reminder",
+  "settingsDailyReminderOn": "At {time}",
+  "@settingsDailyReminderOn": {
+    "placeholders": { "time": { "type": "String" } }
+  },
+  "settingsDailyReminderOff": "Get nudged to practice",
+  "settingsReminderTime": "Reminder time",
+  "settingsSendFeedback": "Send feedback",
+  "settingsSendFeedbackDetail": "Email",
+  "settingsFeedbackEmailFailed": "Could not open email app",
+
+  "levelDesc1": "1 sentence, basic words",
+  "levelDesc2": "1-2 sentences, everyday words",
+  "levelDesc3": "2 sentences, simple phrases",
+  "levelDesc4": "2-3 sentences, common idioms",
+  "levelDesc5": "2-3 sentences, natural conversation",
+  "levelDesc6": "3-4 sentences, idioms & phrasal verbs",
+  "levelDesc7": "3-4 sentences, rich vocabulary",
+  "levelDesc8": "4-5 sentences, advanced expressions",
+  "levelDesc9": "4-5 sentences, near-native nuance",
+  "levelDesc10": "5 sentences, full native level",
+
+  "startupError": "Startup error",
+  "startupContinueAnyway": "Continue anyway",
+
+  "vocabTitle": "My Vocabulary",
+  "vocabTabAll": "All ({count})",
+  "@vocabTabAll": { "placeholders": { "count": { "type": "int" } } },
+  "vocabTabReview": "Review ({count})",
+  "@vocabTabReview": { "placeholders": { "count": { "type": "int" } } },
+  "vocabCaughtUp": "All caught up!",
+  "vocabCaughtUpSub": "No words to review right now.",
+  "vocabListEmpty": "No words saved yet.\nLong-press text in chat or tap + to add.",
+  "vocabAddTitle": "Add Word",
+  "vocabFieldExpression": "Expression",
+  "vocabFieldExpressionHint": "e.g. break the ice",
+  "vocabFieldMeaning": "Meaning",
+  "vocabFieldMeaningHint": "e.g. to start a conversation",
+  "vocabButtonAdd": "Add",
+  "vocabReviewComplete": "Review complete!",
+  "vocabReviewTapReveal": "Tap to reveal",
+  "vocabReviewAgain": "Again",
+  "vocabReviewGotIt": "Got it",
+
+  "reportTitle": "Weekly Report",
+  "reportSectionDaily": "Daily Activity",
+  "reportSectionTopics": "Topics Practiced",
+  "reportSectionLevels": "Level Changes",
+  "reportNoTopics": "No topic sessions this week.\nTry the Topic Focus mode!",
+  "reportNoLevels": "No level changes this week.",
+  "reportStatMessages": "Messages",
+  "reportStatActiveDays": "Active Days",
+  "reportStatStreak": "Streak",
+  "reportTurns": "{turns} turns",
+  "@reportTurns": { "placeholders": { "turns": { "type": "int" } } },
+  "reportLevelLabel": "Level {level}",
+  "@reportLevelLabel": { "placeholders": { "level": { "type": "int" } } },
+
+  "topicSheetTitle": "Choose a Topic",
+  "topicTodayLabel": "Today's Topic",
+  "topicActive": "Active",
+  "topicCategoryDaily": "Daily Life",
+  "topicCategoryTravel": "Travel",
+  "topicCategoryFood": "Food & Dining",
+  "topicCategoryWork": "Work & Business",
+  "topicCategoryShopping": "Shopping",
+  "topicCategoryHealth": "Health",
+  "topicCategorySocial": "Social",
+  "topicCategoryEntertainment": "Entertainment",
+
+  "missionSheetTitle": "Missions",
+  "missionDifficultyEasy": "Easy",
+  "missionDifficultyMedium": "Medium",
+  "missionDifficultyHard": "Hard",
+  "missionTurnsNeeded": "{turns} turns needed",
+  "@missionTurnsNeeded": { "placeholders": { "turns": { "type": "int" } } },
+
+  "pronSheetTitle": "Repeat After Me",
+  "pronListenFirst": "Listen first",
+  "pronReadyHint": "Tap the mic and read the sentence aloud",
+  "pronListening": "Listening...",
+  "pronEvaluating": "Evaluating your pronunciation...",
+  "pronTryAgain": "Try Again",
+  "pronDetails": "Details",
+  "pronScoreExcellent": "Excellent!",
+  "pronScoreGood": "Good!",
+  "pronScoreKeepPracticing": "Keep practicing",
+  "pronScoreNeedsWork": "Needs work",
+  "pronError": "Error: {message}",
+  "@pronError": { "placeholders": { "message": { "type": "String" } } }
+}

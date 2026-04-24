@@ -10,6 +10,7 @@ import 'package:eng_friend/di/service_providers.dart';
 import 'package:eng_friend/features/chat/presentation/widgets/pronunciation_bottom_sheet.dart';
 import 'package:eng_friend/features/settings/presentation/providers/settings_provider.dart';
 import 'package:eng_friend/features/vocabulary/presentation/providers/vocabulary_provider.dart';
+import 'package:eng_friend/l10n/app_localizations.dart';
 import 'package:eng_friend/services/pipeline/tts_queue.dart';
 
 /// Modern Sage message bubble with optional Learning Drawer (AI side).
@@ -61,16 +62,41 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
     return (body: body, corrections: corrections);
   }
 
-  /// 본문(번역 괄호 포함) → (본문 only, 번역 텍스트 합본)
-  ({String main, String translation}) _splitTranslation(String text) {
-    final translations = <String>[];
-    final main = text.replaceAllMapped(_hintPattern, (m) {
-      final inner = m.group(0)!.trim();
-      // remove surrounding parens
-      translations.add(inner.substring(1, inner.length - 1));
-      return '';
-    }).replaceAll(RegExp(r'\s{2,}'), ' ').trim();
-    return (main: main, translation: translations.join(' · '));
+  /// 괄호 번역을 제거한 순수 본문 (TTS skip / 단어장 저장 시 사용)
+  String _stripParens(String text) => text
+      .replaceAll(_hintPattern, '')
+      .replaceAll(RegExp(r'\s{2,}'), ' ')
+      .trim();
+
+  /// 본문을 TextSpan으로 렌더 — showNative=true면 (괄호) 부분을 회색으로 인라인 표시
+  TextSpan _buildBodySpan(KFPalette palette, String body,
+      {required bool showNative}) {
+    final base = KFTypography.body(color: palette.ink).copyWith(
+      fontSize: 15,
+      letterSpacing: -0.2,
+      height: 1.45,
+    );
+    if (!showNative) {
+      return TextSpan(text: _stripParens(body), style: base);
+    }
+    final hintStyle = base.copyWith(
+      color: palette.ink3,
+      fontSize: 13,
+      fontWeight: FontWeight.w400,
+    );
+    final spans = <TextSpan>[];
+    int last = 0;
+    for (final m in _hintPattern.allMatches(body)) {
+      if (m.start > last) {
+        spans.add(TextSpan(text: body.substring(last, m.start), style: base));
+      }
+      spans.add(TextSpan(text: m.group(0), style: hintStyle));
+      last = m.end;
+    }
+    if (last < body.length) {
+      spans.add(TextSpan(text: body.substring(last), style: base));
+    }
+    return TextSpan(children: spans);
   }
 
   Future<void> _speak(String text) async {
@@ -119,21 +145,22 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
 
   void _showSaveToVocab(String defaultText) {
     final controller = TextEditingController(text: defaultText);
+    final l = AppLocalizations.of(context);
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Save to Vocabulary'),
+      builder: (dctx) => AlertDialog(
+        title: Text(l.chatSaveToVocabTitle),
         content: TextField(
           controller: controller,
           maxLines: 3,
-          decoration: const InputDecoration(
-            hintText: 'Edit expression to save',
+          decoration: InputDecoration(
+            hintText: l.chatSaveToVocabHint,
           ),
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            onPressed: () => Navigator.pop(dctx),
+            child: Text(l.commonCancel),
           ),
           FilledButton(
             onPressed: () {
@@ -141,16 +168,16 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
                 ref.read(vocabularyProvider.notifier).addWord(
                       expression: controller.text.trim(),
                     );
-                Navigator.pop(context);
+                Navigator.pop(dctx);
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Saved to vocabulary!'),
-                    duration: Duration(seconds: 2),
+                  SnackBar(
+                    content: Text(l.chatSaveToVocabDone),
+                    duration: const Duration(seconds: 2),
                   ),
                 );
               }
             },
-            child: const Text('Save'),
+            child: Text(l.commonSave),
           ),
         ],
       ),
@@ -186,7 +213,7 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
         children: [
           Flexible(
             child: GestureDetector(
-              onLongPress: () => _showSaveToVocab(widget.content),
+              onLongPress: () => _showUserMessageMenu(widget.content),
               child: Container(
                 constraints: BoxConstraints(
                   maxWidth: MediaQuery.of(context).size.width * 0.76,
@@ -214,6 +241,37 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
     );
   }
 
+  void _showUserMessageMenu(String text) {
+    final palette = KFPalette.of(context);
+    final l = AppLocalizations.of(context);
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: Icon(Icons.mic_none, color: palette.sage),
+              title: Text(l.chatUserMenuPractice),
+              onTap: () {
+                Navigator.pop(ctx);
+                _showPronunciation(_stripParens(text));
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.bookmark_add_outlined, color: palette.sage),
+              title: Text(l.chatUserMenuSave),
+              onTap: () {
+                Navigator.pop(ctx);
+                _showSaveToVocab(text);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildAiMessage(BuildContext context) {
     final palette = KFPalette.of(context);
     final settings = ref.watch(settingsProvider);
@@ -221,10 +279,10 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
 
     final isHidden = !settings.showTargetText && !_revealed;
     final (:body, :corrections) = _splitCorrections(widget.content);
-    final (:main, :translation) = _splitTranslation(body);
+    final cleanBody = _stripParens(body);
 
-    final hasDrawerContent = !widget.isTyping &&
-        (translation.isNotEmpty || corrections.isNotEmpty);
+    // 본문이 있으면(타이핑 중 아닌 한) 항상 드로어 열기 가능 — 액션 버튼 접근 보장.
+    final hasDrawer = !widget.isTyping && body.trim().isNotEmpty;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: KFSpacing.x4, vertical: 5),
@@ -250,13 +308,13 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
                       setState(() => _revealed = true);
                       return;
                     }
-                    if (hasDrawerContent) {
+                    if (hasDrawer) {
                       setState(() => _drawerOpen = !_drawerOpen);
                     }
                   },
                   onLongPress: widget.isTyping
                       ? null
-                      : () => _showSaveToVocab(main),
+                      : () => _showSaveToVocab(cleanBody),
                   child: Container(
                     constraints: BoxConstraints(
                       maxWidth: MediaQuery.of(context).size.width * 0.78,
@@ -275,29 +333,24 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
                         ? const _TypingDots()
                         : isHidden
                             ? Text(
-                                'Tap to reveal',
+                                AppLocalizations.of(context).chatMessageTapToReveal,
                                 style: KFTypography.body(color: palette.ink3)
                                     .copyWith(
                                   fontSize: 15,
                                   fontStyle: FontStyle.italic,
                                 ),
                               )
-                            : Text(
-                                main,
-                                style:
-                                    KFTypography.body(color: palette.ink).copyWith(
-                                  fontSize: 15,
-                                  letterSpacing: -0.2,
-                                  height: 1.45,
-                                ),
+                            : Text.rich(
+                                _buildBodySpan(palette, body,
+                                    showNative: settings.showNativeHint),
                               ),
                   ),
                 ),
 
-                // Learning Drawer
-                if (_drawerOpen && hasDrawerContent && !isHidden) ...[
+                // Learning Drawer (corrections + actions). 인라인 번역은 본문에서 처리됨.
+                if (_drawerOpen && hasDrawer && !isHidden) ...[
                   const SizedBox(height: 4),
-                  _buildDrawer(palette, translation, corrections, main),
+                  _buildDrawer(palette, corrections, body, cleanBody),
                 ],
               ],
             ),
@@ -309,13 +362,10 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
 
   Widget _buildDrawer(
     KFPalette palette,
-    String translation,
     List<String> corrections,
-    String mainBody,
+    String bodyForTts,
+    String cleanBody,
   ) {
-    final settings = ref.watch(settingsProvider);
-    final showNative = settings.showNativeHint;
-
     return Container(
       constraints: BoxConstraints(
         maxWidth: MediaQuery.of(context).size.width * 0.78,
@@ -330,31 +380,8 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Translation row
-          if (showNative && translation.isNotEmpty)
-            _drawerRow(
-              icon: Icons.translate,
-              iconColor: palette.ink3,
-              child: Text(
-                translation,
-                style: KFTypography.meta(color: palette.ink2).copyWith(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                  height: 1.45,
-                ),
-              ),
-            ),
-
           // Corrections
           if (corrections.isNotEmpty) ...[
-            if (showNative && translation.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Container(
-                height: 0.5,
-                color: palette.hairline,
-              ),
-              const SizedBox(height: 8),
-            ],
             ...corrections.map((c) => Padding(
                   padding: const EdgeInsets.only(bottom: 4),
                   child: _drawerRow(
@@ -363,19 +390,18 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
                     child: _correctionText(palette, c),
                   ),
                 )),
+            const SizedBox(height: 6),
           ],
 
-          const SizedBox(height: 10),
-
-          // Action buttons
+          // Action buttons (always present so 듣기/연습/저장 항상 가능)
           Row(
             children: [
               Expanded(
                 child: _drawerButton(
                   icon: Icons.play_arrow_rounded,
-                  label: 'Hear it',
+                  label: AppLocalizations.of(context).chatDrawerHear,
                   palette: palette,
-                  onTap: () => _speak(mainBody),
+                  onTap: () => _speak(bodyForTts),
                   active: _isSpeaking,
                 ),
               ),
@@ -383,18 +409,18 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
               Expanded(
                 child: _drawerButton(
                   icon: Icons.mic_none,
-                  label: 'Try',
+                  label: AppLocalizations.of(context).chatDrawerTry,
                   palette: palette,
-                  onTap: () => _showPronunciation(mainBody),
+                  onTap: () => _showPronunciation(cleanBody),
                 ),
               ),
               const SizedBox(width: 6),
               Expanded(
                 child: _drawerButton(
                   icon: Icons.bookmark_add_outlined,
-                  label: 'Save',
+                  label: AppLocalizations.of(context).chatDrawerSave,
                   palette: palette,
-                  onTap: () => _showSaveToVocab(mainBody),
+                  onTap: () => _showSaveToVocab(cleanBody),
                 ),
               ),
             ],
@@ -423,13 +449,14 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
   }
 
   Widget _correctionText(KFPalette palette, String correction) {
+    final l = AppLocalizations.of(context);
     final arrowMatch =
         RegExp(r'"([^"]+)"\s*→\s*"([^"]+)"(.*)').firstMatch(correction);
     if (arrowMatch != null) {
       return Text.rich(
         TextSpan(children: [
           TextSpan(
-            text: 'You said ',
+            text: l.chatCorrectionPrefix,
             style: KFTypography.meta(color: palette.ink3).copyWith(fontSize: 12),
           ),
           TextSpan(
@@ -441,7 +468,7 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
             ),
           ),
           TextSpan(
-            text: ' → try ',
+            text: l.chatCorrectionArrow,
             style: KFTypography.meta(color: palette.ink3).copyWith(fontSize: 12),
           ),
           TextSpan(

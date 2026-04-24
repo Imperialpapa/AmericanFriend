@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 import 'package:eng_friend/di/service_providers.dart';
 import 'package:eng_friend/features/settings/presentation/providers/settings_provider.dart';
+import 'package:eng_friend/l10n/app_localizations.dart';
 import 'package:eng_friend/services/ai/prompts/pronunciation_prompt.dart';
 
 /// 따라 읽기 발음 연습 바텀시트
@@ -112,6 +113,7 @@ class _PronunciationBottomSheetState
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     return DraggableScrollableSheet(
       initialChildSize: 0.55,
       minChildSize: 0.3,
@@ -137,9 +139,9 @@ class _PronunciationBottomSheetState
                 const SizedBox(height: 16),
 
                 // 제목
-                const Text(
-                  'Repeat After Me',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                Text(
+                  l.pronSheetTitle,
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 16),
 
@@ -164,7 +166,7 @@ class _PronunciationBottomSheetState
                       TextButton.icon(
                         onPressed: _playOriginal,
                         icon: const Icon(Icons.volume_up, size: 18),
-                        label: const Text('Listen first'),
+                        label: Text(l.pronListenFirst),
                       ),
                     ],
                   ),
@@ -173,9 +175,9 @@ class _PronunciationBottomSheetState
 
                 // 상태별 UI
                 if (_phase == _PracticePhase.ready) ...[
-                  const Text(
-                    'Tap the mic and read the sentence aloud',
-                    style: TextStyle(color: Colors.grey),
+                  Text(
+                    l.pronReadyHint,
+                    style: const TextStyle(color: Colors.grey),
                   ),
                   const SizedBox(height: 16),
                   _buildMicButton(false),
@@ -190,7 +192,7 @@ class _PronunciationBottomSheetState
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
-                      _partialText.isEmpty ? 'Listening...' : _partialText,
+                      _partialText.isEmpty ? l.pronListening : _partialText,
                       style: TextStyle(
                         fontSize: 15,
                         color: _partialText.isEmpty ? Colors.grey : null,
@@ -209,12 +211,12 @@ class _PronunciationBottomSheetState
                   const SizedBox(height: 20),
                   const CircularProgressIndicator(),
                   const SizedBox(height: 12),
-                  const Text('Evaluating your pronunciation...'),
+                  Text(l.pronEvaluating),
                 ],
 
                 if (_phase == _PracticePhase.result) ...[
                   if (_error != null)
-                    Text('Error: $_error',
+                    Text(l.pronError(_error!),
                         style: const TextStyle(color: Colors.redAccent))
                   else if (_result != null) ...[
                     _buildResultView(),
@@ -231,7 +233,7 @@ class _PronunciationBottomSheetState
                       });
                     },
                     icon: const Icon(Icons.refresh),
-                    label: const Text('Try Again'),
+                    label: Text(l.pronTryAgain),
                   ),
                 ],
               ],
@@ -290,7 +292,7 @@ class _PronunciationBottomSheetState
         ),
         const SizedBox(height: 8),
         Text(
-          _scoreLabel(score),
+          _scoreLabel(AppLocalizations.of(context), score),
           style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w600,
@@ -314,10 +316,11 @@ class _PronunciationBottomSheetState
 
         // 세부 피드백
         if (feedback.isNotEmpty) ...[
-          const Align(
+          Align(
             alignment: Alignment.centerLeft,
-            child: Text('Details',
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+            child: Text(AppLocalizations.of(context).pronDetails,
+                style: const TextStyle(
+                    fontSize: 13, fontWeight: FontWeight.bold)),
           ),
           const SizedBox(height: 4),
           ...feedback.map((item) {
@@ -352,11 +355,11 @@ class _PronunciationBottomSheetState
     );
   }
 
-  String _scoreLabel(int score) {
-    if (score >= 90) return 'Excellent!';
-    if (score >= 70) return 'Good!';
-    if (score >= 50) return 'Keep practicing';
-    return 'Needs work';
+  String _scoreLabel(AppLocalizations l, int score) {
+    if (score >= 90) return l.pronScoreExcellent;
+    if (score >= 70) return l.pronScoreGood;
+    if (score >= 50) return l.pronScoreKeepPracticing;
+    return l.pronScoreNeedsWork;
   }
 
   @override

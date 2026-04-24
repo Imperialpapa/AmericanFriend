@@ -7,6 +7,7 @@ import 'package:eng_friend/features/settings/presentation/providers/settings_pro
 import 'package:eng_friend/features/topic/presentation/widgets/topic_bottom_sheet.dart';
 import 'package:eng_friend/features/voice/domain/entities/voice_state.dart';
 import 'package:eng_friend/features/voice/presentation/providers/voice_provider.dart';
+import 'package:eng_friend/l10n/app_localizations.dart';
 
 /// Composer — Modern Sage style.
 /// Layout: [+] (opens topics/missions menu) [text field] [mic / send]
@@ -48,9 +49,21 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar> {
   @override
   Widget build(BuildContext context) {
     final palette = KFPalette.of(context);
+    final l = AppLocalizations.of(context);
     final voiceState = ref.watch(voiceProvider);
     final targetLang = ref.watch(settingsProvider.select((s) => s.targetLanguage));
     final isListening = voiceState.status == VoiceStatus.listening;
+
+    // 자동 전송 OFF 모드에서 STT 결과를 컨트롤러로 옮긴 뒤 voice 상태의 draft를 비움.
+    ref.listen<VoiceState>(voiceProvider, (prev, next) {
+      if (next.recognizedDraft.isNotEmpty &&
+          next.recognizedDraft != prev?.recognizedDraft) {
+        _controller.text = next.recognizedDraft;
+        _controller.selection =
+            TextSelection.collapsed(offset: _controller.text.length);
+        ref.read(voiceProvider.notifier).clearDraft();
+      }
+    });
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -111,8 +124,8 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar> {
                     onSubmitted: (_) => _send(),
                     decoration: InputDecoration(
                       hintText: isListening
-                          ? 'Listening…'
-                          : 'Type or tap mic in ${targetLang.displayName}…',
+                          ? l.chatInputHintListening
+                          : l.chatInputHintTyping(targetLang.displayName),
                       hintStyle: KFTypography.body(color: palette.ink3).copyWith(
                         fontSize: 14,
                       ),

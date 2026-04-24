@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:dio/dio.dart';
+import 'package:eng_friend/core/constants/app_constants.dart';
 import 'package:eng_friend/features/chat/domain/entities/message.dart';
 import 'package:eng_friend/features/chat/domain/entities/suggestion.dart';
 import 'package:eng_friend/features/level/domain/entities/level_assessment.dart';
@@ -41,8 +42,7 @@ class FreeTierAiService implements AiService {
           headers: {
             'x-device-id': deviceId,
             'Content-Type': 'application/json',
-            // Cloudflare 봇 탐지 회피: 기본 Dart UA는 종종 403 받음.
-            'User-Agent': 'EngFriendApp/2.3.0',
+            'User-Agent': 'KoreanFriend/${AppConstants.appVersion}',
           },
         ));
 

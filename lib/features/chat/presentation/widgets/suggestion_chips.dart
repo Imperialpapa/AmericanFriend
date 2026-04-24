@@ -4,9 +4,12 @@ import 'package:eng_friend/core/theme/app_colors.dart';
 import 'package:eng_friend/core/theme/app_radii.dart';
 import 'package:eng_friend/core/theme/app_spacing.dart';
 import 'package:eng_friend/core/theme/app_typography.dart';
+import 'package:eng_friend/di/service_providers.dart';
 import 'package:eng_friend/features/chat/presentation/providers/suggestion_provider.dart';
 import 'package:eng_friend/features/chat/domain/entities/suggestion.dart';
 import 'package:eng_friend/features/settings/presentation/providers/settings_provider.dart';
+import 'package:eng_friend/l10n/app_localizations.dart';
+import 'package:eng_friend/services/pipeline/tts_queue.dart';
 
 /// Horizontal pill scroll — "Try saying..."
 class SuggestionChips extends ConsumerWidget {
@@ -32,7 +35,7 @@ class SuggestionChips extends ConsumerWidget {
           Padding(
             padding: const EdgeInsets.only(bottom: 6),
             child: Text(
-              'Try saying…',
+              AppLocalizations.of(context).chatSuggestionTitle,
               style: KFTypography.tiny(color: palette.ink3).copyWith(
                 letterSpacing: 0.4,
               ),
@@ -74,7 +77,7 @@ class SuggestionChips extends ConsumerWidget {
   }
 }
 
-class _SuggestionPill extends ConsumerWidget {
+class _SuggestionPill extends ConsumerStatefulWidget {
   final Suggestion suggestion;
   final bool showNative;
   final bool isFirst;
@@ -86,10 +89,37 @@ class _SuggestionPill extends ConsumerWidget {
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_SuggestionPill> createState() => _SuggestionPillState();
+}
+
+class _SuggestionPillState extends ConsumerState<_SuggestionPill> {
+  bool _isSpeaking = false;
+
+  Future<void> _speak() async {
+    final ttsQueue = ref.read(ttsQueueProvider);
+    if (_isSpeaking) {
+      await ttsQueue.interrupt();
+      if (mounted) setState(() => _isSpeaking = false);
+      return;
+    }
+    setState(() => _isSpeaking = true);
+    final sub = ttsQueue.stateStream.listen((state) {
+      if (state == TtsQueueState.idle && mounted) {
+        setState(() => _isSpeaking = false);
+      }
+    });
+    await ttsQueue.enqueue(widget.suggestion.text.trim());
+    await for (final state in ttsQueue.stateStream) {
+      if (state == TtsQueueState.idle) break;
+    }
+    sub.cancel();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final palette = KFPalette.of(context);
-    final hasNative =
-        showNative && (suggestion.koreanHint?.isNotEmpty ?? false);
+    final hasNative = widget.showNative &&
+        (widget.suggestion.koreanHint?.isNotEmpty ?? false);
 
     return Material(
       color: Colors.transparent,
@@ -97,9 +127,9 @@ class _SuggestionPill extends ConsumerWidget {
         borderRadius: KFRadii.rFull,
         onTap: () => ref
             .read(suggestionProvider.notifier)
-            .selectSuggestion(suggestion),
+            .selectSuggestion(widget.suggestion),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+          padding: const EdgeInsets.fromLTRB(11, 4, 4, 4),
           decoration: BoxDecoration(
             color: palette.paper,
             borderRadius: KFRadii.rFull,
@@ -108,12 +138,12 @@ class _SuggestionPill extends ConsumerWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (isFirst) ...[
+              if (widget.isFirst) ...[
                 Icon(Icons.auto_awesome, size: 11, color: palette.mustard),
                 const SizedBox(width: 5),
               ],
               Text(
-                suggestion.text,
+                widget.suggestion.text,
                 style: KFTypography.meta(color: palette.ink2).copyWith(
                   fontSize: 12,
                   fontWeight: FontWeight.w500,
@@ -129,12 +159,31 @@ class _SuggestionPill extends ConsumerWidget {
                 ),
                 const SizedBox(width: 6),
                 Text(
-                  suggestion.koreanHint!,
+                  widget.suggestion.koreanHint!,
                   style: KFTypography.meta(color: palette.ink3).copyWith(
                     fontSize: 11,
                   ),
                 ),
               ],
+              const SizedBox(width: 4),
+              InkWell(
+                onTap: _speak,
+                customBorder: const CircleBorder(),
+                child: Container(
+                  width: 24,
+                  height: 24,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: _isSpeaking ? palette.sageWash : Colors.transparent,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    _isSpeaking ? Icons.stop_rounded : Icons.volume_up_rounded,
+                    size: 14,
+                    color: _isSpeaking ? palette.sageDeep : palette.ink3,
+                  ),
+                ),
+              ),
             ],
           ),
         ),

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:uuid/uuid.dart';
 import 'package:eng_friend/features/settings/domain/entities/user_settings.dart';
 import 'package:eng_friend/features/chat/presentation/providers/suggestion_provider.dart';
 import 'package:eng_friend/services/ai/ai_provider_type.dart';
@@ -32,6 +33,9 @@ const _avatarEnabledKey = 'avatar_enabled';
 const _reminderEnabledKey = 'reminder_enabled';
 const _reminderHourKey = 'reminder_hour';
 const _reminderMinuteKey = 'reminder_minute';
+const _sttPauseSecondsKey = 'stt_pause_seconds';
+const _autoSendVoiceKey = 'auto_send_voice';
+const _freeTierDeviceIdKey = 'free_tier_device_id';
 
 final secureStorageProvider = Provider<FlutterSecureStorage>(
   (ref) => const FlutterSecureStorage(),
@@ -74,7 +78,8 @@ class SettingsNotifier extends StateNotifier<UserSettings> {
         debugPrint('[Settings] deleteAll also failed: $err');
       }
     }
-    final providerStr = _prefs.getString(_aiProviderKey) ?? 'gemini';
+    // 최초 실행 시 freeTier가 기본값 — API 키 없이 바로 사용 가능.
+    final providerStr = _prefs.getString(_aiProviderKey) ?? 'freeTier';
     final nativeLangStr = _prefs.getString(_nativeLanguageKey);
     final targetLangStr = _prefs.getString(_targetLanguageKey);
     final modeStr = _prefs.getString(_suggestionModeKey);
@@ -96,16 +101,41 @@ class SettingsNotifier extends StateNotifier<UserSettings> {
     final reminderEnabled = _prefs.getBool(_reminderEnabledKey) ?? false;
     final reminderHour = _prefs.getInt(_reminderHourKey) ?? 20;
     final reminderMinute = _prefs.getInt(_reminderMinuteKey) ?? 0;
+    final sttPauseSeconds = _prefs.getInt(_sttPauseSecondsKey) ?? 5;
+    final autoSendVoice = _prefs.getBool(_autoSendVoiceKey) ?? true;
+
+    // free tier device UUID — 최초 실행 시 생성 후 영구 보관
+    String freeTierDeviceId = _prefs.getString(_freeTierDeviceIdKey) ?? '';
+    if (freeTierDeviceId.isEmpty) {
+      freeTierDeviceId = const Uuid().v4();
+      await _prefs.setString(_freeTierDeviceIdKey, freeTierDeviceId);
+    }
+
+    // 저장된 provider가 BYOK인데 키가 비어있으면 freeTier로 자동 전환.
+    // 이전 버전에서 온보딩 후 키 입력 없이 종료된 케이스, 또는 adb install -r로
+    // 데이터 유지된 상태에서 기본값이 바뀐 케이스 모두 커버.
+    var resolvedProvider = AiProviderType.values.firstWhere(
+      (e) => e.name == providerStr,
+      orElse: () => AiProviderType.freeTier,
+    );
+    final providerKeys = {
+      AiProviderType.claude: claudeKey,
+      AiProviderType.openai: openaiKey,
+      AiProviderType.gemini: geminiKey,
+      AiProviderType.groq: groqKey,
+    };
+    final requiresKey = providerKeys[resolvedProvider];
+    if (requiresKey != null && requiresKey.isEmpty) {
+      resolvedProvider = AiProviderType.freeTier;
+      await _prefs.setString(_aiProviderKey, resolvedProvider.name);
+    }
 
     state = UserSettings(
       claudeApiKey: claudeKey,
       openaiApiKey: openaiKey,
       geminiApiKey: geminiKey,
       groqApiKey: groqKey,
-      aiProvider: AiProviderType.values.firstWhere(
-        (e) => e.name == providerStr,
-        orElse: () => AiProviderType.gemini,
-      ),
+      aiProvider: resolvedProvider,
       nativeLanguage: nativeLangStr != null
           ? AppLanguage.fromCode(nativeLangStr)
           : AppLanguage.korean,
@@ -132,6 +162,9 @@ class SettingsNotifier extends StateNotifier<UserSettings> {
       reminderEnabled: reminderEnabled,
       reminderHour: reminderHour,
       reminderMinute: reminderMinute,
+      sttPauseSeconds: sttPauseSeconds,
+      autoSendVoice: autoSendVoice,
+      freeTierDeviceId: freeTierDeviceId,
     );
   }
 
@@ -212,6 +245,9 @@ class SettingsNotifier extends StateNotifier<UserSettings> {
 
   Future<void> setModelId(AiProviderType provider, String modelId) async {
     switch (provider) {
+      case AiProviderType.freeTier:
+        // 고정 단일 모델 — 저장 불필요
+        return;
       case AiProviderType.claude:
         await _prefs.setString(_claudeModelKey, modelId);
         state = state.copyWith(claudeModelId: modelId);
@@ -241,6 +277,16 @@ class SettingsNotifier extends StateNotifier<UserSettings> {
     await _prefs.setInt(_reminderHourKey, hour);
     await _prefs.setInt(_reminderMinuteKey, minute);
     state = state.copyWith(reminderHour: hour, reminderMinute: minute);
+  }
+
+  Future<void> setSttPauseSeconds(int seconds) async {
+    await _prefs.setInt(_sttPauseSecondsKey, seconds);
+    state = state.copyWith(sttPauseSeconds: seconds);
+  }
+
+  Future<void> setAutoSendVoice(bool enabled) async {
+    await _prefs.setBool(_autoSendVoiceKey, enabled);
+    state = state.copyWith(autoSendVoice: enabled);
   }
 }
 

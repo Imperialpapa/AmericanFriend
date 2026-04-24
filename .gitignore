@@ -54,3 +54,5 @@ secu/
 # Ad-hoc screenshots / debug images
 screenshot*.jpg
 screenshot*.png
+ss_*.jpg
+ss_*.png

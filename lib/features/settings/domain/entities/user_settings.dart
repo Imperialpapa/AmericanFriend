@@ -44,12 +44,22 @@ class UserSettings {
   final int reminderHour;
   final int reminderMinute;
 
+  /// STT 침묵 허용 시간(초) — 사용자가 말 중간 생각할 수 있는 여유.
+  /// 3=Quick, 5=Normal(기본), 8=Patient
+  final int sttPauseSeconds;
+
+  /// STT 결과를 자동으로 전송할지. false면 텍스트가 입력창에 채워지고 사용자가 send 버튼을 눌러야 함.
+  final bool autoSendVoice;
+
+  /// 무료 티어 프록시 인증용 기기 UUID. 앱 설치 시 1회 생성 후 유지.
+  final String freeTierDeviceId;
+
   const UserSettings({
     this.claudeApiKey = '',
     this.openaiApiKey = '',
     this.geminiApiKey = '',
     this.groqApiKey = '',
-    this.aiProvider = AiProviderType.gemini,
+    this.aiProvider = AiProviderType.freeTier,
     this.nativeLanguage = AppLanguage.korean,
     this.targetLanguage = AppLanguage.englishUS,
     this.showNativeHint = true,
@@ -68,18 +78,26 @@ class UserSettings {
     this.reminderEnabled = false,
     this.reminderHour = 20,
     this.reminderMinute = 0,
+    this.sttPauseSeconds = 5,
+    this.autoSendVoice = true,
+    this.freeTierDeviceId = '',
   });
 
-  /// 현재 선택된 프로바이더의 API 키
+  /// 현재 선택된 프로바이더의 API 키 (freeTier는 device UUID).
   String get activeApiKey => switch (aiProvider) {
+        AiProviderType.freeTier => freeTierDeviceId,
         AiProviderType.claude => claudeApiKey,
         AiProviderType.openai => openaiApiKey,
         AiProviderType.gemini => geminiApiKey,
         AiProviderType.groq => groqApiKey,
       };
 
+  /// 대화 가능한 자격이 있는지 (freeTier는 device ID만 있으면 OK).
+  bool get hasWorkingCredentials => activeApiKey.isNotEmpty;
+
   /// 현재 선택된 프로바이더의 모델 ID (유효성 검증 포함)
   String get activeModelId => aiProvider.resolveModelId(switch (aiProvider) {
+        AiProviderType.freeTier => 'free',
         AiProviderType.claude => claudeModelId,
         AiProviderType.openai => openaiModelId,
         AiProviderType.gemini => geminiModelId,
@@ -116,6 +134,9 @@ class UserSettings {
     bool? reminderEnabled,
     int? reminderHour,
     int? reminderMinute,
+    int? sttPauseSeconds,
+    bool? autoSendVoice,
+    String? freeTierDeviceId,
   }) {
     return UserSettings(
       claudeApiKey: claudeApiKey ?? this.claudeApiKey,
@@ -141,6 +162,9 @@ class UserSettings {
       reminderEnabled: reminderEnabled ?? this.reminderEnabled,
       reminderHour: reminderHour ?? this.reminderHour,
       reminderMinute: reminderMinute ?? this.reminderMinute,
+      sttPauseSeconds: sttPauseSeconds ?? this.sttPauseSeconds,
+      autoSendVoice: autoSendVoice ?? this.autoSendVoice,
+      freeTierDeviceId: freeTierDeviceId ?? this.freeTierDeviceId,
     );
   }
 }

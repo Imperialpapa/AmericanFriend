@@ -2,6 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:eng_friend/features/mission/domain/entities/mission.dart';
 import 'package:eng_friend/features/mission/presentation/providers/mission_provider.dart';
+import 'package:eng_friend/l10n/app_localizations.dart';
+
+String _difficultyLocalized(AppLocalizations l, MissionDifficulty d) => switch (d) {
+      MissionDifficulty.easy => l.missionDifficultyEasy,
+      MissionDifficulty.medium => l.missionDifficultyMedium,
+      MissionDifficulty.hard => l.missionDifficultyHard,
+    };
 
 class MissionBottomSheet extends ConsumerWidget {
   const MissionBottomSheet({super.key});
@@ -45,7 +52,7 @@ class MissionBottomSheet extends ConsumerWidget {
                   const Icon(Icons.emoji_events, size: 24, color: Colors.amber),
                   const SizedBox(width: 8),
                   Text(
-                    'Missions',
+                    AppLocalizations.of(context).missionSheetTitle,
                     style: Theme.of(context).textTheme.titleLarge,
                   ),
                   const Spacer(),
@@ -87,6 +94,7 @@ class MissionBottomSheet extends ConsumerWidget {
       MissionDifficulty.hard => Colors.red,
     };
 
+    final l = AppLocalizations.of(context);
     return [
       Padding(
         padding: const EdgeInsets.only(top: 16, bottom: 8),
@@ -95,7 +103,7 @@ class MissionBottomSheet extends ConsumerWidget {
             ...List.generate(difficulty.stars, (_) => Icon(Icons.star, size: 16, color: starColor)),
             const SizedBox(width: 6),
             Text(
-              difficulty.label,
+              _difficultyLocalized(l, difficulty),
               style: Theme.of(context).textTheme.titleSmall?.copyWith(
                     color: starColor,
                     fontWeight: FontWeight.bold,
@@ -127,7 +135,7 @@ class MissionBottomSheet extends ConsumerWidget {
                 Text(mission.description),
                 const SizedBox(height: 4),
                 Text(
-                  '${mission.requiredTurns} turns needed',
+                  l.missionTurnsNeeded(mission.requiredTurns),
                   style: TextStyle(fontSize: 11, color: Colors.grey[500]),
                 ),
               ],

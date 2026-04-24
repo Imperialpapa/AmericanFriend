@@ -15,6 +15,7 @@ import 'package:eng_friend/di/service_providers.dart';
 import 'package:eng_friend/features/level/presentation/providers/level_provider.dart';
 import 'package:eng_friend/features/settings/presentation/providers/settings_provider.dart';
 import 'package:eng_friend/services/ai/ai_provider_type.dart';
+import 'package:eng_friend/l10n/app_localizations.dart';
 import 'package:eng_friend/services/language/app_language.dart';
 
 const _onboardingCompleteKey = 'onboarding_complete';
@@ -35,7 +36,7 @@ class OnboardingScreen extends ConsumerStatefulWidget {
 
 class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   int _currentPage = 0;
-  static const _totalPages = 4;
+  static const _totalPages = 3;
 
   int _selectedLevel = LevelConstants.defaultLevel;
   late AppLanguage _nativeLanguage;
@@ -92,18 +93,34 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
   Widget _topBar(KFPalette palette) {
     final showSkip = _currentPage > 0 && _currentPage < _totalPages - 1;
+    final showBack = _currentPage > 0;
+    final l = AppLocalizations.of(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(
-          KFSpacing.x5, KFSpacing.x4, KFSpacing.x5, KFSpacing.x2),
+          KFSpacing.x3, KFSpacing.x4, KFSpacing.x5, KFSpacing.x2),
       child: Row(
         children: [
+          SizedBox(
+            width: 40,
+            height: 40,
+            child: showBack
+                ? IconButton(
+                    icon: Icon(Icons.arrow_back_ios_new_rounded,
+                        size: 18, color: palette.ink2),
+                    tooltip: l.commonBack,
+                    onPressed: () =>
+                        setState(() => _currentPage = _currentPage - 1),
+                  )
+                : null,
+          ),
+          const SizedBox(width: KFSpacing.x2),
           _StepDots(step: _currentPage, total: _totalPages),
           const Spacer(),
           if (showSkip)
             TextButton(
               onPressed: () => setState(() => _currentPage = _totalPages - 1),
               child: Text(
-                'Skip',
+                l.commonSkip,
                 style: KFTypography.meta(color: palette.ink3),
               ),
             ),
@@ -113,6 +130,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   }
 
   Widget _ctaSection(KFPalette palette) {
+    final l = AppLocalizations.of(context);
     final cta = _ctaForPage();
     return Container(
       padding: const EdgeInsets.fromLTRB(
@@ -161,7 +179,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           ),
           const SizedBox(height: KFSpacing.x2),
           Text(
-            'Step ${_currentPage + 1} of $_totalPages · About 30 seconds',
+            l.onboardStepOf(_currentPage + 1, _totalPages),
             style: KFTypography.tiny(color: palette.ink3).copyWith(
               fontSize: 11,
               letterSpacing: 0.2,
@@ -173,34 +191,28 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   }
 
   _CtaSpec _ctaForPage() {
+    final l = AppLocalizations.of(context);
     switch (_currentPage) {
       case 0:
         return _CtaSpec(
-          label: "Let's go",
+          label: l.onboardCtaLetsGo,
           enabled: true,
           onTap: () => setState(() => _currentPage = 1),
         );
       case 1:
         return _CtaSpec(
-          label: 'Continue',
+          label: l.commonContinue,
           enabled: _nativeLanguage != _targetLanguage,
           onTap: _saveLanguagesAndContinue,
         );
       case 2:
-        final hasKey = _apiKeyController.text.trim().isNotEmpty;
         return _CtaSpec(
-          label: 'Continue',
-          enabled: hasKey,
-          onTap: _saveKeyAndContinue,
-        );
-      case 3:
-        return _CtaSpec(
-          label: 'Start chatting',
+          label: l.onboardCtaStartChatting,
           enabled: true,
           onTap: _complete,
         );
     }
-    return _CtaSpec(label: 'Next', enabled: false, onTap: () {});
+    return _CtaSpec(label: l.commonContinue, enabled: false, onTap: () {});
   }
 
   Widget _pageContent(KFPalette palette) {
@@ -210,8 +222,6 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       case 1:
         return _languagePage(palette);
       case 2:
-        return _apiKeyPage(palette);
-      case 3:
         return _levelPage(palette);
     }
     return const SizedBox.shrink();
@@ -219,6 +229,15 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
   // ===== Page 1: Welcome =====
   Widget _welcomePage(KFPalette palette) {
+    final l = AppLocalizations.of(context);
+    final welcome = l.chatWelcomeTitle(AppConstants.aiCharacterName);
+    // 이름만 sage 색상으로 강조
+    final nameIdx = welcome.indexOf(AppConstants.aiCharacterName);
+    final beforeName =
+        nameIdx >= 0 ? welcome.substring(0, nameIdx) : welcome;
+    final afterName = nameIdx >= 0
+        ? welcome.substring(nameIdx + AppConstants.aiCharacterName.length)
+        : '';
     return SingleChildScrollView(
       key: const ValueKey('welcome'),
       padding: const EdgeInsets.symmetric(horizontal: KFSpacing.x6),
@@ -231,20 +250,25 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             TextSpan(
               children: [
                 TextSpan(
-                  text: "Hey! I'm ",
+                  text: beforeName,
                   style: KFTypography.h1(color: palette.ink),
                 ),
                 TextSpan(
                   text: AppConstants.aiCharacterName,
                   style: KFTypography.h1(color: palette.sageDeep),
                 ),
+                if (afterName.isNotEmpty)
+                  TextSpan(
+                    text: afterName,
+                    style: KFTypography.h1(color: palette.ink),
+                  ),
               ],
             ),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: KFSpacing.x3),
           Text(
-            "Your friendly language tutor.\nLet's practice through real chats.",
+            l.onboardWelcomeSubtitle,
             textAlign: TextAlign.center,
             style: KFTypography.body(color: palette.ink2).copyWith(
               fontSize: 15,
@@ -258,6 +282,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
   // ===== Page 2: Language =====
   Widget _languagePage(KFPalette palette) {
+    final l = AppLocalizations.of(context);
     return SingleChildScrollView(
       key: const ValueKey('language'),
       padding: const EdgeInsets.symmetric(horizontal: KFSpacing.x5),
@@ -266,20 +291,20 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         children: [
           const SizedBox(height: KFSpacing.x4),
           _AlexBubble(
-            text: "First — what's your language setup?",
+            text: l.onboardLanguageBubble,
             emotion: AlexEmotion.thinking,
             palette: palette,
           ),
           const SizedBox(height: KFSpacing.x5),
           _Headline(
-            normalPart: 'Set your\n',
-            accentPart: 'native & target',
-            suffix: '.',
+            normalPart: l.onboardLanguageHeadline1,
+            accentPart: l.onboardLanguageHeadline2,
+            suffix: l.onboardLanguageHeadline3,
             palette: palette,
           ),
           const SizedBox(height: KFSpacing.x2),
           Text(
-            "I'll detect your native from device, but you can change it.",
+            l.onboardLanguageHelp,
             style: KFTypography.meta(color: palette.ink2).copyWith(
               fontSize: 13,
               height: 1.45,
@@ -287,7 +312,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           ),
           const SizedBox(height: KFSpacing.x6),
 
-          _SectionLabel(text: 'Your native language', palette: palette),
+          _SectionLabel(
+              text: l.onboardLanguageNativeLabel, palette: palette),
           const SizedBox(height: KFSpacing.x2),
           _LanguageDropdown(
             value: _nativeLanguage,
@@ -300,7 +326,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
           const SizedBox(height: KFSpacing.x5),
 
-          _SectionLabel(text: 'Language to learn', palette: palette),
+          _SectionLabel(
+              text: l.onboardLanguageTargetLabel, palette: palette),
           const SizedBox(height: KFSpacing.x2),
           _LanguageDropdown(
             value: _targetLanguage,
@@ -325,7 +352,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Native and target must be different.',
+                      l.onboardLanguageMustDiffer,
                       style: KFTypography.meta(color: palette.coral),
                     ),
                   ),
@@ -338,8 +365,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     );
   }
 
-  // ===== Page 3: API Key =====
+  // ===== (보존) BYOK 온보딩 필요 시 복원용 =====
+  // ignore: unused_element
   Widget _apiKeyPage(KFPalette palette) {
+    final l = AppLocalizations.of(context);
     final keyUrl = _onboardingProvider == AiProviderType.gemini
         ? 'https://aistudio.google.com/apikey'
         : 'https://console.groq.com/keys';
@@ -352,20 +381,20 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         children: [
           const SizedBox(height: KFSpacing.x4),
           _AlexBubble(
-            text: "I need an API key to chat — both options are free.",
+            text: l.onboardApiBubble,
             emotion: AlexEmotion.calm,
             palette: palette,
           ),
           const SizedBox(height: KFSpacing.x5),
           _Headline(
-            normalPart: 'Get your\n',
-            accentPart: 'free key',
-            suffix: '.',
+            normalPart: l.onboardApiHeadline1,
+            accentPart: l.onboardApiHeadline2,
+            suffix: l.onboardApiHeadline3,
             palette: palette,
           ),
           const SizedBox(height: KFSpacing.x2),
           Text(
-            'No credit card. Takes about a minute.',
+            l.onboardApiHelp,
             style: KFTypography.meta(color: palette.ink2).copyWith(fontSize: 13),
           ),
           const SizedBox(height: KFSpacing.x5),
@@ -379,8 +408,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           const SizedBox(height: KFSpacing.x2),
           Text(
             _onboardingProvider == AiProviderType.gemini
-                ? 'Gemini · 1,500 requests/day free'
-                : 'Groq (Llama 3.3) · 14,400 requests/day, ultra fast',
+                ? l.onboardApiGeminiDesc
+                : l.onboardApiGroqDesc,
             style: KFTypography.meta(color: palette.ink3).copyWith(fontSize: 12),
           ),
 
@@ -388,12 +417,12 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
           _StepCard(
             step: '1',
-            title: 'Open the key page',
+            title: l.onboardApiStep1Title,
             subtitle: keyUrl,
             palette: palette,
             action: _SecondaryButton(
               icon: Icons.open_in_new_rounded,
-              label: 'Open in browser',
+              label: l.onboardApiStep1Action,
               palette: palette,
               onTap: () => _launchUrl(keyUrl),
             ),
@@ -401,19 +430,33 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           const SizedBox(height: KFSpacing.x3),
           _StepCard(
             step: '2',
-            title: 'Create & copy the key',
-            subtitle: 'Sign in → create new key → copy',
+            title: l.onboardApiStep2Title,
+            subtitle: l.onboardApiStep2Sub,
             palette: palette,
           ),
           const SizedBox(height: KFSpacing.x3),
           _StepCard(
             step: '3',
-            title: 'Paste it here',
+            title: l.onboardApiStep3Title,
             palette: palette,
             action: _ApiKeyField(
               controller: _apiKeyController,
               palette: palette,
+              hintText: l.onboardApiKeyHint,
+              pasteTooltip: l.onboardApiPaste,
               onPaste: _pasteFromClipboard,
+            ),
+          ),
+          const SizedBox(height: KFSpacing.x3),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: KFSpacing.x2),
+            child: Text(
+              l.onboardApiFreeTierHint,
+              textAlign: TextAlign.center,
+              style: KFTypography.meta(color: palette.ink3).copyWith(
+                fontSize: 12,
+                height: 1.4,
+              ),
             ),
           ),
         ],
@@ -423,6 +466,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
   // ===== Page 4: Level =====
   Widget _levelPage(KFPalette palette) {
+    final l = AppLocalizations.of(context);
     return SingleChildScrollView(
       key: const ValueKey('level'),
       padding: const EdgeInsets.symmetric(horizontal: KFSpacing.x5),
@@ -431,15 +475,15 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         children: [
           const SizedBox(height: KFSpacing.x4),
           _AlexBubble(
-            text: "How much can you say already? It auto-adjusts as we chat.",
+            text: l.onboardLevelBubble,
             emotion: AlexEmotion.listening,
             palette: palette,
           ),
           const SizedBox(height: KFSpacing.x5),
           _Headline(
-            normalPart: 'Where do\n',
-            accentPart: 'you start',
-            suffix: '?',
+            normalPart: l.onboardLevelHeadline1,
+            accentPart: l.onboardLevelHeadline2,
+            suffix: l.onboardLevelHeadline3,
             palette: palette,
           ),
           const SizedBox(height: KFSpacing.x6),
@@ -490,9 +534,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('Beginner',
+                Text(l.onboardLevelBeginner,
                     style: KFTypography.tiny(color: palette.ink3)),
-                Text('Native',
+                Text(l.onboardLevelNative,
                     style: KFTypography.tiny(color: palette.ink3)),
               ],
             ),
@@ -511,14 +555,21 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     setState(() => _currentPage = 2);
   }
 
+  // ignore: unused_element
   Future<void> _saveKeyAndContinue() async {
     final key = _apiKeyController.text.trim();
     final notifier = ref.read(settingsProvider.notifier);
-    await notifier.setAiProvider(_onboardingProvider);
-    if (_onboardingProvider == AiProviderType.gemini) {
-      await notifier.setGeminiApiKey(key);
+
+    if (key.isEmpty) {
+      // 키 없음 → free tier (프록시)로 시작
+      await notifier.setAiProvider(AiProviderType.freeTier);
     } else {
-      await notifier.setGroqApiKey(key);
+      await notifier.setAiProvider(_onboardingProvider);
+      if (_onboardingProvider == AiProviderType.gemini) {
+        await notifier.setGeminiApiKey(key);
+      } else {
+        await notifier.setGroqApiKey(key);
+      }
     }
     if (mounted) setState(() => _currentPage = 3);
   }
@@ -923,11 +974,15 @@ class _ApiKeyField extends StatelessWidget {
   final TextEditingController controller;
   final KFPalette palette;
   final VoidCallback onPaste;
+  final String hintText;
+  final String pasteTooltip;
 
   const _ApiKeyField({
     required this.controller,
     required this.palette,
     required this.onPaste,
+    required this.hintText,
+    required this.pasteTooltip,
   });
 
   @override
@@ -943,7 +998,7 @@ class _ApiKeyField extends StatelessWidget {
             child: TextField(
               controller: controller,
               decoration: InputDecoration(
-                hintText: 'Your API key',
+                hintText: hintText,
                 hintStyle: KFTypography.body(color: palette.ink3).copyWith(
                   fontSize: 14,
                 ),
@@ -962,7 +1017,7 @@ class _ApiKeyField extends StatelessWidget {
           ),
           IconButton(
             icon: Icon(Icons.content_paste_rounded, color: palette.ink2),
-            tooltip: 'Paste',
+            tooltip: pasteTooltip,
             onPressed: onPaste,
           ),
         ],

@@ -8,6 +8,7 @@ import 'package:eng_friend/core/widgets/kf_xp_bar.dart';
 import 'package:eng_friend/features/mission/presentation/providers/mission_provider.dart';
 import 'package:eng_friend/features/mission/presentation/widgets/mission_bottom_sheet.dart';
 import 'package:eng_friend/features/streak/presentation/providers/streak_provider.dart';
+import 'package:eng_friend/l10n/app_localizations.dart';
 
 /// Sage-wash card showing today's progress (or active mission progress).
 /// Tappable → opens mission bottom sheet.
@@ -17,6 +18,7 @@ class MissionStrip extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final palette = KFPalette.of(context);
+    final l = AppLocalizations.of(context);
     final missionState = ref.watch(missionProvider);
     final streakState = ref.watch(streakProvider);
 
@@ -27,18 +29,18 @@ class MissionStrip extends ConsumerWidget {
 
     if (missionActive) {
       final mission = missionState.activeMission!;
-      label = 'Mission · ${missionState.turnCount} of ${mission.requiredTurns}';
+      label = l.missionStripActive(missionState.turnCount, mission.requiredTurns);
       trailing = '+${mission.difficulty.stars}★';
       progress = (missionState.turnCount / mission.requiredTurns).clamp(0.0, 1.0);
     } else {
       final today = streakState.todayMessageCount;
       final goal = streakState.dailyGoal;
       label = streakState.goalReachedToday
-          ? 'Goal reached · $today of $goal'
-          : "Today's goal · $today of $goal";
+          ? l.missionStripGoalReached(today, goal)
+          : l.missionStripTodayGoal(today, goal);
       trailing = streakState.goalReachedToday
-          ? '✓ Done'
-          : '+${goal - today} to go';
+          ? l.missionStripDone
+          : l.missionStripToGo(goal - today);
       progress = goal > 0 ? (today / goal).clamp(0.0, 1.0) : 0.0;
     }
 

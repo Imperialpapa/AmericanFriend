@@ -14,6 +14,7 @@ class AiModelInfo {
 }
 
 enum AiProviderType {
+  freeTier,
   claude,
   openai,
   gemini,
@@ -23,6 +24,13 @@ enum AiProviderType {
 extension AiProviderModels on AiProviderType {
   /// 해당 프로바이더에서 선택 가능한 모델 목록
   List<AiModelInfo> get availableModels => switch (this) {
+        AiProviderType.freeTier => const [
+            AiModelInfo(
+              id: 'free',
+              displayName: 'Free',
+              description: 'No API key needed · 20 messages/day',
+            ),
+          ],
         AiProviderType.gemini => const [
             AiModelInfo(
               id: 'gemini-2.5-flash',
@@ -148,6 +156,19 @@ extension AiProviderLanguageSupport on AiProviderType {
     AiProviderType.gemini: {},
     AiProviderType.claude: {},
     AiProviderType.openai: {},
+
+    // Free tier = Groq 백엔드. Groq와 동일한 제한 적용.
+    AiProviderType.freeTier: {
+      AppLanguage.chineseCantonese: const LanguageSupportInfo.limited(
+        'Llama 3.3 has limited Cantonese support. Quality may be lower.',
+      ),
+      AppLanguage.chineseMandarin: const LanguageSupportInfo.limited(
+        'Llama 3.3 Chinese quality may be lower than other models.',
+      ),
+      AppLanguage.italian: const LanguageSupportInfo.limited(
+        'Llama 3.3 Italian quality may be lower than other models.',
+      ),
+    },
 
     // Groq (Llama 3.3) — 일부 언어 품질 제한
     AiProviderType.groq: {

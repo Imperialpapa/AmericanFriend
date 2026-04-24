@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:eng_friend/features/vocabulary/presentation/providers/vocabulary_provider.dart';
+import 'package:eng_friend/l10n/app_localizations.dart';
 import 'package:eng_friend/services/local_db/app_database.dart';
 
 class VocabularyScreen extends ConsumerWidget {
@@ -9,16 +10,17 @@ class VocabularyScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final vocabState = ref.watch(vocabularyProvider);
+    final l = AppLocalizations.of(context);
 
     return DefaultTabController(
       length: 2,
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('My Vocabulary'),
+          title: Text(l.vocabTitle),
           bottom: TabBar(
             tabs: [
-              Tab(text: 'All (${vocabState.allItems.length})'),
-              Tab(text: 'Review (${vocabState.dueItems.length})'),
+              Tab(text: l.vocabTabAll(vocabState.allItems.length)),
+              Tab(text: l.vocabTabReview(vocabState.dueItems.length)),
             ],
           ),
         ),
@@ -32,16 +34,17 @@ class VocabularyScreen extends ConsumerWidget {
                 children: [
                   _WordList(items: vocabState.allItems),
                   vocabState.dueItems.isEmpty
-                      ? const Center(
+                      ? Center(
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(Icons.check_circle, size: 48, color: Colors.green),
-                              SizedBox(height: 8),
-                              Text('All caught up!'),
+                              const Icon(Icons.check_circle,
+                                  size: 48, color: Colors.green),
+                              const SizedBox(height: 8),
+                              Text(l.vocabCaughtUp),
                               Text(
-                                'No words to review right now.',
-                                style: TextStyle(color: Colors.grey),
+                                l.vocabCaughtUpSub,
+                                style: const TextStyle(color: Colors.grey),
                               ),
                             ],
                           ),
@@ -56,36 +59,37 @@ class VocabularyScreen extends ConsumerWidget {
   void _showAddDialog(BuildContext context, WidgetRef ref) {
     final expressionCtrl = TextEditingController();
     final meaningCtrl = TextEditingController();
+    final l = AppLocalizations.of(context);
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Add Word'),
+      builder: (dctx) => AlertDialog(
+        title: Text(l.vocabAddTitle),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
               controller: expressionCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Expression',
-                hintText: 'e.g. break the ice',
+              decoration: InputDecoration(
+                labelText: l.vocabFieldExpression,
+                hintText: l.vocabFieldExpressionHint,
               ),
               autofocus: true,
             ),
             const SizedBox(height: 8),
             TextField(
               controller: meaningCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Meaning',
-                hintText: 'e.g. to start a conversation',
+              decoration: InputDecoration(
+                labelText: l.vocabFieldMeaning,
+                hintText: l.vocabFieldMeaningHint,
               ),
             ),
           ],
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            onPressed: () => Navigator.pop(dctx),
+            child: Text(l.commonCancel),
           ),
           FilledButton(
             onPressed: () {
@@ -94,10 +98,10 @@ class VocabularyScreen extends ConsumerWidget {
                       expression: expressionCtrl.text.trim(),
                       meaning: meaningCtrl.text.trim(),
                     );
-                Navigator.pop(context);
+                Navigator.pop(dctx);
               }
             },
-            child: const Text('Add'),
+            child: Text(l.vocabButtonAdd),
           ),
         ],
       ),
@@ -112,11 +116,11 @@ class _WordList extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     if (items.isEmpty) {
-      return const Center(
+      return Center(
         child: Text(
-          'No words saved yet.\nLong-press text in chat or tap + to add.',
+          AppLocalizations.of(context).vocabListEmpty,
           textAlign: TextAlign.center,
-          style: TextStyle(color: Colors.grey),
+          style: const TextStyle(color: Colors.grey),
         ),
       );
     }
@@ -188,14 +192,16 @@ class _ReviewCardsState extends ConsumerState<_ReviewCards> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     if (_currentIndex >= widget.items.length) {
-      return const Center(
+      return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.celebration, size: 48, color: Colors.amber),
-            SizedBox(height: 8),
-            Text('Review complete!', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const Icon(Icons.celebration, size: 48, color: Colors.amber),
+            const SizedBox(height: 8),
+            Text(l.vocabReviewComplete,
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
           ],
         ),
       );
@@ -248,7 +254,7 @@ class _ReviewCardsState extends ConsumerState<_ReviewCards> {
                       )
                     else
                       Text(
-                        'Tap to reveal',
+                        l.vocabReviewTapReveal,
                         style: TextStyle(
                           color: Colors.grey[500],
                           fontStyle: FontStyle.italic,
@@ -269,7 +275,7 @@ class _ReviewCardsState extends ConsumerState<_ReviewCards> {
               FilledButton.icon(
                 onPressed: () => _answer(item.id, correct: false),
                 icon: const Icon(Icons.close),
-                label: const Text('Again'),
+                label: Text(l.vocabReviewAgain),
                 style: FilledButton.styleFrom(
                   backgroundColor: Colors.red.shade700,
                   minimumSize: const Size(140, 48),
@@ -278,7 +284,7 @@ class _ReviewCardsState extends ConsumerState<_ReviewCards> {
               FilledButton.icon(
                 onPressed: () => _answer(item.id, correct: true),
                 icon: const Icon(Icons.check),
-                label: const Text('Got it'),
+                label: Text(l.vocabReviewGotIt),
                 style: FilledButton.styleFrom(
                   backgroundColor: Colors.green.shade700,
                   minimumSize: const Size(140, 48),

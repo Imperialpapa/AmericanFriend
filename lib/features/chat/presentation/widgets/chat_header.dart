@@ -10,6 +10,7 @@ import 'package:eng_friend/features/level/presentation/providers/level_provider.
 import 'package:eng_friend/features/streak/presentation/providers/streak_provider.dart';
 import 'package:eng_friend/features/topic/presentation/providers/topic_provider.dart';
 import 'package:eng_friend/features/settings/presentation/screens/settings_screen.dart';
+import 'package:eng_friend/l10n/app_localizations.dart';
 
 /// Custom chat header replacing the Material AppBar.
 /// Layout: Alex avatar (with status dot) + name/context + StreakChip + Settings gear.
@@ -22,6 +23,7 @@ class ChatHeader extends ConsumerWidget implements PreferredSizeWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final palette = KFPalette.of(context);
+    final l = AppLocalizations.of(context);
     final levelState = ref.watch(levelProvider);
     final streakState = ref.watch(streakProvider);
     final topicState = ref.watch(topicProvider);
@@ -81,7 +83,11 @@ class ChatHeader extends ConsumerWidget implements PreferredSizeWidget {
                           ),
                           const SizedBox(height: 1),
                           Text(
-                            'Day ${streakState.currentStreak} · Lv.${levelState.currentLevel} ${levelState.levelName}',
+                            l.chatHeaderContext(
+                              streakState.currentStreak,
+                              levelState.currentLevel,
+                              levelState.levelName,
+                            ),
                             style: KFTypography.tiny(color: palette.ink3),
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -94,7 +100,7 @@ class ChatHeader extends ConsumerWidget implements PreferredSizeWidget {
               const SizedBox(width: KFSpacing.x1),
               IconButton(
                 icon: Icon(Icons.tune, size: 22, color: palette.ink2),
-                tooltip: 'Settings',
+                tooltip: l.commonSettings,
                 onPressed: () {
                   Navigator.of(context).push(
                     MaterialPageRoute(builder: (_) => const SettingsScreen()),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:eng_friend/di/service_providers.dart';
+import 'package:eng_friend/l10n/app_localizations.dart';
 import 'package:eng_friend/services/local_db/app_database.dart';
 
 class WeeklyReportScreen extends ConsumerStatefulWidget {
@@ -40,9 +41,10 @@ class _WeeklyReportScreenState extends ConsumerState<WeeklyReportScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     if (_loading) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Weekly Report')),
+        appBar: AppBar(title: Text(l.reportTitle)),
         body: const Center(child: CircularProgressIndicator()),
       );
     }
@@ -61,7 +63,7 @@ class _WeeklyReportScreenState extends ConsumerState<WeeklyReportScreen> {
       ..sort((a, b) => b.value.compareTo(a.value));
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Weekly Report')),
+      appBar: AppBar(title: Text(l.reportTitle)),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -75,7 +77,7 @@ class _WeeklyReportScreenState extends ConsumerState<WeeklyReportScreen> {
           const SizedBox(height: 16),
 
           // 일별 활동 차트
-          Text('Daily Activity',
+          Text(l.reportSectionDaily,
               style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 8),
           _DailyChart(activities: _activities),
@@ -83,16 +85,16 @@ class _WeeklyReportScreenState extends ConsumerState<WeeklyReportScreen> {
           const SizedBox(height: 24),
 
           // 주제별 연습량
-          Text('Topics Practiced',
+          Text(l.reportSectionTopics,
               style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 8),
           if (sortedTopics.isEmpty)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 16),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 16),
               child: Text(
-                'No topic sessions this week.\nTry the Topic Focus mode!',
+                l.reportNoTopics,
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey),
+                style: const TextStyle(color: Colors.grey),
               ),
             )
           else
@@ -105,29 +107,30 @@ class _WeeklyReportScreenState extends ConsumerState<WeeklyReportScreen> {
           const SizedBox(height: 24),
 
           // 레벨 변화
-          Text('Level Changes',
+          Text(l.reportSectionLevels,
               style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 8),
           if (_levelHistory.isEmpty)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 16),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 16),
               child: Text(
-                'No level changes this week.',
+                l.reportNoLevels,
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey),
+                style: const TextStyle(color: Colors.grey),
               ),
             )
           else
-            ..._levelHistory.map((l) => ListTile(
+            ..._levelHistory.map((h) => ListTile(
                   dense: true,
                   leading: CircleAvatar(
                     radius: 14,
-                    child: Text('${l.level}', style: const TextStyle(fontSize: 12)),
+                    child: Text('${h.level}',
+                        style: const TextStyle(fontSize: 12)),
                   ),
-                  title: Text('Level ${l.level}'),
-                  subtitle: Text(l.reasoning),
+                  title: Text(l.reportLevelLabel(h.level)),
+                  subtitle: Text(h.reasoning),
                   trailing: Text(
-                    '${l.assessedAt.month}/${l.assessedAt.day}',
+                    '${h.assessedAt.month}/${h.assessedAt.day}',
                     style: const TextStyle(fontSize: 12, color: Colors.grey),
                   ),
                 )),
@@ -150,6 +153,7 @@ class _SummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -159,19 +163,19 @@ class _SummaryCard extends StatelessWidget {
             _StatItem(
               icon: Icons.chat_bubble,
               value: '$totalMessages',
-              label: 'Messages',
+              label: l.reportStatMessages,
               color: Theme.of(context).colorScheme.primary,
             ),
             _StatItem(
               icon: Icons.calendar_today,
               value: '$activeDays/7',
-              label: 'Active Days',
+              label: l.reportStatActiveDays,
               color: Colors.green,
             ),
             _StatItem(
               icon: Icons.local_fire_department,
               value: '$currentStreak',
-              label: 'Streak',
+              label: l.reportStatStreak,
               color: Colors.orange,
             ),
           ],
@@ -308,7 +312,7 @@ class _TopicRow extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           Text(
-            '$turns turns',
+            AppLocalizations.of(context).reportTurns(turns),
             style: const TextStyle(fontSize: 12, color: Colors.grey),
           ),
         ],

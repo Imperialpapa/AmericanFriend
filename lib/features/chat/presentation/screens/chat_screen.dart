@@ -22,6 +22,7 @@ import 'package:eng_friend/features/settings/presentation/screens/settings_scree
 import 'package:eng_friend/features/streak/presentation/providers/streak_provider.dart';
 import 'package:eng_friend/features/topic/presentation/providers/topic_provider.dart';
 import 'package:eng_friend/features/voice/presentation/providers/voice_provider.dart';
+import 'package:eng_friend/l10n/app_localizations.dart';
 
 /// 메인 채팅 화면 — Modern Sage redesign.
 class ChatScreen extends ConsumerStatefulWidget {
@@ -72,6 +73,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       }
     });
 
+    final l = AppLocalizations.of(context);
+
     // streak 목표 달성 축하
     ref.listen(streakProvider, (prev, next) {
       if (next.justReachedGoal) {
@@ -80,8 +83,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           context,
           icon: Icons.local_fire_department,
           color: palette.mustard,
-          text: 'Daily goal reached! Streak: ${next.currentStreak} day'
-              '${next.currentStreak > 1 ? 's' : ''}',
+          text: l.chatStreakGoalReached(next.currentStreak),
         );
       }
     });
@@ -94,8 +96,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           context,
           icon: Icons.emoji_events,
           color: palette.mustard,
-          text: 'Mission Complete! +${next.starsJustEarned} star'
-              '${next.starsJustEarned > 1 ? 's' : ''}',
+          text: l.chatMissionComplete(next.starsJustEarned),
         );
       }
     });
@@ -154,6 +155,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   Widget _buildErrorBanner(BuildContext context, String error) {
     final palette = KFPalette.of(context);
+    final l = AppLocalizations.of(context);
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -173,10 +175,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             onPressed: () {
               Clipboard.setData(ClipboardData(text: error));
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Copied!')),
+                SnackBar(content: Text(l.commonCopied)),
               );
             },
-            child: const Text('Copy'),
+            child: Text(l.commonCopy),
           ),
           TextButton(
             onPressed: () {
@@ -184,7 +186,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 MaterialPageRoute(builder: (_) => const SettingsScreen()),
               );
             },
-            child: const Text('Settings'),
+            child: Text(l.chatErrorGoToSettings),
           ),
         ],
       ),
@@ -244,7 +246,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   Widget _buildWelcomeMessage() {
     final palette = KFPalette.of(context);
     final settings = ref.watch(settingsProvider);
-    final hasApiKey = settings.activeApiKey.isNotEmpty;
+    final hasApiKey = settings.hasWorkingCredentials;
+    final l = AppLocalizations.of(context);
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(KFSpacing.x6),
@@ -255,12 +258,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           const AlexAvatar(size: 110, emotion: AlexEmotion.celebrate),
           const SizedBox(height: KFSpacing.x5),
           Text(
-            "Hey! I'm ${AppConstants.aiCharacterName}",
+            l.chatWelcomeTitle(AppConstants.aiCharacterName),
             style: KFTypography.h1(color: palette.ink),
           ),
           const SizedBox(height: KFSpacing.x2),
           Text(
-            "I'm here to help you practice ${settings.targetLanguage.displayName}.\nLet's start a conversation!",
+            l.chatWelcomeSubtitle(settings.targetLanguage.displayName),
             textAlign: TextAlign.center,
             style: KFTypography.body(color: palette.ink2).copyWith(height: 1.5),
           ),
@@ -278,12 +281,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                       size: 32, color: palette.coral),
                   const SizedBox(height: KFSpacing.x2),
                   Text(
-                    'API Key Required',
+                    l.chatApiKeyRequiredTitle,
                     style: KFTypography.h2(color: palette.ink),
                   ),
                   const SizedBox(height: KFSpacing.x1),
                   Text(
-                    'To start chatting, you need an AI API key.\nSet one up in Settings.',
+                    l.chatApiKeyRequiredBody,
                     textAlign: TextAlign.center,
                     style: KFTypography.meta(color: palette.ink2),
                   ),
@@ -296,7 +299,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                       );
                     },
                     icon: const Icon(Icons.settings, size: 18),
-                    label: const Text('Go to Settings'),
+                    label: Text(l.chatApiKeyGoToSettings),
                   ),
                 ],
               ),

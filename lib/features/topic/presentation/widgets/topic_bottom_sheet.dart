@@ -2,6 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:eng_friend/features/topic/domain/entities/topic.dart';
 import 'package:eng_friend/features/topic/presentation/providers/topic_provider.dart';
+import 'package:eng_friend/l10n/app_localizations.dart';
+
+String _categoryLocalized(AppLocalizations l, TopicCategory cat) =>
+    switch (cat) {
+      TopicCategory.daily => l.topicCategoryDaily,
+      TopicCategory.travel => l.topicCategoryTravel,
+      TopicCategory.food => l.topicCategoryFood,
+      TopicCategory.work => l.topicCategoryWork,
+      TopicCategory.shopping => l.topicCategoryShopping,
+      TopicCategory.health => l.topicCategoryHealth,
+      TopicCategory.social => l.topicCategorySocial,
+      TopicCategory.entertainment => l.topicCategoryEntertainment,
+    };
 
 /// 주제 선택 바텀시트
 class TopicBottomSheet extends ConsumerWidget {
@@ -50,7 +63,7 @@ class TopicBottomSheet extends ConsumerWidget {
                   const Icon(Icons.topic, size: 24),
                   const SizedBox(width: 8),
                   Text(
-                    'Choose a Topic',
+                    AppLocalizations.of(context).topicSheetTitle,
                     style: Theme.of(context).textTheme.titleLarge,
                   ),
                 ],
@@ -98,6 +111,7 @@ class _TodaysTopicCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l = AppLocalizations.of(context);
     return Card(
       color: Colors.orange.shade900,
       child: InkWell(
@@ -119,7 +133,7 @@ class _TodaysTopicCard extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      "Today's Topic",
+                      l.topicTodayLabel,
                       style: Theme.of(context).textTheme.labelSmall?.copyWith(
                             color: Colors.orange.shade300,
                           ),
@@ -142,8 +156,9 @@ class _TodaysTopicCard extends ConsumerWidget {
                 ),
               ),
               if (isActive)
-                const Chip(
-                  label: Text('Active', style: TextStyle(fontSize: 11)),
+                Chip(
+                  label: Text(l.topicActive,
+                      style: const TextStyle(fontSize: 11)),
                   backgroundColor: Colors.orange,
                   padding: EdgeInsets.zero,
                 ),
@@ -174,7 +189,7 @@ class _CategorySection extends ConsumerWidget {
         Padding(
           padding: const EdgeInsets.only(top: 12, bottom: 8),
           child: Text(
-            category.displayName,
+            _categoryLocalized(AppLocalizations.of(context), category),
             style: Theme.of(context).textTheme.titleSmall?.copyWith(
                   color: Theme.of(context).colorScheme.primary,
                   fontWeight: FontWeight.bold,

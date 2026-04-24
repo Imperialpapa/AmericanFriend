@@ -14,6 +14,12 @@ enum TopicCategory {
   const TopicCategory(this.displayName, this.description);
 }
 
+/// 카테고리 지역화 (topic_bottom_sheet에서 사용)
+/// arb 번역이 없으면 enum의 displayName으로 fallback.
+String topicCategoryLocalized(TopicCategory cat, String Function(TopicCategory) resolver) {
+  return resolver(cat);
+}
+
 /// 개별 주제
 class Topic {
   final String id;

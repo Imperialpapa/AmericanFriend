@@ -58,9 +58,7 @@ export default async function handler(req: Request): Promise<Response> {
     return json({ error: { code: 'bad_request', message: 'messages[] required' } }, 400);
   }
 
-  try {
-    console.log(`[req] stream=${!!body.stream} msgs=${body.messages.length}`);
-  } catch (_) {}
+  console.log(`[req] stream=${!!body.stream} msgs=${body.messages.length}`);
 
   const rlHeaders: Record<string, string> = {
     'X-RateLimit-Limit': String(rl.limit),

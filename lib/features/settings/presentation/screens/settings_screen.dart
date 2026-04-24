@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:eng_friend/core/constants/app_constants.dart';
 import 'package:eng_friend/core/constants/level_constants.dart';
 import 'package:eng_friend/core/theme/app_colors.dart';
 import 'package:eng_friend/core/theme/app_radii.dart';
@@ -16,9 +17,12 @@ import 'package:eng_friend/features/report/presentation/screens/weekly_report_sc
 import 'package:eng_friend/features/settings/domain/entities/user_settings.dart';
 import 'package:eng_friend/features/settings/presentation/providers/settings_provider.dart';
 import 'package:eng_friend/features/streak/presentation/providers/streak_provider.dart';
+import 'package:eng_friend/di/service_providers.dart';
 import 'package:eng_friend/features/vocabulary/presentation/providers/vocabulary_provider.dart';
 import 'package:eng_friend/features/vocabulary/presentation/screens/vocabulary_screen.dart';
+import 'package:eng_friend/l10n/app_localizations.dart';
 import 'package:eng_friend/services/ai/ai_provider_type.dart';
+import 'package:eng_friend/services/ai/free_tier/free_tier_ai_service.dart';
 import 'package:eng_friend/services/language/app_language.dart';
 import 'package:eng_friend/services/notification/notification_service.dart';
 
@@ -63,6 +67,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final palette = KFPalette.of(context);
     final settings = ref.watch(settingsProvider);
     final notifier = ref.read(settingsProvider.notifier);
+    final l = AppLocalizations.of(context);
 
     return Scaffold(
       backgroundColor: palette.canvas,
@@ -76,13 +81,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 children: [
                   const _HeroCard(),
                   const SizedBox(height: KFSpacing.x2),
-                  _SectionTitle('Learning', palette: palette),
+                  _SectionTitle(l.settingsSectionLearning, palette: palette),
                   _LearningGroup(
                     settings: settings,
                     notifier: notifier,
                     palette: palette,
                   ),
-                  _SectionTitle('AI Setup', palette: palette),
+                  _LanguageWarningBanner(
+                      settings: settings, palette: palette),
+                  _SectionTitle(l.settingsSectionAi, palette: palette),
                   _AiGroup(
                     settings: settings,
                     notifier: notifier,
@@ -98,19 +105,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     },
                     keyVisible: _showKey[settings.aiProvider.name] ?? false,
                   ),
-                  _SectionTitle('Conversation', palette: palette),
+                  _SectionTitle(l.settingsSectionConversation, palette: palette),
                   _ConversationGroup(
                     settings: settings,
                     notifier: notifier,
                     palette: palette,
                   ),
-                  _SectionTitle('Voice', palette: palette),
+                  _SectionTitle(l.settingsSectionVoice, palette: palette),
                   _VoiceGroup(
                     settings: settings,
                     notifier: notifier,
                     palette: palette,
                   ),
-                  _SectionTitle('App', palette: palette),
+                  _SectionTitle(l.settingsSectionApp, palette: palette),
                   _AppGroup(
                     settings: settings,
                     notifier: notifier,
@@ -122,7 +129,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         KFSpacing.x5, KFSpacing.x5, KFSpacing.x5, 0),
                     child: Center(
                       child: Text(
-                        'Korean Friend · v2.2.0',
+                        '${AppConstants.appName} · v${AppConstants.appVersion}',
                         style: KFTypography.tiny(color: palette.ink3),
                       ),
                     ),
@@ -139,6 +146,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   TextEditingController _controllerFor(AiProviderType provider) {
     return switch (provider) {
+      AiProviderType.freeTier => _claudeKeyController, // 쓰이지 않음 (freeTier는 키 필드 없음)
       AiProviderType.claude => _claudeKeyController,
       AiProviderType.openai => _openaiKeyController,
       AiProviderType.gemini => _geminiKeyController,
@@ -148,6 +156,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   void _saveKey(SettingsNotifier notifier, AiProviderType provider, String v) {
     switch (provider) {
+      case AiProviderType.freeTier:
+        return; // 저장할 키 없음
       case AiProviderType.claude:
         notifier.setClaudeApiKey(v);
       case AiProviderType.openai:
@@ -166,14 +176,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       queryParameters: {
         'subject': '[Korean Friend] Feedback',
         'body':
-            '\n\n---\nApp: Korean Friend v2.2.0\nAI: ${settings.aiProvider.name} (${settings.activeModelId})\nLevel: ${ref.read(levelProvider).currentLevel}\nNative: ${settings.nativeLanguage.displayName}\nTarget: ${settings.targetLanguage.displayName}',
+            '\n\n---\nApp: ${AppConstants.appName} v${AppConstants.appVersion}\nAI: ${settings.aiProvider.name} (${settings.activeModelId})\nLevel: ${ref.read(levelProvider).currentLevel}\nNative: ${settings.nativeLanguage.displayName}\nTarget: ${settings.targetLanguage.displayName}',
       },
     );
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri);
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not open email app')),
+        SnackBar(
+            content: Text(AppLocalizations.of(context).settingsFeedbackEmailFailed)),
       );
     }
   }
@@ -194,7 +205,7 @@ class _Header extends StatelessWidget {
       child: Row(
         children: [
           Text(
-            'Profile',
+            AppLocalizations.of(context).settingsHeaderTitle,
             style: KFTypography.h1(color: palette.ink).copyWith(fontSize: 24),
           ),
           const Spacer(),
@@ -298,7 +309,8 @@ class _HeroCard extends ConsumerWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      'Level ${levelState.currentLevel} Learner',
+                      AppLocalizations.of(context)
+                          .settingsHeroLevelLearner(levelState.currentLevel),
                       style: KFTypography.h2(color: palette.ink).copyWith(
                         fontSize: 18,
                         letterSpacing: -0.3,
@@ -318,30 +330,33 @@ class _HeroCard extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: KFSpacing.x3),
-          Row(
-            children: [
-              _StatPill(
-                label: 'Streak',
-                value: '${streakState.currentStreak}',
-                sub: 'days',
-                palette: palette,
-              ),
-              const SizedBox(width: 8),
-              _StatPill(
-                label: 'Words',
-                value: '${vocabState.allItems.length}',
-                sub: 'saved',
-                palette: palette,
-              ),
-              const SizedBox(width: 8),
-              _StatPill(
-                label: 'Today',
-                value: '${streakState.todayMessageCount}',
-                sub: '/ ${streakState.dailyGoal}',
-                palette: palette,
-              ),
-            ],
-          ),
+          Builder(builder: (context) {
+            final l = AppLocalizations.of(context);
+            return Row(
+              children: [
+                _StatPill(
+                  label: l.settingsStatStreak,
+                  value: '${streakState.currentStreak}',
+                  sub: l.settingsStatStreakSub,
+                  palette: palette,
+                ),
+                const SizedBox(width: 8),
+                _StatPill(
+                  label: l.settingsStatWords,
+                  value: '${vocabState.allItems.length}',
+                  sub: l.settingsStatWordsSub,
+                  palette: palette,
+                ),
+                const SizedBox(width: 8),
+                _StatPill(
+                  label: l.settingsStatToday,
+                  value: '${streakState.todayMessageCount}',
+                  sub: l.settingsStatTodaySub(streakState.dailyGoal),
+                  palette: palette,
+                ),
+              ],
+            );
+          }),
         ],
       ),
     );
@@ -633,14 +648,15 @@ class _LearningGroup extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     return _Group(
       palette: palette,
       children: [
         _Row(
           icon: Icons.style_outlined,
           iconTint: palette.sageWash,
-          title: 'Vocabulary',
-          detail: 'Saved words',
+          title: l.settingsRowVocabulary,
+          detail: l.settingsRowVocabularyDetail,
           palette: palette,
           onTap: () {
             Navigator.of(context).push(
@@ -651,8 +667,8 @@ class _LearningGroup extends StatelessWidget {
         _Row(
           icon: Icons.bar_chart_rounded,
           iconTint: palette.mustardSoft,
-          title: 'Weekly report',
-          detail: 'Last 7 days',
+          title: l.settingsRowWeeklyReport,
+          detail: l.settingsRowWeeklyReportDetail,
           palette: palette,
           onTap: () {
             Navigator.of(context).push(
@@ -687,23 +703,52 @@ class _LevelInlineRow extends ConsumerWidget {
     final levelState = ref.watch(levelProvider);
     final level = levelState.currentLevel;
 
+    final l = AppLocalizations.of(context);
     return _InlineRow(
       icon: Icons.adjust,
-      title: 'Level',
+      title: l.settingsRowLevel,
       subtitle: '$level · ${LevelConstants.levelNames[level]}',
       palette: palette,
-      child: Slider(
-        value: level.toDouble(),
-        min: LevelConstants.minLevel.toDouble(),
-        max: LevelConstants.maxLevel.toDouble(),
-        divisions: LevelConstants.maxLevel - LevelConstants.minLevel,
-        label: '$level',
-        onChanged: (v) {
-          ref.read(levelProvider.notifier).setLevel(v.round());
-        },
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Slider(
+            value: level.toDouble(),
+            min: LevelConstants.minLevel.toDouble(),
+            max: LevelConstants.maxLevel.toDouble(),
+            divisions: LevelConstants.maxLevel - LevelConstants.minLevel,
+            label: '$level',
+            onChanged: (v) {
+              ref.read(levelProvider.notifier).setLevel(v.round());
+            },
+          ),
+          Padding(
+            padding: const EdgeInsets.only(left: 4, top: 2),
+            child: Text(
+              _levelDescription(l, level),
+              style: KFTypography.meta(color: palette.ink3)
+                  .copyWith(fontSize: 12, height: 1.4),
+            ),
+          ),
+        ],
       ),
     );
   }
+
+  String _levelDescription(AppLocalizations l, int level) => switch (level) {
+        1 => l.levelDesc1,
+        2 => l.levelDesc2,
+        3 => l.levelDesc3,
+        4 => l.levelDesc4,
+        5 => l.levelDesc5,
+        6 => l.levelDesc6,
+        7 => l.levelDesc7,
+        8 => l.levelDesc8,
+        9 => l.levelDesc9,
+        10 => l.levelDesc10,
+        _ => '',
+      };
 }
 
 class _LanguageInlineRow extends StatelessWidget {
@@ -725,9 +770,10 @@ class _LanguageInlineRow extends StatelessWidget {
     final disabled =
         isNative ? settings.targetLanguage : settings.nativeLanguage;
 
+    final l = AppLocalizations.of(context);
     return _Row(
       icon: isNative ? Icons.translate : Icons.school_outlined,
-      title: isNative ? 'Native language' : 'Target language',
+      title: isNative ? l.settingsRowNativeLanguage : l.settingsRowTargetLanguage,
       detail: value.displayName,
       palette: palette,
       onTap: () => _pickLanguage(context, value, disabled),
@@ -736,6 +782,7 @@ class _LanguageInlineRow extends StatelessWidget {
 
   Future<void> _pickLanguage(
       BuildContext context, AppLanguage current, AppLanguage disabled) async {
+    final l = AppLocalizations.of(context);
     final picked = await showModalBottomSheet<AppLanguage>(
       context: context,
       builder: (ctx) {
@@ -750,7 +797,9 @@ class _LanguageInlineRow extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(
                       horizontal: KFSpacing.x3, vertical: KFSpacing.x2),
                   child: Text(
-                    isNative ? 'Native language' : 'Target language',
+                    isNative
+                        ? l.settingsRowNativeLanguage
+                        : l.settingsRowTargetLanguage,
                     style: KFTypography.h2(color: palette.ink),
                   ),
                 ),
@@ -785,6 +834,171 @@ class _LanguageInlineRow extends StatelessWidget {
 }
 
 // ===================
+// Free tier quota row — fetches current usage from proxy
+// ===================
+class _FreeTierQuotaRow extends ConsumerStatefulWidget {
+  final KFPalette palette;
+  const _FreeTierQuotaRow({required this.palette});
+
+  @override
+  ConsumerState<_FreeTierQuotaRow> createState() => _FreeTierQuotaRowState();
+}
+
+class _FreeTierQuotaRowState extends ConsumerState<_FreeTierQuotaRow> {
+  FreeTierQuota? _quota;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetch();
+  }
+
+  Future<void> _fetch() async {
+    final service = ref.read(aiServiceProvider);
+    if (service is! FreeTierAiService) {
+      if (mounted) setState(() => _loading = false);
+      return;
+    }
+    final q = await service.fetchQuota();
+    if (mounted) {
+      setState(() {
+        _quota = q;
+        _loading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = widget.palette;
+    final q = _quota;
+
+    String title;
+    String subtitle;
+    double progress;
+    if (_loading) {
+      title = 'Checking usage…';
+      subtitle = '';
+      progress = 0;
+    } else if (q == null) {
+      title = 'Offline';
+      subtitle = 'Cannot reach proxy';
+      progress = 0;
+    } else {
+      title = 'Today: ${q.used} / ${q.limit} free';
+      subtitle = q.remaining > 0
+          ? 'Resets at UTC midnight'
+          : 'Limit reached — add API key for unlimited';
+      progress = q.limit > 0 ? (q.used / q.limit).clamp(0.0, 1.0) : 0;
+    }
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+          KFSpacing.x3 + 2, 12, KFSpacing.x3 + 2, 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 30,
+                height: 30,
+                decoration: BoxDecoration(
+                  color: palette.sageWash,
+                  borderRadius: BorderRadius.circular(KFRadii.xs + 3),
+                ),
+                child: Icon(Icons.bolt, size: 16, color: palette.sageDeep),
+              ),
+              const SizedBox(width: KFSpacing.x3),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: KFTypography.body(color: palette.ink).copyWith(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    if (subtitle.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle,
+                        style: KFTypography.meta(color: palette.ink3)
+                            .copyWith(fontSize: 12),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: KFSpacing.x3),
+          Padding(
+            padding: const EdgeInsets.only(left: 42),
+            child: KFXpBar(value: progress),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ===================
+// Language compatibility warning banner
+// ===================
+class _LanguageWarningBanner extends StatelessWidget {
+  final UserSettings settings;
+  final KFPalette palette;
+
+  const _LanguageWarningBanner({
+    required this.settings,
+    required this.palette,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final warnings = <String>[];
+    final native = settings.aiProvider.supportFor(settings.nativeLanguage);
+    final target = settings.aiProvider.supportFor(settings.targetLanguage);
+    if (native.warningMessage != null) warnings.add(native.warningMessage!);
+    if (target.warningMessage != null) warnings.add(target.warningMessage!);
+
+    if (warnings.isEmpty) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+          KFSpacing.x4, KFSpacing.x3, KFSpacing.x4, 0),
+      child: Container(
+        padding: const EdgeInsets.all(KFSpacing.x3),
+        decoration: BoxDecoration(
+          color: palette.mustardSoft,
+          borderRadius: KFRadii.rMd,
+          border: Border.all(color: palette.hairline),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(Icons.warning_amber_rounded,
+                size: 18, color: palette.mustard),
+            const SizedBox(width: KFSpacing.x2),
+            Expanded(
+              child: Text(
+                warnings.join('\n'),
+                style: KFTypography.meta(color: palette.ink2)
+                    .copyWith(fontSize: 12, height: 1.4),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ===================
 // Group: AI
 // ===================
 class _AiGroup extends StatelessWidget {
@@ -808,27 +1022,33 @@ class _AiGroup extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
+    final isFreeTier = settings.aiProvider == AiProviderType.freeTier;
     return _Group(
       palette: palette,
       children: [
         _Row(
           icon: Icons.bolt_outlined,
           iconTint: palette.sageWash,
-          title: 'Provider',
+          title: l.settingsRowProvider,
           detail: _providerName(settings.aiProvider),
           palette: palette,
           onTap: () => _pickProvider(context),
         ),
-        _Row(
-          icon: Icons.smart_toy_outlined,
-          title: 'Model',
-          detail: _modelDisplayName(settings),
-          palette: palette,
-          onTap: () => _pickModel(context),
-        ),
-        _InlineRow(
+        if (!isFreeTier)
+          _Row(
+            icon: Icons.smart_toy_outlined,
+            title: l.settingsRowModel,
+            detail: _modelDisplayName(settings),
+            palette: palette,
+            onTap: () => _pickModel(context),
+          ),
+        if (isFreeTier)
+          _FreeTierQuotaRow(palette: palette)
+        else
+          _InlineRow(
           icon: Icons.key_outlined,
-          title: 'API key',
+          title: l.settingsRowApiKey,
           subtitle: _providerKeyHint(settings.aiProvider),
           palette: palette,
           child: Column(
@@ -854,7 +1074,8 @@ class _AiGroup extends StatelessWidget {
                             size: 14, color: palette.sageDeep),
                         const SizedBox(width: 6),
                         Text(
-                          'Get free key at ${_providerKeyHint(settings.aiProvider)}',
+                          l.settingsGetFreeKey(
+                              _providerKeyHint(settings.aiProvider)),
                           style: KFTypography.meta(color: palette.sageDeep)
                               .copyWith(
                             fontSize: 12,
@@ -875,8 +1096,8 @@ class _AiGroup extends StatelessWidget {
                       controller: keyController,
                       obscureText: !keyVisible,
                       onChanged: (v) => onKeyChanged(v.trim()),
-                      decoration: const InputDecoration(
-                        hintText: 'paste your key…',
+                      decoration: InputDecoration(
+                        hintText: l.settingsApiKeyHint,
                         isDense: true,
                       ),
                       style: KFTypography.body(color: palette.ink).copyWith(
@@ -905,6 +1126,7 @@ class _AiGroup extends StatelessWidget {
   }
 
   String _providerKeyUrl(AiProviderType p) => switch (p) {
+        AiProviderType.freeTier => '',
         AiProviderType.gemini => 'https://aistudio.google.com/apikey',
         AiProviderType.groq => 'https://console.groq.com/keys',
         AiProviderType.claude => 'https://console.anthropic.com/settings/keys',
@@ -919,6 +1141,7 @@ class _AiGroup extends StatelessWidget {
   }
 
   String _providerName(AiProviderType p) => switch (p) {
+        AiProviderType.freeTier => 'Free (no key)',
         AiProviderType.gemini => 'Google Gemini',
         AiProviderType.groq => 'Groq (Llama 3.3)',
         AiProviderType.claude => 'Claude',
@@ -933,6 +1156,7 @@ class _AiGroup extends StatelessWidget {
   }
 
   String _providerKeyHint(AiProviderType p) => switch (p) {
+        AiProviderType.freeTier => '',
         AiProviderType.gemini => 'aistudio.google.com/apikey',
         AiProviderType.groq => 'console.groq.com/keys',
         AiProviderType.claude => 'console.anthropic.com',
@@ -940,6 +1164,7 @@ class _AiGroup extends StatelessWidget {
       };
 
   void _pickProvider(BuildContext context) {
+    final l = AppLocalizations.of(context);
     showModalBottomSheet(
       context: context,
       builder: (ctx) {
@@ -952,7 +1177,7 @@ class _AiGroup extends StatelessWidget {
               children: [
                 Padding(
                   padding: const EdgeInsets.all(KFSpacing.x3),
-                  child: Text('AI Provider',
+                  child: Text(l.settingsPickerProvider,
                       style: KFTypography.h2(color: palette.ink)),
                 ),
                 ...AiProviderType.values.map((p) {
@@ -980,6 +1205,7 @@ class _AiGroup extends StatelessWidget {
   }
 
   String _providerDescription(AiProviderType p) => switch (p) {
+        AiProviderType.freeTier => 'No API key required · 20 msg/day',
         AiProviderType.gemini => 'Free tier · 1,500 req/day',
         AiProviderType.groq => 'Free · 14,400 req/day, ultra fast',
         AiProviderType.claude => 'Paid · highest quality',
@@ -987,6 +1213,7 @@ class _AiGroup extends StatelessWidget {
       };
 
   void _pickModel(BuildContext context) {
+    final l = AppLocalizations.of(context);
     showModalBottomSheet(
       context: context,
       builder: (ctx) {
@@ -999,7 +1226,7 @@ class _AiGroup extends StatelessWidget {
               children: [
                 Padding(
                   padding: const EdgeInsets.all(KFSpacing.x3),
-                  child: Text('Model',
+                  child: Text(l.settingsPickerModel,
                       style: KFTypography.h2(color: palette.ink)),
                 ),
                 ...settings.aiProvider.availableModels.map((m) {
@@ -1043,43 +1270,45 @@ class _ConversationGroup extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     return _Group(
       palette: palette,
       children: [
         _SwitchRow(
           icon: Icons.subtitles_outlined,
-          title: 'Show ${settings.targetLanguage.displayName} text',
-          subtitle: 'Display AI response on screen',
+          title: l.settingsShowTargetText(settings.targetLanguage.displayName),
+          subtitle: l.settingsShowTargetTextSub,
           value: settings.showTargetText,
           onChanged: notifier.setShowTargetText,
           palette: palette,
         ),
         _SwitchRow(
           icon: Icons.translate,
-          title: 'Show ${settings.nativeLanguage.displayName} translation',
-          subtitle: 'Inline hints in parentheses',
+          title:
+              l.settingsShowNativeTranslation(settings.nativeLanguage.displayName),
+          subtitle: l.settingsShowNativeTranslationSub,
           value: settings.showNativeHint,
           onChanged: notifier.setShowNativeHint,
           palette: palette,
         ),
         _InlineRow(
           icon: Icons.lightbulb_outline,
-          title: 'Suggestion timing',
+          title: l.settingsSuggestionTiming,
           palette: palette,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               SegmentedButton<SuggestionMode>(
-                segments: const [
+                segments: [
                   ButtonSegment(
                     value: SuggestionMode.immediate,
-                    label: Text('Immediate'),
-                    icon: Icon(Icons.flash_on, size: 16),
+                    label: Text(l.settingsSuggestionImmediate),
+                    icon: const Icon(Icons.flash_on, size: 16),
                   ),
                   ButtonSegment(
                     value: SuggestionMode.delayed,
-                    label: Text('Delayed'),
-                    icon: Icon(Icons.timer_outlined, size: 16),
+                    label: Text(l.settingsSuggestionDelayed),
+                    icon: const Icon(Icons.timer_outlined, size: 16),
                   ),
                 ],
                 selected: {settings.suggestionMode},
@@ -1195,36 +1424,37 @@ class _VoiceGroup extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     return _Group(
       palette: palette,
       children: [
         _SwitchRow(
           icon: Icons.volume_up_outlined,
-          title: 'Read ${settings.targetLanguage.displayName} aloud',
+          title: l.settingsReadTargetAloud(settings.targetLanguage.displayName),
           value: settings.targetTtsEnabled,
           onChanged: notifier.setTargetTtsEnabled,
           palette: palette,
         ),
         _SwitchRow(
           icon: Icons.record_voice_over_outlined,
-          title: 'Read translation aloud',
+          title: l.settingsReadTranslationAloud,
           value: settings.nativeTtsEnabled,
           onChanged: notifier.setNativeTtsEnabled,
           palette: palette,
         ),
         _InlineRow(
           icon: Icons.mic_outlined,
-          title: 'Voice gender',
+          title: l.settingsVoiceGender,
           palette: palette,
           child: SegmentedButton<TtsVoiceGender>(
-            segments: const [
+            segments: [
               ButtonSegment(
                 value: TtsVoiceGender.female,
-                label: Text('Female'),
+                label: Text(l.settingsVoiceFemale),
               ),
               ButtonSegment(
                 value: TtsVoiceGender.male,
-                label: Text('Male'),
+                label: Text(l.settingsVoiceMale),
               ),
             ],
             selected: {settings.ttsVoiceGender},
@@ -1234,34 +1464,56 @@ class _VoiceGroup extends StatelessWidget {
         ),
         _InlineRow(
           icon: Icons.speed_outlined,
-          title: 'Speed',
-          subtitle: _speedLabel(settings.ttsSpeechRate),
+          title: l.settingsSpeed,
+          subtitle: _speedLabel(l, settings.ttsSpeechRate),
           palette: palette,
           child: Slider(
             value: settings.ttsSpeechRate,
             min: 0.1,
             max: 1.0,
             divisions: 9,
-            label: _speedLabel(settings.ttsSpeechRate),
+            label: _speedLabel(l, settings.ttsSpeechRate),
             onChanged: notifier.setTtsSpeechRate,
           ),
         ),
+        _InlineRow(
+          icon: Icons.timer_outlined,
+          title: l.settingsMicPause,
+          subtitle: l.settingsMicPauseSub,
+          palette: palette,
+          child: SegmentedButton<int>(
+            segments: [
+              ButtonSegment(value: 3, label: Text(l.settingsMicPauseQuick)),
+              ButtonSegment(value: 5, label: Text(l.settingsMicPauseNormal)),
+              ButtonSegment(value: 8, label: Text(l.settingsMicPausePatient)),
+            ],
+            selected: {_nearestPauseOption(settings.sttPauseSeconds)},
+            onSelectionChanged: (s) => notifier.setSttPauseSeconds(s.first),
+            showSelectedIcon: false,
+          ),
+        ),
         _SwitchRow(
-          icon: Icons.face_outlined,
-          title: 'Show avatar',
-          subtitle: 'Pebble Alex above the chat',
-          value: settings.avatarEnabled,
-          onChanged: notifier.setAvatarEnabled,
+          icon: Icons.send_outlined,
+          title: l.settingsAutoSendVoice,
+          subtitle: l.settingsAutoSendVoiceSub,
+          value: settings.autoSendVoice,
+          onChanged: notifier.setAutoSendVoice,
           palette: palette,
         ),
       ],
     );
   }
 
-  String _speedLabel(double rate) {
-    if (rate <= 0.3) return 'Slow';
-    if (rate <= 0.6) return 'Normal';
-    return 'Fast';
+  int _nearestPauseOption(int seconds) {
+    if (seconds <= 3) return 3;
+    if (seconds <= 6) return 5;
+    return 8;
+  }
+
+  String _speedLabel(AppLocalizations l, double rate) {
+    if (rate <= 0.3) return l.settingsSpeedSlow;
+    if (rate <= 0.6) return l.settingsSpeedNormal;
+    return l.settingsSpeedFast;
   }
 }
 
@@ -1283,15 +1535,18 @@ class _AppGroup extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l = AppLocalizations.of(context);
+    final timeStr =
+        '${settings.reminderHour.toString().padLeft(2, '0')}:${settings.reminderMinute.toString().padLeft(2, '0')}';
     return _Group(
       palette: palette,
       children: [
         _SwitchRow(
           icon: Icons.notifications_outlined,
-          title: 'Daily reminder',
+          title: l.settingsDailyReminder,
           subtitle: settings.reminderEnabled
-              ? 'At ${settings.reminderHour.toString().padLeft(2, '0')}:${settings.reminderMinute.toString().padLeft(2, '0')}'
-              : 'Get nudged to practice',
+              ? l.settingsDailyReminderOn(timeStr)
+              : l.settingsDailyReminderOff,
           value: settings.reminderEnabled,
           onChanged: (v) async {
             await notifier.setReminderEnabled(v);
@@ -1310,9 +1565,8 @@ class _AppGroup extends ConsumerWidget {
         if (settings.reminderEnabled)
           _Row(
             icon: Icons.access_time,
-            title: 'Reminder time',
-            detail:
-                '${settings.reminderHour.toString().padLeft(2, '0')}:${settings.reminderMinute.toString().padLeft(2, '0')}',
+            title: l.settingsReminderTime,
+            detail: timeStr,
             palette: palette,
             onTap: () async {
               final picked = await showTimePicker(
@@ -1334,8 +1588,8 @@ class _AppGroup extends ConsumerWidget {
         _Row(
           icon: Icons.mail_outline,
           iconTint: palette.sageWash,
-          title: 'Send feedback',
-          detail: 'Email',
+          title: l.settingsSendFeedback,
+          detail: l.settingsSendFeedbackDetail,
           palette: palette,
           onTap: onFeedback,
         ),

@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 import 'package:eng_friend/features/voice/domain/entities/voice_state.dart';
 import 'package:eng_friend/features/chat/presentation/providers/chat_provider.dart';
+import 'package:eng_friend/features/settings/domain/entities/user_settings.dart';
 import 'package:eng_friend/features/settings/presentation/providers/settings_provider.dart';
 import 'package:eng_friend/di/service_providers.dart';
 import 'package:eng_friend/services/pipeline/tts_queue.dart';
@@ -10,10 +11,14 @@ class VoiceNotifier extends StateNotifier<VoiceState> {
   final SpeechToText _stt;
   final TtsQueue _ttsQueue;
   final ChatNotifier _chatNotifier;
-  final String Function() _getSttLocale;
+  final UserSettings Function() _getSettings;
 
-  VoiceNotifier(this._stt, this._ttsQueue, this._chatNotifier, {required String Function() getSttLocale})
-      : _getSttLocale = getSttLocale,
+  VoiceNotifier(
+    this._stt,
+    this._ttsQueue,
+    this._chatNotifier, {
+    required UserSettings Function() getSettings,
+  })  : _getSettings = getSettings,
         super(const VoiceState());
 
   /// STT 초기화 + TTS 상태 구독
@@ -67,6 +72,7 @@ class VoiceNotifier extends StateNotifier<VoiceState> {
       partialText: '',
     );
 
+    final settings = _getSettings();
     await _stt.listen(
       onResult: (result) {
         state = state.copyWith(partialText: result.recognizedWords);
@@ -78,7 +84,9 @@ class VoiceNotifier extends StateNotifier<VoiceState> {
       listenOptions: SpeechListenOptions(
         listenMode: ListenMode.dictation,
       ),
-      localeId: _getSttLocale(),
+      localeId: settings.sttLanguage,
+      pauseFor: Duration(seconds: settings.sttPauseSeconds),
+      listenFor: const Duration(seconds: 60),
     );
   }
 
@@ -97,12 +105,29 @@ class VoiceNotifier extends StateNotifier<VoiceState> {
   }
 
   void _sendRecognizedText(String text) {
+    final settings = _getSettings();
+    if (!settings.autoSendVoice) {
+      // 자동 전송 OFF — input bar가 채울 수 있도록 draft에 보관
+      state = state.copyWith(
+        status: VoiceStatus.idle,
+        partialText: '',
+        recognizedDraft: text,
+      );
+      return;
+    }
     state = state.copyWith(
       status: VoiceStatus.processing,
       partialText: '',
     );
     _chatNotifier.sendMessage(text);
     state = state.copyWith(status: VoiceStatus.idle);
+  }
+
+  /// input bar가 draft를 컨트롤러에 옮긴 뒤 호출하여 비움
+  void clearDraft() {
+    if (state.recognizedDraft.isNotEmpty) {
+      state = state.copyWith(recognizedDraft: '');
+    }
   }
 
   void setSpeaking() {
@@ -130,6 +155,6 @@ final voiceProvider = StateNotifierProvider<VoiceNotifier, VoiceState>((ref) {
     stt,
     ttsQueue,
     chatNotifier,
-    getSttLocale: () => ref.read(settingsProvider).sttLanguage,
+    getSettings: () => ref.read(settingsProvider),
   );
 });

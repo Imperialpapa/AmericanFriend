@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:eng_friend/app.dart';
 import 'package:eng_friend/di/service_providers.dart';
 import 'package:eng_friend/features/settings/presentation/providers/settings_provider.dart';
+import 'package:eng_friend/l10n/app_localizations.dart';
 import 'package:eng_friend/services/notification/notification_service.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
@@ -73,33 +74,38 @@ class _AppLoaderState extends ConsumerState<_AppLoader> {
   Widget build(BuildContext context) {
     if (_error != null) {
       return MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
         home: Scaffold(
           body: Center(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.error_outline, size: 48, color: Colors.red),
-                  const SizedBox(height: 16),
-                  const Text('Startup error',
-                      style:
-                          TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 8),
-                  Text(_error!, textAlign: TextAlign.center),
-                  const SizedBox(height: 24),
-                  FilledButton(
-                    onPressed: () {
-                      setState(() {
-                        _error = null;
-                        _loaded = true; // skip load and show app anyway
-                      });
-                    },
-                    child: const Text('Continue anyway'),
-                  ),
-                ],
-              ),
-            ),
+            child: Builder(builder: (context) {
+              final l = AppLocalizations.of(context);
+              return Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                    const SizedBox(height: 16),
+                    Text(l.startupError,
+                        style: const TextStyle(
+                            fontSize: 20, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 8),
+                    Text(_error!, textAlign: TextAlign.center),
+                    const SizedBox(height: 24),
+                    FilledButton(
+                      onPressed: () {
+                        setState(() {
+                          _error = null;
+                          _loaded = true; // skip load and show app anyway
+                        });
+                      },
+                      child: Text(l.startupContinueAnyway),
+                    ),
+                  ],
+                ),
+              );
+            }),
           ),
         ),
       );
