@@ -129,66 +129,70 @@ function geminiSseToOpenAiSse(
         controller.enqueue(encoder.encode(`data: ${JSON.stringify(chunk)}\n\n`));
       }
 
+      function processEvent(event: string) {
+        const dataLines = event
+          .split('\n')
+          .filter((l) => l.startsWith('data: '))
+          .map((l) => l.substring(6));
+        if (dataLines.length === 0) return;
+        const payload = dataLines.join('');
+        if (!payload || payload.trim() === '[DONE]') return;
+
+        try {
+          const gem = JSON.parse(payload);
+          const text =
+            gem?.candidates?.[0]?.content?.parts
+              ?.map((p: any) => p.text ?? '')
+              .join('') ?? '';
+          if (!text) return;
+
+          if (firstChunk) {
+            emit({
+              id,
+              object: 'chat.completion.chunk',
+              created,
+              model,
+              choices: [
+                {
+                  index: 0,
+                  delta: { role: 'assistant', content: '' },
+                  finish_reason: null,
+                },
+              ],
+            });
+            firstChunk = false;
+          }
+
+          emit({
+            id,
+            object: 'chat.completion.chunk',
+            created,
+            model,
+            choices: [
+              { index: 0, delta: { content: text }, finish_reason: null },
+            ],
+          });
+        } catch (e) {
+          console.log('[gemini] sse parse error:', e);
+        }
+      }
+
       try {
         while (true) {
           const { value, done } = await reader.read();
           if (done) break;
-          const chunk = decoder.decode(value, { stream: true });
-          console.log(`[gemini-sse-raw] ${chunk.substring(0, 500)}`);
-          buffer += chunk;
+          buffer += decoder.decode(value, { stream: true });
 
+          // SSE 이벤트는 \n\n으로 구분됨. 완성된 이벤트들만 처리.
           const events = buffer.split('\n\n');
           buffer = events.pop() ?? '';
+          for (const event of events) processEvent(event);
+        }
 
-          for (const event of events) {
-            const dataLines = event
-              .split('\n')
-              .filter((l) => l.startsWith('data: '))
-              .map((l) => l.substring(6));
-            if (dataLines.length === 0) continue;
-            const payload = dataLines.join('');
-            if (!payload || payload.trim() === '[DONE]') continue;
-
-            try {
-              const gem = JSON.parse(payload);
-              console.log(`[gemini-sse-parsed] keys=${Object.keys(gem).join(',')} candidates=${gem?.candidates?.length ?? 0}`);
-              const text =
-                gem?.candidates?.[0]?.content?.parts
-                  ?.map((p: any) => p.text ?? '')
-                  .join('') ?? '';
-              console.log(`[gemini-sse-text] "${text.substring(0, 100)}"`);
-              if (!text) continue;
-
-              if (firstChunk) {
-                emit({
-                  id,
-                  object: 'chat.completion.chunk',
-                  created,
-                  model,
-                  choices: [
-                    {
-                      index: 0,
-                      delta: { role: 'assistant', content: '' },
-                      finish_reason: null,
-                    },
-                  ],
-                });
-                firstChunk = false;
-              }
-
-              emit({
-                id,
-                object: 'chat.completion.chunk',
-                created,
-                model,
-                choices: [
-                  { index: 0, delta: { content: text }, finish_reason: null },
-                ],
-              });
-            } catch (e) {
-              console.log('[gemini] sse parse error:', e);
-            }
-          }
+        // 스트림 종료 후 버퍼에 남은 이벤트 처리 (Gemini가 짧은 응답을 한 번에 보내며
+        // 마지막에 \n\n 종결자를 붙이지 않을 수 있음).
+        if (buffer.trim().length > 0) {
+          processEvent(buffer);
         }
 
         emit({
