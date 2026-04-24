@@ -133,7 +133,9 @@ function geminiSseToOpenAiSse(
         while (true) {
           const { value, done } = await reader.read();
           if (done) break;
-          buffer += decoder.decode(value, { stream: true });
+          const chunk = decoder.decode(value, { stream: true });
+          console.log(`[gemini-sse-raw] ${chunk.substring(0, 500)}`);
+          buffer += chunk;
 
           const events = buffer.split('\n\n');
           buffer = events.pop() ?? '';
@@ -149,10 +151,12 @@ function geminiSseToOpenAiSse(
 
             try {
               const gem = JSON.parse(payload);
+              console.log(`[gemini-sse-parsed] keys=${Object.keys(gem).join(',')} candidates=${gem?.candidates?.length ?? 0}`);
               const text =
                 gem?.candidates?.[0]?.content?.parts
                   ?.map((p: any) => p.text ?? '')
                   .join('') ?? '';
+              console.log(`[gemini-sse-text] "${text.substring(0, 100)}"`);
               if (!text) continue;
 
               if (firstChunk) {
