@@ -296,6 +296,66 @@ abstract class AppLocalizations {
   /// **'Save to vocabulary'**
   String get chatUserMenuSave;
 
+  /// No description provided for @chatReportAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Report response'**
+  String get chatReportAction;
+
+  /// No description provided for @chatReportSheetTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Report this response?'**
+  String get chatReportSheetTitle;
+
+  /// No description provided for @chatReportSheetBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This reply and your message right before it will be sent to the developer for review.'**
+  String get chatReportSheetBody;
+
+  /// No description provided for @chatReportReasonHarmful.
+  ///
+  /// In en, this message translates to:
+  /// **'Harmful or inappropriate'**
+  String get chatReportReasonHarmful;
+
+  /// No description provided for @chatReportReasonIncorrect.
+  ///
+  /// In en, this message translates to:
+  /// **'Incorrect or misleading'**
+  String get chatReportReasonIncorrect;
+
+  /// No description provided for @chatReportReasonOther.
+  ///
+  /// In en, this message translates to:
+  /// **'Something else'**
+  String get chatReportReasonOther;
+
+  /// No description provided for @chatReportSent.
+  ///
+  /// In en, this message translates to:
+  /// **'Thanks — your report was sent.'**
+  String get chatReportSent;
+
+  /// No description provided for @chatReportQueued.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t send it right now. We\'ll retry the next time you open the app.'**
+  String get chatReportQueued;
+
+  /// No description provided for @chatReportFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t send the report. Please let us know via Send feedback in Settings.'**
+  String get chatReportFailed;
+
+  /// No description provided for @chatReportedLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Reported'**
+  String get chatReportedLabel;
+
   /// No description provided for @chatStreakGoalReached.
   ///
   /// In en, this message translates to:

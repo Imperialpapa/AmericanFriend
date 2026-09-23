@@ -117,6 +117,36 @@ class AppLocalizationsKo extends AppLocalizations {
   String get chatUserMenuSave => '단어장에 저장';
 
   @override
+  String get chatReportAction => '응답 신고';
+
+  @override
+  String get chatReportSheetTitle => '이 응답을 신고할까요?';
+
+  @override
+  String get chatReportSheetBody => '이 답변과 바로 앞의 내 메시지가 검토를 위해 개발자에게 전송돼요.';
+
+  @override
+  String get chatReportReasonHarmful => '유해하거나 부적절해요';
+
+  @override
+  String get chatReportReasonIncorrect => '틀리거나 오해를 부르는 내용이에요';
+
+  @override
+  String get chatReportReasonOther => '기타';
+
+  @override
+  String get chatReportSent => '신고가 접수됐어요. 알려 줘서 고마워요!';
+
+  @override
+  String get chatReportQueued => '지금은 보낼 수 없어서 다음에 앱을 열 때 다시 보낼게요.';
+
+  @override
+  String get chatReportFailed => '신고를 보내지 못했어요. 설정의 \'피드백 보내기\'로 알려 주세요.';
+
+  @override
+  String get chatReportedLabel => '신고됨';
+
+  @override
   String chatStreakGoalReached(int days) {
     return '오늘 목표 달성! 연속 $days일째';
   }

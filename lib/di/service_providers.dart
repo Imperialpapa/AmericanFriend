@@ -12,6 +12,7 @@ import 'package:eng_friend/services/status/app_status_service.dart';
 import 'package:eng_friend/services/local_db/app_database.dart';
 import 'package:eng_friend/services/pipeline/conversation_pipeline.dart';
 import 'package:eng_friend/services/pipeline/tts_queue.dart';
+import 'package:eng_friend/services/report/report_service.dart';
 import 'package:eng_friend/features/settings/domain/entities/user_settings.dart';
 import 'package:eng_friend/features/settings/presentation/providers/settings_provider.dart';
 
@@ -99,6 +100,14 @@ final appStatusServiceProvider = Provider<AppStatusService>((ref) {
 /// 앱 시작 시 1회 조회. 실패해도 null이며 앱 동작을 막지 않는다.
 final appStatusProvider = FutureProvider<AppStatus?>((ref) async {
   return ref.watch(appStatusServiceProvider).fetch();
+});
+
+/// AI 응답 신고 — 제공자(BYOK 포함)와 무관하게 무료 티어 서버로 보낸다(tobe P-01).
+final reportServiceProvider = Provider<ReportService>((ref) {
+  return ReportService(
+    baseUrl: ProxyConfig.freeTierBaseUrl,
+    prefs: ref.watch(sharedPreferencesProvider),
+  );
 });
 
 /// 로컬 DB

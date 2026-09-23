@@ -42,6 +42,17 @@
   "chatUserMenuPractice": "발음 연습",
   "chatUserMenuSave": "단어장에 저장",
 
+  "chatReportAction": "응답 신고",
+  "chatReportSheetTitle": "이 응답을 신고할까요?",
+  "chatReportSheetBody": "이 답변과 바로 앞의 내 메시지가 검토를 위해 개발자에게 전송돼요.",
+  "chatReportReasonHarmful": "유해하거나 부적절해요",
+  "chatReportReasonIncorrect": "틀리거나 오해를 부르는 내용이에요",
+  "chatReportReasonOther": "기타",
+  "chatReportSent": "신고가 접수됐어요. 알려 줘서 고마워요!",
+  "chatReportQueued": "지금은 보낼 수 없어서 다음에 앱을 열 때 다시 보낼게요.",
+  "chatReportFailed": "신고를 보내지 못했어요. 설정의 '피드백 보내기'로 알려 주세요.",
+  "chatReportedLabel": "신고됨",
+
   "chatStreakGoalReached": "오늘 목표 달성! 연속 {days}일째",
   "chatMissionComplete": "미션 완료! +{stars}★",
 

@@ -58,6 +58,17 @@
   "chatUserMenuPractice": "Practice pronunciation",
   "chatUserMenuSave": "Save to vocabulary",
 
+  "chatReportAction": "Report response",
+  "chatReportSheetTitle": "Report this response?",
+  "chatReportSheetBody": "This reply and your message right before it will be sent to the developer for review.",
+  "chatReportReasonHarmful": "Harmful or inappropriate",
+  "chatReportReasonIncorrect": "Incorrect or misleading",
+  "chatReportReasonOther": "Something else",
+  "chatReportSent": "Thanks — your report was sent.",
+  "chatReportQueued": "Couldn't send it right now. We'll retry the next time you open the app.",
+  "chatReportFailed": "Couldn't send the report. Please let us know via Send feedback in Settings.",
+  "chatReportedLabel": "Reported",
+
   "chatStreakGoalReached": "Daily goal reached! Streak: {days, plural, =1{1 day} other{{days} days}}",
   "@chatStreakGoalReached": {
     "placeholders": { "days": { "type": "int" } }

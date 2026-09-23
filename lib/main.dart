@@ -62,6 +62,7 @@ class _AppLoaderState extends ConsumerState<_AppLoader> {
       // 리마인더 재예약과 서버 공지 동기화는 앱 시작을 막지 않도록 await하지 않는다.
       unawaited(_restoreReminder());
       unawaited(_syncRemoteStatus());
+      unawaited(_flushPendingReports());
     } catch (e, st) {
       debugPrint('[AppLoader] FAILED: $e\n$st');
       if (mounted) setState(() => _error = '$e');
@@ -97,6 +98,17 @@ class _AppLoaderState extends ConsumerState<_AppLoader> {
           .applyModelMigrations(status.modelMigrations);
     } catch (e) {
       debugPrint('[AppLoader] status sync skipped: $e');
+    }
+  }
+
+  /// 지난 실행에서 못 보낸 AI 응답 신고를 다시 보낸다(tobe P-01).
+  Future<void> _flushPendingReports() async {
+    try {
+      await ref.read(reportServiceProvider).flushPending(
+            deviceId: ref.read(settingsProvider).freeTierDeviceId,
+          );
+    } catch (e) {
+      debugPrint('[AppLoader] report flush skipped: $e');
     }
   }
 

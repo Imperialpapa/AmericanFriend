@@ -117,6 +117,39 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatUserMenuSave => 'Save to vocabulary';
 
   @override
+  String get chatReportAction => 'Report response';
+
+  @override
+  String get chatReportSheetTitle => 'Report this response?';
+
+  @override
+  String get chatReportSheetBody =>
+      'This reply and your message right before it will be sent to the developer for review.';
+
+  @override
+  String get chatReportReasonHarmful => 'Harmful or inappropriate';
+
+  @override
+  String get chatReportReasonIncorrect => 'Incorrect or misleading';
+
+  @override
+  String get chatReportReasonOther => 'Something else';
+
+  @override
+  String get chatReportSent => 'Thanks — your report was sent.';
+
+  @override
+  String get chatReportQueued =>
+      'Couldn\'t send it right now. We\'ll retry the next time you open the app.';
+
+  @override
+  String get chatReportFailed =>
+      'Couldn\'t send the report. Please let us know via Send feedback in Settings.';
+
+  @override
+  String get chatReportedLabel => 'Reported';
+
+  @override
   String chatStreakGoalReached(int days) {
     String _temp0 = intl.Intl.pluralLogic(
       days,

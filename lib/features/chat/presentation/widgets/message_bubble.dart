@@ -7,12 +7,14 @@ import 'package:eng_friend/core/theme/app_spacing.dart';
 import 'package:eng_friend/core/theme/app_typography.dart';
 import 'package:eng_friend/core/widgets/alex_avatar.dart';
 import 'package:eng_friend/di/service_providers.dart';
+import 'package:eng_friend/features/chat/presentation/providers/reported_messages_provider.dart';
 import 'package:eng_friend/features/chat/presentation/widgets/pronunciation_bottom_sheet.dart';
 import 'package:eng_friend/features/settings/presentation/providers/settings_provider.dart';
 import 'package:eng_friend/features/vocabulary/presentation/providers/vocabulary_provider.dart';
 import 'package:eng_friend/features/voice/presentation/providers/voice_provider.dart';
 import 'package:eng_friend/l10n/app_localizations.dart';
 import 'package:eng_friend/services/pipeline/tts_queue.dart';
+import 'package:eng_friend/services/report/report_service.dart';
 
 /// Modern Sage message bubble with optional Learning Drawer (AI side).
 class MessageBubble extends ConsumerStatefulWidget {
@@ -26,6 +28,12 @@ class MessageBubble extends ConsumerStatefulWidget {
   /// AI 메시지 옆 아바타 표시 여부 (연속된 AI 메시지에서 첫 번째만 표시)
   final bool showAvatar;
 
+  /// 저장된 메시지의 id. 없으면(스트리밍 중인 말풍선) 신고할 수 없다.
+  final String? messageId;
+
+  /// 신고할 때 맥락으로 함께 보내는 바로 앞 사용자 메시지.
+  final String? prevUserText;
+
   const MessageBubble({
     super.key,
     required this.content,
@@ -33,6 +41,8 @@ class MessageBubble extends ConsumerStatefulWidget {
     this.isTyping = false,
     this.initialDrawerOpen = false,
     this.showAvatar = true,
+    this.messageId,
+    this.prevUserText,
   });
 
   @override
@@ -221,6 +231,129 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
     );
   }
 
+  bool get _canReport => widget.messageId != null && !widget.isTyping;
+
+  /// 롱프레스 메뉴. 신고할 수 없는 말풍선(스트리밍 중)은 예전처럼 바로 저장 창을 연다.
+  void _showAiMessageMenu(String cleanBody, {required bool reported}) {
+    if (!_canReport) {
+      _showSaveToVocab(cleanBody);
+      return;
+    }
+    final palette = KFPalette.of(context);
+    final l = AppLocalizations.of(context);
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: Icon(Icons.bookmark_add_outlined, color: palette.sage),
+              title: Text(l.chatUserMenuSave),
+              onTap: () {
+                Navigator.pop(ctx);
+                _showSaveToVocab(cleanBody);
+              },
+            ),
+            ListTile(
+              enabled: !reported,
+              leading: Icon(
+                reported ? Icons.flag : Icons.flag_outlined,
+                color: palette.coral,
+              ),
+              title: Text(reported ? l.chatReportedLabel : l.chatReportAction),
+              onTap: () {
+                Navigator.pop(ctx);
+                _startReport();
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _startReport() async {
+    final id = widget.messageId;
+    if (id == null) return;
+    final l = AppLocalizations.of(context);
+    final palette = KFPalette.of(context);
+    final reason = await showModalBottomSheet<ReportReason>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                  KFSpacing.x5, KFSpacing.x5, KFSpacing.x5, KFSpacing.x1),
+              child: Text(l.chatReportSheetTitle,
+                  style: KFTypography.h2(color: palette.ink)),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                  KFSpacing.x5, 0, KFSpacing.x5, KFSpacing.x2),
+              child: Text(l.chatReportSheetBody,
+                  style: KFTypography.meta(color: palette.ink2)),
+            ),
+            for (final (r, label) in [
+              (ReportReason.harmful, l.chatReportReasonHarmful),
+              (ReportReason.incorrect, l.chatReportReasonIncorrect),
+              (ReportReason.other, l.chatReportReasonOther),
+            ])
+              ListTile(
+                title: Text(label),
+                trailing: Icon(Icons.chevron_right, color: palette.ink3),
+                onTap: () => Navigator.pop(ctx, r),
+              ),
+            Align(
+              alignment: Alignment.centerRight,
+              child: Padding(
+                padding: const EdgeInsets.only(right: KFSpacing.x3),
+                child: TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: Text(l.commonCancel),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (reason == null || !mounted) return;
+
+    // 전송 중에 말풍선이 스크롤로 사라질 수 있다 — dispose 뒤엔 ref를 못 쓰니 미리 잡아 둔다.
+    final settings = ref.read(settingsProvider);
+    final service = ref.read(reportServiceProvider);
+    final ids = ref.read(reportedMessageIdsProvider.notifier);
+    final messenger = ScaffoldMessenger.of(context);
+    final locale = Localizations.localeOf(context).toLanguageTag();
+    final result = await service.submit(
+      AiReport(
+        reason: reason,
+        message: widget.content,
+        prevUser: widget.prevUserText,
+        provider: settings.aiProvider.name,
+        model: settings.activeModelId,
+        locale: locale,
+      ),
+      deviceId: settings.freeTierDeviceId,
+    );
+    // 큐에 들어간 신고도 사용자 입장에선 접수된 것 — 같은 답을 두 번 신고하지 않게 표시한다.
+    if (result != ReportResult.rejected) {
+      ids.state = {...ids.state, id};
+    }
+    messenger.showSnackBar(SnackBar(
+      content: Text(switch (result) {
+        ReportResult.sent => l.chatReportSent,
+        ReportResult.queued => l.chatReportQueued,
+        ReportResult.rejected => l.chatReportFailed,
+      }),
+      duration: const Duration(seconds: 4),
+    ));
+  }
+
   // --- Rendering ---
   @override
   Widget build(BuildContext context) {
@@ -309,6 +442,9 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
 
     // 본문이 있으면(타이핑 중 아닌 한) 항상 드로어 열기 가능 — 액션 버튼 접근 보장.
     final hasDrawer = !widget.isTyping && body.trim().isNotEmpty;
+    final id = widget.messageId;
+    final reported = id != null &&
+        ref.watch(reportedMessageIdsProvider.select((s) => s.contains(id)));
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: KFSpacing.x4, vertical: 5),
@@ -340,44 +476,68 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
                   },
                   onLongPress: widget.isTyping
                       ? null
-                      : () => _showSaveToVocab(cleanBody),
-                  child: Container(
-                    constraints: BoxConstraints(
-                      maxWidth: MediaQuery.of(context).size.width * 0.78,
-                    ),
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 11),
-                    decoration: BoxDecoration(
-                      color: palette.card,
-                      borderRadius: KFRadii.aiBubble,
-                      border: isDark
-                          ? Border.all(color: palette.hairline, width: 0.5)
-                          : null,
-                      boxShadow: isDark ? null : KFShadows.card,
-                    ),
-                    child: widget.isTyping
-                        ? const _TypingDots()
-                        : isHidden
-                            ? Text(
-                                AppLocalizations.of(context).chatMessageTapToReveal,
-                                style: KFTypography.body(color: palette.ink3)
-                                    .copyWith(
-                                  fontSize: 15 * fontScale,
-                                  fontStyle: FontStyle.italic,
+                      : () => _showAiMessageMenu(cleanBody, reported: reported),
+                  // 신고한 답은 흐리게 — 무엇을 신고했는지 대화 안에서 알아볼 수 있게.
+                  child: AnimatedOpacity(
+                    opacity: reported ? 0.45 : 1,
+                    duration: const Duration(milliseconds: 200),
+                    child: Container(
+                      constraints: BoxConstraints(
+                        maxWidth: MediaQuery.of(context).size.width * 0.78,
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 11),
+                      decoration: BoxDecoration(
+                        color: palette.card,
+                        borderRadius: KFRadii.aiBubble,
+                        border: isDark
+                            ? Border.all(color: palette.hairline, width: 0.5)
+                            : null,
+                        boxShadow: isDark ? null : KFShadows.card,
+                      ),
+                      child: widget.isTyping
+                          ? const _TypingDots()
+                          : isHidden
+                              ? Text(
+                                  AppLocalizations.of(context)
+                                      .chatMessageTapToReveal,
+                                  style: KFTypography.body(color: palette.ink3)
+                                      .copyWith(
+                                    fontSize: 15 * fontScale,
+                                    fontStyle: FontStyle.italic,
+                                  ),
+                                )
+                              : Text.rich(
+                                  _buildBodySpan(palette, body,
+                                      showNative: settings.showNativeHint,
+                                      fontScale: fontScale),
                                 ),
-                              )
-                            : Text.rich(
-                                _buildBodySpan(palette, body,
-                                    showNative: settings.showNativeHint,
-                                    fontScale: fontScale),
-                              ),
+                    ),
                   ),
                 ),
+
+                if (reported)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 3, left: 4),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.flag, size: 12, color: palette.ink3),
+                        const SizedBox(width: 3),
+                        Text(
+                          AppLocalizations.of(context).chatReportedLabel,
+                          style: KFTypography.meta(color: palette.ink3)
+                              .copyWith(fontSize: 11),
+                        ),
+                      ],
+                    ),
+                  ),
 
                 // Learning Drawer (corrections + actions). 인라인 번역은 본문에서 처리됨.
                 if (_drawerOpen && hasDrawer && !isHidden) ...[
                   const SizedBox(height: 4),
-                  _buildDrawer(palette, corrections, tips, body, cleanBody),
+                  _buildDrawer(palette, corrections, tips, body, cleanBody,
+                      reported: reported),
                 ],
               ],
             ),
@@ -392,8 +552,9 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
     List<String> corrections,
     List<String> tips,
     String bodyForTts,
-    String cleanBody,
-  ) {
+    String cleanBody, {
+    required bool reported,
+  }) {
     return Container(
       constraints: BoxConstraints(
         maxWidth: MediaQuery.of(context).size.width * 0.78,
@@ -464,9 +625,49 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
                   onTap: () => _showSaveToVocab(cleanBody),
                 ),
               ),
+              if (_canReport) ...[
+                const SizedBox(width: 6),
+                _reportButton(palette, reported: reported),
+              ],
             ],
           ),
         ],
+      ),
+    );
+  }
+
+  /// 세 버튼의 폭을 줄이지 않도록 아이콘만 둔다. 라벨은 툴팁·스크린리더로 전달한다.
+  Widget _reportButton(KFPalette palette, {required bool reported}) {
+    final l = AppLocalizations.of(context);
+    final label = reported ? l.chatReportedLabel : l.chatReportAction;
+    return Tooltip(
+      message: label,
+      child: Semantics(
+        button: true,
+        enabled: !reported,
+        label: label,
+        excludeSemantics: true,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: reported ? null : _startReport,
+            borderRadius: BorderRadius.circular(KFRadii.sm),
+            child: Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: palette.paper,
+                borderRadius: BorderRadius.circular(KFRadii.sm),
+                border: Border.all(color: palette.hairline, width: 1),
+              ),
+              child: Icon(
+                reported ? Icons.flag : Icons.flag_outlined,
+                size: 14,
+                color: reported ? palette.ink3 : palette.coral,
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

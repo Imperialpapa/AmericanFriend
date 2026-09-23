@@ -335,6 +335,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           isUser: isUser,
           initialDrawerOpen: isLastAi,
           showAvatar: showAvatar,
+          messageId: message.id,
+          prevUserText: isUser ? null : _prevUserText(chatState, index),
         );
       },
     );
@@ -344,6 +346,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     if (index == 0) return true;
     final prev = chatState.messages[index - 1];
     return prev.role == MessageRole.user;
+  }
+
+  /// 신고 맥락용: 이 AI 답 바로 앞의 사용자 메시지.
+  String? _prevUserText(ChatState chatState, int index) {
+    for (var i = index - 1; i >= 0; i--) {
+      final m = chatState.messages[i];
+      if (m.role == MessageRole.user) return m.content;
+    }
+    return null;
   }
 
   Widget _buildWelcomeMessage() {
