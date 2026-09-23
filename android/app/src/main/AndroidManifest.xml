@@ -39,7 +39,9 @@
                 <action android:name="com.htc.intent.action.QUICKBOOT_POWERON"/>
             </intent-filter>
         </receiver>
-        <!-- AdMob App ID (test ID for development, replace with real ID for production) -->
+        <!-- AdMob App ID: 프로덕션 App ID이며 모든 빌드(debug 포함)가 같이 쓴다. 테스트 광고 여부는
+             App ID가 아니라 광고 단위(ad_constants.dart: debug 또는 ADS_FORCE_TEST)와
+             테스트 기기 등록(ADMOB_TEST_DEVICE_IDS)으로 정해진다. -->
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
             android:value="ca-app-pub-3130573171479694~3056823655"/>

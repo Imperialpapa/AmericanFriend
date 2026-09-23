@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:eng_friend/app.dart';
+import 'package:eng_friend/core/constants/ad_constants.dart';
 import 'package:eng_friend/di/service_providers.dart';
 import 'package:eng_friend/features/settings/presentation/providers/settings_provider.dart';
 import 'package:eng_friend/l10n/app_localizations.dart';
@@ -16,6 +17,13 @@ void main() async {
   // debug/profile은 그대로 둔다. 전사 길이만 남기는 로그 래퍼는 후속 작업.
   if (kReleaseMode) debugPrint = (String? message, {int? wrapWidth}) {};
   WidgetsFlutterBinding.ensureInitialized();
+  // 개발 기기를 테스트 기기로 등록해 release 빌드에서도 실광고 오클릭을 막는다(tobe P-04).
+  final testDeviceIds = AdConstants.testDeviceIds;
+  if (testDeviceIds.isNotEmpty) {
+    await MobileAds.instance.updateRequestConfiguration(
+      RequestConfiguration(testDeviceIds: testDeviceIds),
+    );
+  }
   await MobileAds.instance.initialize();
 
   final prefs = await SharedPreferences.getInstance();
