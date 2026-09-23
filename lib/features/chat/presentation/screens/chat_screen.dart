@@ -13,6 +13,7 @@ import 'package:eng_friend/core/widgets/alex_avatar.dart';
 import 'package:eng_friend/core/widgets/app_notice_banner.dart';
 import 'package:eng_friend/core/widgets/banner_ad_widget.dart';
 import 'package:eng_friend/features/chat/domain/entities/message.dart';
+import 'package:eng_friend/features/chat/presentation/providers/activity_recorder_provider.dart';
 import 'package:eng_friend/features/chat/presentation/providers/chat_provider.dart';
 import 'package:eng_friend/features/chat/presentation/widgets/chat_header.dart';
 import 'package:eng_friend/features/chat/presentation/widgets/chat_input_bar.dart';
@@ -23,7 +24,6 @@ import 'package:eng_friend/features/mission/presentation/providers/mission_provi
 import 'package:eng_friend/features/settings/presentation/providers/settings_provider.dart';
 import 'package:eng_friend/features/settings/presentation/screens/settings_screen.dart';
 import 'package:eng_friend/features/streak/presentation/providers/streak_provider.dart';
-import 'package:eng_friend/features/topic/presentation/providers/topic_provider.dart';
 import 'package:eng_friend/features/voice/presentation/providers/voice_provider.dart';
 import 'package:eng_friend/l10n/app_localizations.dart';
 
@@ -44,6 +44,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   @override
   void initState() {
     super.initState();
+    // 음성·핸즈프리·칩 전송까지 집계하려면 채팅 상태를 구독하는 쪽이 살아 있어야 한다.
+    ref.read(activityRecorderProvider);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await ref.read(voiceProvider.notifier).initialize();
       if (!mounted) return;
@@ -222,12 +224,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 ChatInputBar(
-                  onSendText: (text) {
-                    ref.read(chatProvider.notifier).sendMessage(text);
-                    ref.read(streakProvider.notifier).recordMessage();
-                    ref.read(topicProvider.notifier).recordTurn();
-                    ref.read(missionProvider.notifier).recordTurn();
-                  },
+                  // 스트릭·토픽·미션 집계는 activityRecorderProvider가 한다 (BUG #10).
+                  onSendText: (text) =>
+                      ref.read(chatProvider.notifier).sendMessage(text),
                 ),
                 const BannerAdWidget(),
               ],
