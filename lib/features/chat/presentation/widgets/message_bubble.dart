@@ -278,6 +278,15 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
     if (id == null) return;
     final l = AppLocalizations.of(context);
     final palette = KFPalette.of(context);
+    // 시트가 열려 있는 동안에도 자동 스크롤로 말풍선이 dispose될 수 있다(스트리밍·핸즈프리).
+    // dispose 뒤엔 ref/context를 못 쓰니 시트를 열기 전에 전부 잡아 둔다 — 신고가 조용히 사라지지 않게.
+    final settings = ref.read(settingsProvider);
+    final service = ref.read(reportServiceProvider);
+    final ids = ref.read(reportedMessageIdsProvider.notifier);
+    final messenger = ScaffoldMessenger.of(context);
+    final locale = Localizations.localeOf(context).toLanguageTag();
+    final content = widget.content;
+    final prevUserText = widget.prevUserText;
     final reason = await showModalBottomSheet<ReportReason>(
       context: context,
       builder: (ctx) => SafeArea(
@@ -321,19 +330,14 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
         ),
       ),
     );
-    if (reason == null || !mounted) return;
+    // mounted는 보지 않는다 — 이후는 미리 잡아 둔 값만 쓰므로 말풍선이 사라져도 전송·안내가 된다.
+    if (reason == null) return;
 
-    // 전송 중에 말풍선이 스크롤로 사라질 수 있다 — dispose 뒤엔 ref를 못 쓰니 미리 잡아 둔다.
-    final settings = ref.read(settingsProvider);
-    final service = ref.read(reportServiceProvider);
-    final ids = ref.read(reportedMessageIdsProvider.notifier);
-    final messenger = ScaffoldMessenger.of(context);
-    final locale = Localizations.localeOf(context).toLanguageTag();
     final result = await service.submit(
       AiReport(
         reason: reason,
-        message: widget.content,
-        prevUser: widget.prevUserText,
+        message: content,
+        prevUser: prevUserText,
         provider: settings.aiProvider.name,
         model: settings.activeModelId,
         locale: locale,
