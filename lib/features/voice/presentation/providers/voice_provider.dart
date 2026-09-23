@@ -443,7 +443,12 @@ class VoiceNotifier extends StateNotifier<VoiceState> with WidgetsBindingObserve
   /// 마이크 토글
   Future<void> toggleListening() async {
     if (!state.sttAvailable) {
-      await initialize();
+      try {
+        await initialize();
+      } catch (e) {
+        // 던지게 두면 버튼이 무반응으로 보인다. 아래 startListening이 안내한다.
+        debugPrint('[Voice] STT re-initialize failed: $e');
+      }
     }
 
     if (state.status == VoiceStatus.listening) {
@@ -455,7 +460,12 @@ class VoiceNotifier extends StateNotifier<VoiceState> with WidgetsBindingObserve
 
   /// 음성 입력 시작
   Future<void> startListening() async {
-    if (!state.sttAvailable) return;
+    if (!state.sttAvailable) {
+      // BUG #7: 조용히 return하면 권한 영구 거부·인식기 부재에서 마이크가 그냥
+      // 무반응으로 보인다. 핸즈프리와 같은 스낵바(설정 열기 포함)로 알린다.
+      state = state.copyWith(voiceError: 'stt_unavailable');
+      return;
+    }
 
     // AI가 말하고 있으면 중단 (barge-in)
     if (state.status == VoiceStatus.speaking) {
