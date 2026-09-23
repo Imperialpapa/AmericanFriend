@@ -256,6 +256,12 @@ export async function refundFailedCall(
   await refund(env, providerFault ? [charged.device, charged.global] : [charged.device]);
 }
 
+/** 오늘 전역 카운터 값(명령 1개). 카운터를 올리지 않는 모니터용. */
+export async function peekGlobal(env: UpstashEnv): Promise<number> {
+  const raw = await redisCommand(env, ['GET', globalKey()]);
+  return raw ? parseInt(String(raw), 10) || 0 : 0;
+}
+
 export async function peek(
   env: UpstashEnv,
   deviceId: string,

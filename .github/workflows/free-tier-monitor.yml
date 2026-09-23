@@ -5,7 +5,8 @@
 #
 # 필요한 저장소 secret:
 #   FREE_TIER_URL      프록시 주소(끝 슬래시 없이)
-#   MONITOR_DEVICE_ID  Vercel env MONITOR_DEVICE_ID와 같은 값(한도 면제)
+#   MONITOR_DEVICE_ID  Vercel env MONITOR_DEVICE_ID와 같은 값. 카운터는 올리지 않지만
+#                      Upstash 장애(500)·전역 한도 소진(503)은 실사용자와 같이 실패한다
 #
 # 공개 저장소라 Actions 로그가 공개된다 — URL·헤더·응답 원문을 찍지 않는다.
 name: Free tier monitor
@@ -87,7 +88,12 @@ jobs:
               "- 시각(UTC): $(date -u '+%Y-%m-%d %H:%M')" \
               "- 실행 로그: ${RUN_URL}" \
               "" \
-              "확인 순서: Vercel 로그 → 업스트림 모델 셧다운 공지(UPSTREAM_MODEL) → Upstash 상태·사용량 → FREE_GLOBAL_DAILY_LIMIT 소진(503 free_tier_busy)." \
+              "HTTP 코드별 확인(Vercel 로그와 함께):" \
+              "- 500: [config] misconfigured(UPSTREAM_* env) 또는 [rate-limit] error(Upstash 장애·env 누락·월 명령 한도 소진)" \
+              "- 503: 로그에 [rate-limit] global limit hit면 FREE_GLOBAL_DAILY_LIMIT 소진(0이면 의도한 차단), 아니면 업스트림 5xx" \
+              "- 4xx·502: 업스트림 모델 셧다운 공지(UPSTREAM_MODEL)·키·조직 한도(429)" \
+              "- 000·200: 20초 안에 delta.content 없음(업스트림 지연·스트림 형식)" \
+              "" \
               "복구되면 모니터가 이 이슈를 자동으로 닫습니다." > issue.md
             gh issue create --title "Free tier down" --body-file issue.md > /dev/null
             echo "Opened 'Free tier down' issue"

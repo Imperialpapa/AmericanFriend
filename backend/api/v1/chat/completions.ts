@@ -12,6 +12,7 @@ import {
 } from '../../../lib/common';
 import {
   admitFreeTier,
+  peekGlobal,
   refundFailedCall,
   secondsUntilReset,
   upstashEnv,
@@ -153,21 +154,57 @@ interface Admission {
   headers: Record<string, string>;
 }
 
+function limiterUnavailable(e: any): Response {
+  console.log('[rate-limit] error:', e?.message);
+  return json({ error: { code: 'internal', message: 'Rate limiter unavailable' } }, 500);
+}
+
+function freeTierBusy(): Response {
+  console.log('[rate-limit] global limit hit');
+  return json(
+    {
+      error: {
+        code: 'free_tier_busy',
+        message: 'The free tier is at capacity today. Try again later or add your own API key.',
+      },
+    },
+    503,
+    { 'Retry-After': String(secondsUntilReset()) }
+  );
+}
+
+/**
+ * 모니터(GitHub Actions)는 30분마다 실경로를 호출하므로 카운터는 올리지 않는다(tobe S-04).
+ * 그래도 Upstash는 실사용자처럼 거친다 — 리미터 장애·env 누락·전역 소진으로 실사용자가
+ * 전원 막혔는데 모니터만 통과하면 BUG #9처럼 아무도 모른다. 30분에 GET 1개.
+ */
+async function admitMonitor(globalLimit: number): Promise<Admission | Response> {
+  console.log('[req] monitor');
+  let globalUsed: number;
+  try {
+    globalUsed = await peekGlobal(upstashEnv());
+  } catch (e: any) {
+    return limiterUnavailable(e);
+  }
+  // 실사용자는 INCR 뒤 `> limit`이면 거절되므로, 올리기 전 값이 limit 이상이면 전원 거절 중이다.
+  if (globalUsed >= globalLimit) return freeTierBusy();
+  return { charge: null, headers: {} };
+}
+
 /** 한도 판정. 통과하면 Admission, 거절이면 그대로 돌려줄 Response. */
 async function admit(req: Request, deviceId: string): Promise<Admission | Response> {
-  // 모니터(GitHub Actions)는 30분마다 실경로를 호출하므로 한도에서 뺀다(tobe S-04).
-  // 이 값을 아는 사람은 한도 없이 쓸 수 있다 — 짧은 값은 secretEnv가 무시한다.
-  const monitorId = secretEnv('MONITOR_DEVICE_ID');
-  if (monitorId !== undefined && safeEqual(deviceId, monitorId)) {
-    console.log('[req] monitor');
-    return { charge: null, headers: {} };
-  }
-
   const limits = {
     device: parseInt(process.env.FREE_DAILY_LIMIT ?? '20', 10) || 20,
     ip: envInt('FREE_IP_DAILY_LIMIT', 150),
     global: envInt('FREE_GLOBAL_DAILY_LIMIT', 2000),
   };
+
+  // 이 값을 아는 사람은 한도 없이 쓸 수 있다 — 짧은 값은 secretEnv가 무시한다.
+  const monitorId = secretEnv('MONITOR_DEVICE_ID');
+  if (monitorId !== undefined && safeEqual(deviceId, monitorId)) {
+    return admitMonitor(limits.global);
+  }
+
   // IP 원문은 저장하지 않는다 — 키에는 해시 앞부분만.
   const ipId = (await sha256Hex(ipBucket(clientIp(req)))).slice(0, 32);
 
@@ -177,11 +214,7 @@ async function admit(req: Request, deviceId: string): Promise<Admission | Respon
     redis = upstashEnv();
     admission = await admitFreeTier(redis, deviceId, ipId, limits);
   } catch (e: any) {
-    console.log('[rate-limit] error:', e?.message);
-    return json(
-      { error: { code: 'internal', message: 'Rate limiter unavailable' } },
-      500
-    );
+    return limiterUnavailable(e);
   }
 
   if (admission.kind === 'ip_limited') {
@@ -198,19 +231,7 @@ async function admit(req: Request, deviceId: string): Promise<Admission | Respon
     );
   }
 
-  if (admission.kind === 'global_limited') {
-    console.log('[rate-limit] global limit hit');
-    return json(
-      {
-        error: {
-          code: 'free_tier_busy',
-          message: 'The free tier is at capacity today. Try again later or add your own API key.',
-        },
-      },
-      503,
-      { 'Retry-After': String(secondsUntilReset()) }
-    );
-  }
+  if (admission.kind === 'global_limited') return freeTierBusy();
 
   const rl = admission.device;
   if (admission.kind === 'device_limited') {
