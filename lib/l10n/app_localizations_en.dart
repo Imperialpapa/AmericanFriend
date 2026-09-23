@@ -462,6 +462,21 @@ class AppLocalizationsEn extends AppLocalizations {
       'Couldn\'t set the reminder. Please try again.';
 
   @override
+  String get reminderNotificationTitle => 'Time to practice!';
+
+  @override
+  String reminderNotificationBody(String name) {
+    return 'You haven\'t talked to $name today. Keep your streak going!';
+  }
+
+  @override
+  String get reminderChannelName => 'Daily reminder';
+
+  @override
+  String get reminderChannelDescription =>
+      'A daily nudge to practice your language';
+
+  @override
   String get settingsSendFeedback => 'Send feedback';
 
   @override

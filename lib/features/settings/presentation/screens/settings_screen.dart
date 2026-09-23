@@ -1581,6 +1581,7 @@ class _AppGroup extends ConsumerWidget {
               await NotificationService.scheduleDailyReminder(
                 hour: settings.reminderHour,
                 minute: settings.reminderMinute,
+                l10n: l,
               );
               await notifier.setReminderEnabled(true);
             } catch (e) {
@@ -1610,6 +1611,7 @@ class _AppGroup extends ConsumerWidget {
                   await NotificationService.scheduleDailyReminder(
                     hour: picked.hour,
                     minute: picked.minute,
+                    l10n: l,
                   );
                 } catch (e) {
                   debugPrint('[Settings] reminder reschedule failed: $e');

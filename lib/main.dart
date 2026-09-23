@@ -77,6 +77,8 @@ class _AppLoaderState extends ConsumerState<_AppLoader> {
       await NotificationService.scheduleDailyReminder(
         hour: settings.reminderHour,
         minute: settings.reminderMinute,
+        // MaterialApp 위라 context로 찾을 수 없다 — 앱과 같은 규칙으로 로케일을 정한다.
+        l10n: lookupAppLocalizations(resolveUiLocale(settings.nativeLanguage)),
       ).timeout(const Duration(seconds: 5));
       debugPrint('[AppLoader] reminder scheduled');
     } catch (e) {

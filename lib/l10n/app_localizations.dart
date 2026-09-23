@@ -884,6 +884,30 @@ abstract class AppLocalizations {
   /// **'Couldn\'t set the reminder. Please try again.'**
   String get settingsReminderFailed;
 
+  /// No description provided for @reminderNotificationTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Time to practice!'**
+  String get reminderNotificationTitle;
+
+  /// No description provided for @reminderNotificationBody.
+  ///
+  /// In en, this message translates to:
+  /// **'You haven\'t talked to {name} today. Keep your streak going!'**
+  String reminderNotificationBody(String name);
+
+  /// No description provided for @reminderChannelName.
+  ///
+  /// In en, this message translates to:
+  /// **'Daily reminder'**
+  String get reminderChannelName;
+
+  /// No description provided for @reminderChannelDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'A daily nudge to practice your language'**
+  String get reminderChannelDescription;
+
   /// No description provided for @settingsSendFeedback.
   ///
   /// In en, this message translates to:

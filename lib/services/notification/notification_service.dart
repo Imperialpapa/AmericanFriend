@@ -5,6 +5,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
+import 'package:eng_friend/core/constants/app_constants.dart';
+import 'package:eng_friend/l10n/app_localizations.dart';
 
 class NotificationService {
   static final _plugin = FlutterLocalNotificationsPlugin();
@@ -52,10 +54,12 @@ class NotificationService {
     }
   }
 
-  /// 매일 지정 시간에 학습 리마인더 예약
+  /// 매일 지정 시간에 학습 리마인더 예약.
+  /// 문구·채널 이름은 예약 시점의 [l10n]으로 고정되므로 UI 언어가 바뀌면 다시 예약해야 한다(app.dart).
   static Future<void> scheduleDailyReminder({
     required int hour,
     required int minute,
+    required AppLocalizations l10n,
   }) async {
     await initialize();
     // 매번 다시 읽는다 — 기기 타임존은 여행·설정 변경으로 앱 실행 중에도 바뀐다.
@@ -64,14 +68,17 @@ class NotificationService {
 
     await _plugin.zonedSchedule(
       0,
-      'Time to practice!',
-      "You haven't talked to Alex today. Keep your streak going!",
+      l10n.reminderNotificationTitle,
+      l10n.reminderNotificationBody(AppConstants.aiCharacterName),
       _nextInstanceOfTime(hour, minute),
-      const NotificationDetails(
+      NotificationDetails(
         android: AndroidNotificationDetails(
           'daily_reminder',
-          'Daily Reminder',
-          channelDescription: 'Daily language practice reminder',
+          l10n.reminderChannelName,
+          channelDescription: l10n.reminderChannelDescription,
+          // 기본값(createIfNotExists)은 이미 만든 채널을 건드리지 않아, 언어를 바꿔도
+          // 시스템 알림 설정의 채널 이름이 첫 언어로 남는다. update는 이름·설명만 갱신된다.
+          channelAction: AndroidNotificationChannelAction.update,
           importance: Importance.high,
           priority: Priority.defaultPriority,
         ),

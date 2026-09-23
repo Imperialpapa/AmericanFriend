@@ -440,6 +440,20 @@ class AppLocalizationsKo extends AppLocalizations {
   String get settingsReminderFailed => '리마인더를 설정하지 못했어요. 다시 시도해 주세요.';
 
   @override
+  String get reminderNotificationTitle => '연습할 시간이에요!';
+
+  @override
+  String reminderNotificationBody(String name) {
+    return '오늘은 아직 $name와 대화하지 않았어요. 연속 기록을 이어가 볼까요?';
+  }
+
+  @override
+  String get reminderChannelName => '매일 알림';
+
+  @override
+  String get reminderChannelDescription => '매일 언어 연습을 알려 드려요';
+
+  @override
   String get settingsSendFeedback => '피드백 보내기';
 
   @override
