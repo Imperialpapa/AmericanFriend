@@ -1195,7 +1195,7 @@ class _AiGroup extends StatelessWidget {
                   return ListTile(
                     title: Text(_providerName(p),
                         style: KFTypography.body(color: palette.ink)),
-                    subtitle: Text(_providerDescription(p),
+                    subtitle: Text(_providerDescription(l, p),
                         style: KFTypography.meta(color: palette.ink3)),
                     trailing: selected
                         ? Icon(Icons.check, color: palette.sage)
@@ -1214,13 +1214,14 @@ class _AiGroup extends StatelessWidget {
     );
   }
 
-  String _providerDescription(AiProviderType p) => switch (p) {
-        AiProviderType.freeTier => 'No API key required · 20 msg/day',
-        AiProviderType.gemini => 'Free tier · 1,500 req/day',
-        // 구체 수치를 박지 말 것 — 모델별로 다르고 제공자가 예고 없이 바꾼다.
-        AiProviderType.groq => 'Free tier · ultra fast',
-        AiProviderType.claude => 'Paid · highest quality',
-        AiProviderType.openai => 'Paid · GPT-4o',
+  // 쿼터 수치·모델명을 넣지 말 것 — 제공자·서버가 예고 없이 바꾸면 문구가 거짓이 된다(BUG #9).
+  String _providerDescription(AppLocalizations l, AiProviderType p) =>
+      switch (p) {
+        AiProviderType.freeTier => l.settingsProviderDescFree,
+        AiProviderType.gemini => l.settingsProviderDescGemini,
+        AiProviderType.groq => l.settingsProviderDescGroq,
+        AiProviderType.claude => l.settingsProviderDescClaude,
+        AiProviderType.openai => l.settingsProviderDescOpenai,
       };
 
   void _pickModel(BuildContext context) {

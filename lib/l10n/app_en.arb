@@ -176,6 +176,11 @@
   "settingsApiKeyHint": "paste your key…",
   "settingsPickerProvider": "AI Provider",
   "settingsPickerModel": "Model",
+  "settingsProviderDescFree": "No API key required · daily limit",
+  "settingsProviderDescGemini": "Free tier available",
+  "settingsProviderDescGroq": "Free tier · ultra fast",
+  "settingsProviderDescClaude": "Paid · highest quality",
+  "settingsProviderDescOpenai": "Paid · versatile",
 
   "settingsShowTargetText": "Show {language} text",
   "@settingsShowTargetText": {

@@ -17,7 +17,8 @@ class ClaudeService implements AiService {
 
   static const _baseUrl = 'https://api.anthropic.com/v1';
 
-  ClaudeService({required this.apiKey, this.model = 'claude-sonnet-4-20250514'})
+  // 기본 모델 인자를 두지 않는다 — 카탈로그(ai_provider_type.dart)와 어긋나면 죽은 ID가 남는다.
+  ClaudeService({required this.apiKey, required this.model})
       : _dio = Dio(BaseOptions(
           baseUrl: _baseUrl,
           connectTimeout: const Duration(seconds: 30),

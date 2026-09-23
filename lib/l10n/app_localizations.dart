@@ -692,6 +692,36 @@ abstract class AppLocalizations {
   /// **'Model'**
   String get settingsPickerModel;
 
+  /// No description provided for @settingsProviderDescFree.
+  ///
+  /// In en, this message translates to:
+  /// **'No API key required · daily limit'**
+  String get settingsProviderDescFree;
+
+  /// No description provided for @settingsProviderDescGemini.
+  ///
+  /// In en, this message translates to:
+  /// **'Free tier available'**
+  String get settingsProviderDescGemini;
+
+  /// No description provided for @settingsProviderDescGroq.
+  ///
+  /// In en, this message translates to:
+  /// **'Free tier · ultra fast'**
+  String get settingsProviderDescGroq;
+
+  /// No description provided for @settingsProviderDescClaude.
+  ///
+  /// In en, this message translates to:
+  /// **'Paid · highest quality'**
+  String get settingsProviderDescClaude;
+
+  /// No description provided for @settingsProviderDescOpenai.
+  ///
+  /// In en, this message translates to:
+  /// **'Paid · versatile'**
+  String get settingsProviderDescOpenai;
+
   /// No description provided for @settingsShowTargetText.
   ///
   /// In en, this message translates to:

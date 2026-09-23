@@ -335,6 +335,21 @@ class AppLocalizationsKo extends AppLocalizations {
   String get settingsPickerModel => '모델';
 
   @override
+  String get settingsProviderDescFree => 'API 키 없이 사용 · 하루 사용량 제한';
+
+  @override
+  String get settingsProviderDescGemini => '무료 사용량 제공';
+
+  @override
+  String get settingsProviderDescGroq => '무료 사용량 제공 · 초고속';
+
+  @override
+  String get settingsProviderDescClaude => '유료 · 최고 품질';
+
+  @override
+  String get settingsProviderDescOpenai => '유료 · 범용';
+
+  @override
   String settingsShowTargetText(String language) {
     return '$language 텍스트 표시';
   }

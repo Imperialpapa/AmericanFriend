@@ -353,6 +353,21 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsPickerModel => 'Model';
 
   @override
+  String get settingsProviderDescFree => 'No API key required · daily limit';
+
+  @override
+  String get settingsProviderDescGemini => 'Free tier available';
+
+  @override
+  String get settingsProviderDescGroq => 'Free tier · ultra fast';
+
+  @override
+  String get settingsProviderDescClaude => 'Paid · highest quality';
+
+  @override
+  String get settingsProviderDescOpenai => 'Paid · versatile';
+
+  @override
   String settingsShowTargetText(String language) {
     return 'Show $language text';
   }

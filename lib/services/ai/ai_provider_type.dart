@@ -39,6 +39,12 @@ Map<String, dynamic> withRequestExtras(
   return merged;
 }
 
+const Map<String, dynamic> _geminiMinimalThinking = {
+  'generationConfig': {
+    'thinkingConfig': {'thinkingLevel': 'minimal'},
+  },
+};
+
 enum AiProviderType {
   freeTier,
   claude,
@@ -54,43 +60,53 @@ extension AiProviderModels on AiProviderType {
             AiModelInfo(
               id: 'free',
               displayName: 'Free',
-              description: 'No API key needed · 20 messages/day',
+              description: 'No API key needed',
             ),
           ],
+        // 2.0-flash는 2026-06-01 셧다운, 2.5 계열은 기존 사용자 한정이라 신규 키로는
+        // 실패할 수 있다. 3.x는 thinking이 기본 ON이고 maxOutputTokens에 thought
+        // 토큰이 포함되므로 minimal로 낮춘다.
         AiProviderType.gemini => const [
             AiModelInfo(
-              id: 'gemini-2.5-flash',
-              displayName: 'Gemini 2.5 Flash',
-              description: 'Fast, free tier',
+              id: 'gemini-3.6-flash',
+              displayName: 'Gemini 3.6 Flash',
+              description: 'Fast & balanced',
+              requestExtras: _geminiMinimalThinking,
             ),
             AiModelInfo(
-              id: 'gemini-2.5-pro',
-              displayName: 'Gemini 2.5 Pro',
-              description: 'Higher quality, free tier',
+              id: 'gemini-3.8-flash',
+              displayName: 'Gemini 3.8 Flash',
+              description: 'Higher quality',
+              requestExtras: _geminiMinimalThinking,
             ),
             AiModelInfo(
-              id: 'gemini-2.0-flash',
-              displayName: 'Gemini 2.0 Flash',
-              description: 'Previous gen, stable',
+              id: 'gemini-3.5-flash-lite',
+              displayName: 'Gemini 3.5 Flash-Lite',
+              description: 'Fastest & lightest',
+              requestExtras: _geminiMinimalThinking,
             ),
           ],
+        // claude-sonnet-4-20250514는 2026-06-15, claude-3-5-sonnet-20241022는 이미 은퇴.
+        // Sonnet 5는 adaptive thinking이 기본 ON이라 끄지 않으면 max_tokens를 thinking이
+        // 먹는다. Haiku 4.5는 기본 OFF라 thinking 필드를 보내지 않는다.
+        // temperature/top_p/top_k는 보내지 말 것(최신 모델은 기본값 외 값에 400).
         AiProviderType.claude => const [
             AiModelInfo(
-              id: 'claude-sonnet-4-20250514',
-              displayName: 'Claude Sonnet 4',
+              id: 'claude-sonnet-5',
+              displayName: 'Claude Sonnet 5',
               description: 'Best balance of speed & quality',
+              requestExtras: {
+                'thinking': {'type': 'disabled'},
+              },
             ),
             AiModelInfo(
               id: 'claude-haiku-4-5-20251001',
               displayName: 'Claude Haiku 4.5',
               description: 'Fast & affordable',
             ),
-            AiModelInfo(
-              id: 'claude-3-5-sonnet-20241022',
-              displayName: 'Claude 3.5 Sonnet',
-              description: 'Previous gen, stable',
-            ),
           ],
+        // gpt-4.1-nano는 2026-10-23 셧다운. gpt-5.x는 max_completion_tokens·reasoning
+        // 처리가 필요해 여기서는 넣지 않는다.
         AiProviderType.openai => const [
             AiModelInfo(
               id: 'gpt-4o',
@@ -101,11 +117,6 @@ extension AiProviderModels on AiProviderType {
               id: 'gpt-4o-mini',
               displayName: 'GPT-4o Mini',
               description: 'Fast & affordable',
-            ),
-            AiModelInfo(
-              id: 'gpt-4.1-nano',
-              displayName: 'GPT-4.1 Nano',
-              description: 'Ultra fast, cheapest',
             ),
           ],
         // 2026-06-17 Groq가 llama-3.3-70b-versatile / llama-3.1-8b-instant를 폐기.
