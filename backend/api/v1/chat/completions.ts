@@ -1,5 +1,14 @@
-import { corsPreflight, json, requireDeviceId, CORS_HEADERS } from '../../../lib/common';
-import { checkAndIncrement, upstashEnv } from '../../../lib/ratelimit';
+import {
+  corsPreflight,
+  json,
+  requireDeviceId,
+  CORS_HEADERS,
+  clientIp,
+  envInt,
+  ipBucket,
+  sha256Hex,
+} from '../../../lib/common';
+import { admitFreeTier, secondsUntilReset, upstashEnv } from '../../../lib/ratelimit';
 import { callGemini } from '../../../lib/gemini';
 import { callOpenAiCompat } from '../../../lib/openai_compat';
 import { parseChatRequest } from '../../../lib/chat_request';
@@ -31,11 +40,17 @@ export default async function handler(req: Request): Promise<Response> {
     `[req] stream=${body.stream} msgs=${body.messages.length} trimmed=${parsed.trimmed}`
   );
 
-  const limit = parseInt(process.env.FREE_DAILY_LIMIT ?? '20', 10) || 20;
+  const limits = {
+    device: parseInt(process.env.FREE_DAILY_LIMIT ?? '20', 10) || 20,
+    ip: envInt('FREE_IP_DAILY_LIMIT', 150),
+    global: envInt('FREE_GLOBAL_DAILY_LIMIT', 2000),
+  };
+  // IP 원문은 저장하지 않는다 — 키에는 해시 앞부분만.
+  const ipId = (await sha256Hex(ipBucket(clientIp(req)))).slice(0, 32);
 
-  let rl;
+  let admission;
   try {
-    rl = await checkAndIncrement(upstashEnv(), deviceId, limit);
+    admission = await admitFreeTier(upstashEnv(), deviceId, ipId, limits);
   } catch (e: any) {
     console.log('[rate-limit] error:', e?.message);
     return json(
@@ -44,7 +59,36 @@ export default async function handler(req: Request): Promise<Response> {
     );
   }
 
-  if (!rl.allowed) {
+  if (admission.kind === 'ip_limited') {
+    console.log('[rate-limit] ip limit hit');
+    return json(
+      {
+        error: {
+          code: 'ip_rate_limited',
+          message: 'Too many free requests from this network today.',
+        },
+      },
+      429,
+      { 'Retry-After': String(secondsUntilReset()) }
+    );
+  }
+
+  if (admission.kind === 'global_limited') {
+    console.log('[rate-limit] global limit hit');
+    return json(
+      {
+        error: {
+          code: 'free_tier_busy',
+          message: 'The free tier is at capacity today. Try again later or add your own API key.',
+        },
+      },
+      503,
+      { 'Retry-After': String(secondsUntilReset()) }
+    );
+  }
+
+  const rl = admission.device;
+  if (admission.kind === 'device_limited') {
     return json(
       {
         error: {

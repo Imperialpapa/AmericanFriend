@@ -67,6 +67,8 @@ Vercel 프로젝트 → **Settings → Environment Variables**에서 추가:
 | `UPSTASH_REDIS_REST_URL` | (1번에서 복사) | |
 | `UPSTASH_REDIS_REST_TOKEN` | (1번에서 복사) | |
 | `FREE_DAILY_LIMIT` | `20` | 기기당 일 한도 |
+| `FREE_IP_DAILY_LIMIT` | `150` | IP(IPv6는 /64)당 일 한도. 초과 시 429 `ip_rate_limited` |
+| `FREE_GLOBAL_DAILY_LIMIT` | `2000` | 전체 일 한도(비용 상한). 초과 시 503 `free_tier_busy`. `0` = 무료 티어 차단 |
 
 Production / Preview / Development 모두 체크.
 
