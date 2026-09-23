@@ -5,6 +5,8 @@ version: 2.5.0+25
 
 environment:
   sdk: ^3.11.3
+  # 올릴 때는 의도적으로, 실기기 스모크 테스트와 함께 (tobe.md R-08)
+  flutter: '>=3.41.5 <3.42.0'
 
 dependencies:
   flutter:
