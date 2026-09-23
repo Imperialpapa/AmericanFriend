@@ -136,9 +136,24 @@ npx vercel logs --follow
 ## 비용 감
 
 - **Vercel Hobby**: 10만 호출/월, 100GB-hours/월 — 수천 DAU까지 무료
-- **Upstash Free**: 1만 commands/일 — 사용자당 2~3 commands/요청 → 3,000~5,000 req/일 수용
+- **Upstash Free**: 월 50만 commands. 파이프라인 안의 명령도 하나씩 센다
 - **Gemini Flash**: 1,500 req/일 무료 → 75 DAU × 20 msg 수용
 - **Total**: 소규모 런칭엔 **완전 무료**
+
+### Upstash 명령 예산
+
+리미터는 fail-closed다 — Upstash 월 한도가 차서 막히면 그달 남은 기간 무료 티어 전체가 500이 된다.
+
+| 요청 | 명령 수 |
+|---|---|
+| 채팅 통과 | 3 (INCR 전역·IP·기기) + 그날 처음 생긴 키마다 EXPIRE 1 |
+| 채팅 거절(IP·전역·기기 한도) | 5 (INCR 3 + DECR 2). 같은 인스턴스에 같은 키로 다시 오면 0 |
+| 업스트림 실패 환불 | 통과 + DECR 3 |
+| `/quota`, 모니터 | 1 (GET) |
+
+월 추정 ≈ `FREE_GLOBAL_DAILY_LIMIT × 3 × 30` + (일 활성 기기 + IP) × 30 + 모니터 1,440 + `/quota`·신고.
+기본 상한 2000이면 통과분만 18만(36%)이다. 상한을 올릴 땐 `상한 × 3 × 30`이 35만(70%)을 넘지 않게(≈ 3,900 이하), 넘으면 Pay-as-you-go로 바꾼다.
+Upstash 콘솔 Usage에서 월 사용량을 확인하고, 사용량 알림을 설정할 수 있으면 70%로 둔다.
 
 ## Phase 2 확장 포인트
 

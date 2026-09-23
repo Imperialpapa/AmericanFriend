@@ -106,16 +106,22 @@ export async function redisPipeline(
 }
 
 /**
- * 일일 카운터들을 한 번에 올린다. SET NX EX를 INCR 앞에 둬서 만료 없는 키가
- * 남지 않는다 — 예전엔 INCR 뒤 EXPIRE를 따로 보내 그 사이 실패하면 키가 영구히 남았다.
+ * 일일 카운터들을 한 왕복에 올린다. Upstash는 파이프라인·스크립트 안의 명령도
+ * 하나씩 과금하므로(Free 월 50만) 요청마다는 INCR만 보내고, 그날 처음 생긴 키
+ * (결과 1)에만 EXPIRE를 붙인다. 키에 날짜가 있어 EXPIRE가 실패해도 한도 계산은
+ * 맞다 — 옛 키가 남을 뿐이라 요청을 막지 않는다.
  */
 export async function incrementDaily(env: UpstashEnv, keys: string[]): Promise<number[]> {
-  const commands = keys.flatMap((k) => [
-    ['SET', k, '0', 'EX', DAY_TTL_SEC, 'NX'],
-    ['INCR', k],
-  ]);
-  const results = await redisPipeline(env, commands);
-  return keys.map((_, i) => Number(results[i * 2 + 1]));
+  const counts = (await redisPipeline(env, keys.map((k) => ['INCR', k]))).map(Number);
+  const fresh = keys.filter((_, i) => counts[i] === 1);
+  if (fresh.length > 0) {
+    try {
+      await redisPipeline(env, fresh.map((k) => ['EXPIRE', k, DAY_TTL_SEC]));
+    } catch (e: any) {
+      console.log('[rate-limit] expire failed:', e?.message);
+    }
+  }
+  return counts;
 }
 
 /** 처리하지 못한 요청의 차감을 되돌린다. 실패해도 응답은 막지 않는다. */
@@ -159,6 +165,27 @@ export type AdmitResult =
   | { kind: 'global_limited' }
   | { kind: 'device_limited'; device: RateLimitResult };
 
+// 오늘 한도에 걸린 카운터 키. 거절 요청은 개수 제한이 없어, 매번 Upstash를
+// 부르면(건당 5명령) 한 명이 월 명령 한도를 태우고 리미터가 fail-closed로 무료 티어
+// 전체를 막는다. 인스턴스별 best-effort 캐시라 첫 거절만 명령을 쓴다.
+let limitedDay = '';
+const limitedKeys = new Set<string>();
+const LIMITED_KEYS_MAX = 10_000;
+
+function isLimited(key: string): boolean {
+  const today = utcDate();
+  if (limitedDay !== today) {
+    limitedDay = today;
+    limitedKeys.clear();
+  }
+  return limitedKeys.has(key);
+}
+
+function markLimited(key: string): void {
+  if (limitedKeys.size >= LIMITED_KEYS_MAX) limitedKeys.clear();
+  limitedKeys.add(key);
+}
+
 /**
  * 무료 티어 입장 판정. device-id는 클라이언트가 만드는 값이라 기기 한도만으로는
  * id를 바꿔 가며 무제한 호출이 된다(tobe S-01). 전역 상한이 비용의 최종 방어선이다.
@@ -176,19 +203,29 @@ export async function admitFreeTier(
   const gKey = globalKey();
   const iKey = ipKey(ipId);
   const dKey = todayKey(deviceId);
+
+  if (isLimited(iKey)) return { kind: 'ip_limited' };
+  if (isLimited(gKey)) return { kind: 'global_limited' };
+  if (isLimited(dKey)) {
+    return { kind: 'device_limited', device: deviceResult(limits.device + 1, limits.device) };
+  }
+
   const [globalUsed, ipUsed, deviceUsed] = await incrementDaily(env, [gKey, iKey, dKey]);
 
   if (ipUsed > limits.ip) {
     await refund(env, [gKey, dKey]);
+    markLimited(iKey);
     return { kind: 'ip_limited' };
   }
   if (globalUsed > limits.global) {
     await refund(env, [iKey, dKey]);
+    markLimited(gKey);
     return { kind: 'global_limited' };
   }
   const device = deviceResult(deviceUsed, limits.device);
   if (!device.allowed) {
     await refund(env, [gKey, iKey]);
+    markLimited(dKey);
     return { kind: 'device_limited', device };
   }
   return { kind: 'ok', device, charged: [gKey, iKey, dKey] };
