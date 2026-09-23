@@ -6,11 +6,37 @@ class AiModelInfo {
   final String displayName;
   final String description;
 
+  /// 이 모델의 모든 요청 본문에 합쳐 넣을 필드(대화·레벨·제안·발음 공통).
+  /// thinking이 기본 ON인 모델은 끄지 않으면 max_tokens를 thinking이 먹어
+  /// 보조 호출 파싱이 깨지고 음성 첫 응답이 늦어진다(tobe A-03).
+  final Map<String, dynamic> requestExtras;
+
   const AiModelInfo({
     required this.id,
     required this.displayName,
     required this.description,
+    this.requestExtras = const {},
   });
+}
+
+/// [body]에 [extras]를 합친 새 Map을 돌려준다. 양쪽이 Map인 키는 재귀로 합친다
+/// (Gemini는 thinkingConfig가 generationConfig 안에 들어가야 해서 얕은 합치기로는 안 된다).
+Map<String, dynamic> withRequestExtras(
+  Map<String, dynamic> body,
+  Map<String, dynamic> extras,
+) {
+  if (extras.isEmpty) return body;
+  final merged = Map<String, dynamic>.of(body);
+  extras.forEach((key, value) {
+    final existing = merged[key];
+    merged[key] = (existing is Map && value is Map)
+        ? withRequestExtras(
+            Map<String, dynamic>.from(existing),
+            Map<String, dynamic>.from(value),
+          )
+        : value;
+  });
+  return merged;
 }
 
 enum AiProviderType {
@@ -107,6 +133,14 @@ extension AiProviderModels on AiProviderType {
     if (modelId == null) return defaultModelId;
     final exists = availableModels.any((m) => m.id == modelId);
     return exists ? modelId : defaultModelId;
+  }
+
+  /// 모델별 요청 추가 필드. 목록에 없는 ID면 아무것도 붙이지 않는다.
+  Map<String, dynamic> requestExtrasFor(String modelId) {
+    for (final m in availableModels) {
+      if (m.id == modelId) return m.requestExtras;
+    }
+    return const {};
   }
 }
 

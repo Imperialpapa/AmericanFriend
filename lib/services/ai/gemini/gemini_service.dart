@@ -3,6 +3,7 @@ import 'package:dio/dio.dart';
 import 'package:eng_friend/features/chat/domain/entities/message.dart';
 import 'package:eng_friend/features/chat/domain/entities/suggestion.dart';
 import 'package:eng_friend/features/level/domain/entities/level_assessment.dart';
+import 'package:eng_friend/services/ai/ai_provider_type.dart';
 import 'package:eng_friend/services/ai/ai_service.dart';
 import 'package:eng_friend/services/ai/prompts/level_prompts.dart';
 import 'package:eng_friend/services/ai/prompts/suggestion_prompt.dart';
@@ -23,6 +24,11 @@ class GeminiService implements AiService {
           receiveTimeout: const Duration(seconds: 60),
           headers: {'Content-Type': 'application/json'},
         ));
+
+  /// 모델별 추가 필드(3.x의 thinkingConfig 등)를 합친 요청 본문.
+  /// maxOutputTokens에 thought 토큰이 포함되므로 모든 호출에 적용한다.
+  Map<String, dynamic> _body(Map<String, dynamic> body) =>
+      withRequestExtras(body, AiProviderType.gemini.requestExtrasFor(model));
 
   /// 429 발생 시 exponential backoff 재시도
   Future<Response> _postWithRetry(
@@ -90,7 +96,7 @@ class GeminiService implements AiService {
     try {
       final response = await _postWithRetry(
         '/v1beta/models/$model:generateContent?key=$apiKey',
-        data: {
+        data: _body({
           'system_instruction': {
             'parts': [
               {'text': systemPrompt}
@@ -100,7 +106,7 @@ class GeminiService implements AiService {
           'generationConfig': {
             'maxOutputTokens': 1024,
           },
-        },
+        }),
       );
 
       final candidates = response.data['candidates'] as List;
@@ -121,7 +127,7 @@ class GeminiService implements AiService {
     try {
       response = await _postWithRetry(
         '/v1beta/models/$model:streamGenerateContent?alt=sse&key=$apiKey',
-        data: {
+        data: _body({
           'system_instruction': {
             'parts': [
               {'text': systemPrompt}
@@ -131,7 +137,7 @@ class GeminiService implements AiService {
           'generationConfig': {
             'maxOutputTokens': 1024,
           },
-        },
+        }),
         options: Options(responseType: ResponseType.stream),
       );
     } on DioException catch (e) {
@@ -181,7 +187,7 @@ class GeminiService implements AiService {
     try {
       final response = await _postWithRetry(
         '/v1beta/models/$model:generateContent?key=$apiKey',
-        data: {
+        data: _body({
           'system_instruction': {
             'parts': [
               {'text': LevelPrompt.build(nativeLanguage: nativeLanguage, targetLanguage: targetLanguage)}
@@ -195,7 +201,7 @@ class GeminiService implements AiService {
               ]
             }
           ],
-        },
+        }),
       );
 
       final candidates = response.data['candidates'] as List;
@@ -220,7 +226,7 @@ class GeminiService implements AiService {
     try {
       final response = await _postWithRetry(
         '/v1beta/models/$model:generateContent?key=$apiKey',
-        data: {
+        data: _body({
           'contents': [
             {
               'role': 'user',
@@ -229,7 +235,7 @@ class GeminiService implements AiService {
               ]
             }
           ],
-        },
+        }),
       );
 
       final candidates = response.data['candidates'] as List;
@@ -261,7 +267,7 @@ class GeminiService implements AiService {
     try {
       final response = await _postWithRetry(
         '/v1beta/models/$model:generateContent?key=$apiKey',
-        data: {'contents': contents},
+        data: _body({'contents': contents}),
       );
 
       final candidates = response.data['candidates'] as List;

@@ -1,8 +1,10 @@
 import 'dart:convert';
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:eng_friend/features/chat/domain/entities/message.dart';
 import 'package:eng_friend/features/chat/domain/entities/suggestion.dart';
 import 'package:eng_friend/features/level/domain/entities/level_assessment.dart';
+import 'package:eng_friend/services/ai/ai_provider_type.dart';
 import 'package:eng_friend/services/ai/ai_service.dart';
 import 'package:eng_friend/services/ai/prompts/level_prompts.dart';
 import 'package:eng_friend/services/ai/prompts/suggestion_prompt.dart';
@@ -27,6 +29,23 @@ class ClaudeService implements AiService {
           },
         ));
 
+  /// 모델별 추가 필드(Sonnet 5의 thinking disabled 등)를 합친 요청 본문.
+  Map<String, dynamic> _body(Map<String, dynamic> body) =>
+      withRequestExtras(body, AiProviderType.claude.requestExtrasFor(model));
+
+  /// thinking을 쓰는 모델은 text 앞에 thinking 블록이 올 수 있어 첫 블록을
+  /// text로 가정하면 깨진다. type=='text' 블록만 이어 붙인다.
+  /// text 블록이 하나도 없으면 예전(content.first['text'])처럼 던진다.
+  @visibleForTesting
+  static String textOf(dynamic data) {
+    final texts = [
+      for (final block in data['content'] as List)
+        if (block is Map && block['type'] == 'text') block['text'] as String,
+    ];
+    if (texts.isEmpty) throw StateError('Claude response has no text block');
+    return texts.join();
+  }
+
   String _handleError(DioException e) {
     final statusCode = e.response?.statusCode;
     final body = e.response?.data;
@@ -50,7 +69,7 @@ class ClaudeService implements AiService {
     required int userLevel,
   }) async {
     try {
-      final response = await _dio.post('/messages', data: {
+      final response = await _dio.post('/messages', data: _body({
         'model': model,
         'max_tokens': 1024,
         'system': systemPrompt,
@@ -60,10 +79,9 @@ class ClaudeService implements AiService {
                   'content': m.content,
                 })
             .toList(),
-      });
+      }));
 
-      final content = response.data['content'] as List;
-      return content.first['text'] as String;
+      return textOf(response.data);
     } on DioException catch (e) {
       throw Exception(_handleError(e));
     }
@@ -79,7 +97,7 @@ class ClaudeService implements AiService {
     try {
       response = await _dio.post(
         '/messages',
-        data: {
+        data: _body({
           'model': model,
           'max_tokens': 1024,
           'stream': true,
@@ -90,7 +108,7 @@ class ClaudeService implements AiService {
                     'content': m.content,
                   })
               .toList(),
-        },
+        }),
         options: Options(responseType: ResponseType.stream),
       );
     } on DioException catch (e) {
@@ -115,8 +133,10 @@ class ClaudeService implements AiService {
 
         try {
           final json = jsonDecode(data) as Map<String, dynamic>;
+          // thinking_delta·signature_delta는 사용자에게 보일 텍스트가 아니다.
           if (json['type'] == 'content_block_delta') {
             final delta = json['delta'] as Map<String, dynamic>;
+            if (delta['type'] != 'text_delta') continue;
             final text = delta['text'] as String?;
             if (text != null) yield text;
           }
@@ -136,17 +156,16 @@ class ClaudeService implements AiService {
         .map((m) => m.content)
         .join('\n');
 
-    final response = await _dio.post('/messages', data: {
+    final response = await _dio.post('/messages', data: _body({
       'model': model,
       'max_tokens': 256,
       'system': LevelPrompt.build(nativeLanguage: nativeLanguage, targetLanguage: targetLanguage),
       'messages': [
         {'role': 'user', 'content': userMessages},
       ],
-    });
+    }));
 
-    final content = response.data['content'] as List;
-    final text = content.first['text'] as String;
+    final text = textOf(response.data);
 
     try {
       final json = jsonDecode(text) as Map<String, dynamic>;
@@ -169,16 +188,15 @@ class ClaudeService implements AiService {
     required String prompt,
   }) async {
     try {
-      final response = await _dio.post('/messages', data: {
+      final response = await _dio.post('/messages', data: _body({
         'model': model,
         'max_tokens': 512,
         'messages': [
           {'role': 'user', 'content': prompt},
         ],
-      });
+      }));
 
-      final content = response.data['content'] as List;
-      var text = content.first['text'] as String;
+      var text = textOf(response.data);
       text = text.replaceAll(RegExp(r'```json\s*'), '').replaceAll(RegExp(r'```\s*'), '').trim();
       return jsonDecode(text) as Map<String, dynamic>;
     } catch (e) {
@@ -207,14 +225,13 @@ class ClaudeService implements AiService {
       'content': SuggestionPrompt.build(userLevel: userLevel, nativeLanguage: nativeLanguage, targetLanguage: targetLanguage, count: count, lastAiMessage: lastAiMessage),
     });
 
-    final response = await _dio.post('/messages', data: {
+    final response = await _dio.post('/messages', data: _body({
       'model': model,
       'max_tokens': 512,
       'messages': messages,
-    });
+    }));
 
-    final content = response.data['content'] as List;
-    final text = content.first['text'] as String;
+    final text = textOf(response.data);
 
     try {
       final jsonList = jsonDecode(text) as List;
