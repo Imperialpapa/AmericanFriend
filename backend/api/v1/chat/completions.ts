@@ -196,7 +196,8 @@ async function admit(req: Request, deviceId: string): Promise<Admission | Respon
   const limits = {
     device: parseInt(process.env.FREE_DAILY_LIMIT ?? '20', 10) || 20,
     ip: envInt('FREE_IP_DAILY_LIMIT', 150),
-    global: envInt('FREE_GLOBAL_DAILY_LIMIT', 2000),
+    // Groq Free는 조직 전체 1K RPD(openai/gpt-oss-120b)다. 모니터·재시도 몫을 남겨 900.
+    global: envInt('FREE_GLOBAL_DAILY_LIMIT', 900),
   };
 
   // 이 값을 아는 사람은 한도 없이 쓸 수 있다 — 짧은 값은 secretEnv가 무시한다.

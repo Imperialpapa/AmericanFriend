@@ -69,7 +69,7 @@ Vercel 프로젝트 → **Settings → Environment Variables**에서 추가:
 | `UPSTASH_REDIS_REST_TOKEN` | (1번에서 복사) | |
 | `FREE_DAILY_LIMIT` | `20` | 기기당 일 한도 |
 | `FREE_IP_DAILY_LIMIT` | `150` | IP(IPv6는 /64)당 일 한도. 초과 시 429 `ip_rate_limited` |
-| `FREE_GLOBAL_DAILY_LIMIT` | `2000` | 전체 일 한도(비용 상한). 초과 시 503 `free_tier_busy`. `0` = 무료 티어 차단 |
+| `FREE_GLOBAL_DAILY_LIMIT` | `900` | 전체 일 한도(비용 상한). 초과 시 503 `free_tier_busy`. `0` = 무료 티어 차단. Groq Free(조직 1K RPD)에서는 900을 넘기지 않는다 — 아래 "비용 감" |
 | `MONITOR_DEVICE_ID` | 32자 이상 랜덤 | 모니터 전용 device-id. 카운터를 올리지 않지만 Upstash 장애(500)·전역 한도 소진(503)은 실사용자와 같이 받는다. GitHub secret `MONITOR_DEVICE_ID`와 같은 값. 32자 미만이면 무시 |
 | `MONITOR_TOKEN` | 32자 이상 랜덤 | `/api/v1/status?probe=1`의 `x-monitor-token` 헤더 값. 없으면 probe는 401 |
 | `REPORT_DAILY_LIMIT` | `20` | 기기당 일 신고 한도(채팅 한도와 별개) |
@@ -137,8 +137,21 @@ npx vercel logs --follow
 
 - **Vercel Hobby**: 10만 호출/월, 100GB-hours/월 — 수천 DAU까지 무료
 - **Upstash Free**: 월 50만 commands. 파이프라인 안의 명령도 하나씩 센다
-- **Gemini Flash**: 1,500 req/일 무료 → 75 DAU × 20 msg 수용
+- **Groq Free**(현재 업스트림, 2026-09-23 확인): `openai/gpt-oss-120b` 한도가 **조직 전체** 30 RPM / 1K RPD / 8K TPM / 200K TPD
 - **Total**: 소규모 런칭엔 **완전 무료**
+
+### Groq Free 요청 예산
+
+전역 상한은 업스트림 요청 수(RPD)를 지키는 값이다. 앱의 대화·제안·레벨 평가·발음 평가가 모두 1건씩 센다.
+
+| 항목 | 요청/일 |
+|---|---|
+| 전역 상한 `FREE_GLOBAL_DAILY_LIMIT` | 900 |
+| 모니터(GitHub Actions, 30분마다 1회·실패 시 2회) | 48~96 |
+| 업스트림 재시도(1순위 모델 429·403·5xx 시 1회 더) | 장애 시에만 |
+| **합계** | **1K RPD 미만** |
+
+기기 한도 20이면 하루 45대가 한도를 다 쓰면 전역 상한에 닿는다. 상한은 Groq 플랜을 올리기 전에는 올리지 않는다.
 
 ### Upstash 명령 예산
 
@@ -152,7 +165,7 @@ npx vercel logs --follow
 | `/quota`, 모니터 | 1 (GET) |
 
 월 추정 ≈ `FREE_GLOBAL_DAILY_LIMIT × 3 × 30` + (일 활성 기기 + IP) × 30 + 모니터 1,440 + `/quota`·신고.
-기본 상한 2000이면 통과분만 18만(36%)이다. 상한을 올릴 땐 `상한 × 3 × 30`이 35만(70%)을 넘지 않게(≈ 3,900 이하), 넘으면 Pay-as-you-go로 바꾼다.
+기본 상한 900이면 통과분은 8.1만(16%)이다. 업스트림 플랜을 올려 상한도 올릴 땐 `상한 × 3 × 30`이 35만(70%)을 넘지 않게(≈ 3,900 이하), 넘으면 Pay-as-you-go로 바꾼다.
 Upstash 콘솔 Usage에서 월 사용량을 확인하고, 사용량 알림을 설정할 수 있으면 70%로 둔다.
 
 업스트림이 4xx(모델 셧다운 404, 413, 429 등)로 실패한 요청은 IP·전역 한도를 쓴다 — 매번 실패하는 요청으로 한도를 우회하지 못하게.
