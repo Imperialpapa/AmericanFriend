@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart' show openAppSettings;
 import 'package:eng_friend/core/constants/app_constants.dart';
+import 'package:eng_friend/core/error/redact_secrets.dart';
 import 'package:eng_friend/core/theme/app_colors.dart';
 import 'package:eng_friend/core/theme/app_radii.dart';
 import 'package:eng_friend/core/theme/app_spacing.dart';
@@ -271,7 +272,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           ),
           TextButton(
             onPressed: () {
-              Clipboard.setData(ClipboardData(text: error));
+              Clipboard.setData(ClipboardData(text: redactSecrets(error)));
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(content: Text(l.commonCopied)),
               );

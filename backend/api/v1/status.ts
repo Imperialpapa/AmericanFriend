@@ -94,10 +94,10 @@ async function probeUpstream(): Promise<ProbeResult> {
       const key = process.env.GEMINI_API_KEY;
       if (!key) return cacheProbe({ ok: false, code: 'missing_key' }, now);
       const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
         {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
           body: JSON.stringify({
             contents: [{ role: 'user', parts: [{ text: 'ping' }] }],
             generationConfig: { maxOutputTokens: 1 },

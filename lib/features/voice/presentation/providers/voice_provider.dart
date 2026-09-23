@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart' show WidgetsBinding, WidgetsBindingObserver, AppLifecycleState;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:speech_to_text/speech_to_text.dart';
+import 'package:eng_friend/core/error/redact_secrets.dart';
 import 'package:eng_friend/features/voice/domain/entities/voice_state.dart';
 import 'package:eng_friend/features/chat/presentation/providers/chat_provider.dart';
 import 'package:eng_friend/features/settings/domain/entities/user_settings.dart';
@@ -251,7 +252,7 @@ class VoiceNotifier extends StateNotifier<VoiceState> with WidgetsBindingObserve
 
     if (chatState.error != null) {
       debugPrint('[Voice] chat error (${chatState.errorKind?.name}): '
-          '${chatState.error}');
+          '${redactSecrets(chatState.error!)}');
 
       // 쿼터 소진 / 키 없음은 재시도해도 소용없다 → 즉시 종료.
       final fatal = chatState.errorKind == ChatErrorKind.quota ||

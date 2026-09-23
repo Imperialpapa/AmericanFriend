@@ -8,6 +8,7 @@ import 'package:eng_friend/services/pipeline/conversation_pipeline.dart';
 import 'package:eng_friend/services/pipeline/pipeline_event.dart';
 import 'package:eng_friend/core/constants/level_constants.dart';
 import 'package:eng_friend/core/error/failures.dart';
+import 'package:eng_friend/core/error/redact_secrets.dart';
 import 'package:eng_friend/features/settings/presentation/providers/settings_provider.dart';
 import 'package:eng_friend/di/service_providers.dart';
 import 'package:eng_friend/features/topic/presentation/providers/topic_provider.dart';
@@ -200,7 +201,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
       onError: (e) {
         state = state.copyWith(
           isAiTyping: false,
-          error: e.toString(),
+          error: redactSecrets(e.toString()),
           errorKind: ChatErrorKind.unknown,
         );
       },

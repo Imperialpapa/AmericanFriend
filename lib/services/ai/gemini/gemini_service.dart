@@ -18,12 +18,16 @@ class GeminiService implements AiService {
   static const _maxRetries = 3;
 
   // 기본 모델 인자를 두지 않는다 — 카탈로그(ai_provider_type.dart)와 어긋나면 죽은 ID가 남는다.
+  // 키는 URL(?key=)이 아니라 헤더로 보낸다. URL은 Dio 오류 문자열·로그에 그대로 찍힌다(S-03).
   GeminiService({required this.apiKey, required this.model})
       : _dio = Dio(BaseOptions(
           baseUrl: _baseUrl,
           connectTimeout: const Duration(seconds: 30),
           receiveTimeout: const Duration(seconds: 60),
-          headers: {'Content-Type': 'application/json'},
+          headers: {
+            'Content-Type': 'application/json',
+            'x-goog-api-key': apiKey,
+          },
         ));
 
   /// 모델별 추가 필드(3.x의 thinkingConfig 등)를 합친 요청 본문.
@@ -68,8 +72,8 @@ class GeminiService implements AiService {
     } else if (statusCode == 429) {
       return 'Gemini rate limit exceeded. Please try again later.\n$detail';
     }
-    final url = e.requestOptions.uri.toString();
-    return 'Gemini ($statusCode): $detail\nURL: $url';
+    // 요청 URL은 붙이지 않는다 — 복사 버튼·logcat으로 그대로 나간다.
+    return 'Gemini ($statusCode): ${detail.isNotEmpty ? detail : e.type.name}';
   }
 
   List<Map<String, dynamic>> _buildContents(
@@ -96,7 +100,7 @@ class GeminiService implements AiService {
   }) async {
     try {
       final response = await _postWithRetry(
-        '/v1beta/models/$model:generateContent?key=$apiKey',
+        '/v1beta/models/$model:generateContent',
         data: _body({
           'system_instruction': {
             'parts': [
@@ -127,7 +131,7 @@ class GeminiService implements AiService {
     late final Response response;
     try {
       response = await _postWithRetry(
-        '/v1beta/models/$model:streamGenerateContent?alt=sse&key=$apiKey',
+        '/v1beta/models/$model:streamGenerateContent?alt=sse',
         data: _body({
           'system_instruction': {
             'parts': [
@@ -187,7 +191,7 @@ class GeminiService implements AiService {
 
     try {
       final response = await _postWithRetry(
-        '/v1beta/models/$model:generateContent?key=$apiKey',
+        '/v1beta/models/$model:generateContent',
         data: _body({
           'system_instruction': {
             'parts': [
@@ -226,7 +230,7 @@ class GeminiService implements AiService {
   }) async {
     try {
       final response = await _postWithRetry(
-        '/v1beta/models/$model:generateContent?key=$apiKey',
+        '/v1beta/models/$model:generateContent',
         data: _body({
           'contents': [
             {
@@ -267,7 +271,7 @@ class GeminiService implements AiService {
 
     try {
       final response = await _postWithRetry(
-        '/v1beta/models/$model:generateContent?key=$apiKey',
+        '/v1beta/models/$model:generateContent',
         data: _body({'contents': contents}),
       );
 

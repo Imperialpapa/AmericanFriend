@@ -7,6 +7,7 @@ import 'package:eng_friend/services/pipeline/pipeline_event.dart';
 import 'package:eng_friend/services/pipeline/sentence_splitter.dart';
 import 'package:eng_friend/services/pipeline/tts_queue.dart';
 import 'package:eng_friend/core/error/failures.dart';
+import 'package:eng_friend/core/error/redact_secrets.dart';
 
 class ConversationPipeline {
   final AiService aiService;
@@ -96,12 +97,13 @@ class ConversationPipeline {
     }
     if (e is FreeTierUnavailableException) {
       return FreeTierUnavailableFailure(
-        e.technicalDetail,
+        redactSecrets(e.technicalDetail),
         statusCode: e.statusCode,
         isNetwork: e.isNetwork,
       );
     }
-    return GeneralFailure(e.toString());
+    // 원문은 '복사' 버튼·debugPrint로 나간다. 키가 섞였을 수 있으니 여기서 가린다.
+    return GeneralFailure(redactSecrets(e.toString()));
   }
 
   Future<void> interrupt() async {

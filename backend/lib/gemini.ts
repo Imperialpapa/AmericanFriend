@@ -18,13 +18,14 @@ export async function callGemini(
 ): Promise<CallResult> {
   const stream = !!body.stream;
   const gemBody = openAiToGemini(body.messages);
+  // 키는 쿼리(?key=)가 아니라 헤더로 — URL은 런타임 오류·로그에 찍힐 수 있다.
   const endpoint = stream
-    ? `${GEMINI_BASE}/models/${model}:streamGenerateContent?alt=sse&key=${apiKey}`
-    : `${GEMINI_BASE}/models/${model}:generateContent?key=${apiKey}`;
+    ? `${GEMINI_BASE}/models/${model}:streamGenerateContent?alt=sse`
+    : `${GEMINI_BASE}/models/${model}:generateContent`;
 
   const upstream = await fetch(endpoint, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
     body: JSON.stringify(gemBody),
   });
 
