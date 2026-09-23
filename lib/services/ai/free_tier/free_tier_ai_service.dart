@@ -27,6 +27,27 @@ class FreeTierRateLimitException implements Exception {
       'Daily free limit reached ($used/$limit). Resets at ${resetAt ?? "UTC midnight"}.';
 }
 
+/// 무료 티어 프록시/업스트림 장애.
+///
+/// 사용자 잘못이 아니고 재시도해도 대개 소용없다. 본인 API 키를 등록하면 즉시 우회 가능.
+/// (BUG_HISTORY #9: 제공사가 모델을 셧다운해 프록시가 404를 뱉은 사례)
+class FreeTierUnavailableException implements Exception {
+  final int? statusCode;
+  final bool isNetwork;
+
+  /// 사용자에게 보여줄 문구가 아니라, 문의·진단용 원문.
+  final String technicalDetail;
+
+  const FreeTierUnavailableException({
+    required this.technicalDetail,
+    this.statusCode,
+    this.isNetwork = false,
+  });
+
+  @override
+  String toString() => technicalDetail;
+}
+
 /// 프록시를 통한 무료 티어 AI 서비스.
 /// Groq와 같은 OpenAI 호환 스키마를 쓰지만, 인증은 deviceId 헤더.
 class FreeTierAiService implements AiService {
@@ -66,8 +87,24 @@ class FreeTierAiService implements AiService {
   Never _throwError(DioException e) {
     final rl = _rateLimitFrom(e);
     if (rl != null) throw rl;
-    final statusCode = e.response?.statusCode;
-    throw Exception('Free tier error ($statusCode): ${e.message}');
+
+    final offline = switch (e.type) {
+      DioExceptionType.connectionError ||
+      DioExceptionType.connectionTimeout ||
+      DioExceptionType.receiveTimeout ||
+      DioExceptionType.sendTimeout =>
+        true,
+      _ => false,
+    };
+
+    // 원문(technicalDetail)은 버리지 않는다 — UI는 친절한 문구를 보여주되
+    // "복사" 버튼으로 원문을 넘겨야 사용자가 문의할 때 진단이 가능하다.
+    throw FreeTierUnavailableException(
+      statusCode: e.response?.statusCode,
+      isNetwork: offline,
+      technicalDetail: 'Free tier error (${e.response?.statusCode}): '
+          '${e.message ?? e.type.name}',
+    );
   }
 
   @override
@@ -119,11 +156,15 @@ class FreeTierAiService implements AiService {
       _throwError(e);
     }
 
-    final stream = response.data.stream as Stream<List<int>>;
+    // 멀티바이트 문자가 청크 경계에 걸리면 utf8.decode가 FormatException을 던져
+    // 스트림이 통째로 죽는다(한글·일본어는 3바이트라 흔하다).
+    // 스트리밍 디코더는 경계를 넘어 이어붙여 준다.
+    final stream =
+        (response.data.stream as Stream<List<int>>).transform(utf8.decoder);
     String buffer = '';
 
     await for (final chunk in stream) {
-      buffer += utf8.decode(chunk);
+      buffer += chunk;
       final lines = buffer.split('\n');
       buffer = lines.removeLast();
 

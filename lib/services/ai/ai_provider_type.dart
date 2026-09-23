@@ -82,21 +82,19 @@ extension AiProviderModels on AiProviderType {
               description: 'Ultra fast, cheapest',
             ),
           ],
+        // 2026-06-17 Groq가 llama-3.3-70b-versatile / llama-3.1-8b-instant를 폐기.
+        // gemma2-9b-it도 현행 카탈로그에서 사라짐. 셋 다 호출하면 model_not_found(404).
+        // Groq 공식 권장 대체 모델이 openai/gpt-oss-120b.
         AiProviderType.groq => const [
             AiModelInfo(
-              id: 'llama-3.3-70b-versatile',
-              displayName: 'Llama 3.3 70B',
+              id: 'openai/gpt-oss-120b',
+              displayName: 'GPT-OSS 120B',
               description: 'Best quality, free',
             ),
             AiModelInfo(
-              id: 'llama-3.1-8b-instant',
-              displayName: 'Llama 3.1 8B',
+              id: 'openai/gpt-oss-20b',
+              displayName: 'GPT-OSS 20B',
               description: 'Ultra fast, free',
-            ),
-            AiModelInfo(
-              id: 'gemma2-9b-it',
-              displayName: 'Gemma 2 9B',
-              description: 'Google model, free',
             ),
           ],
       };
@@ -157,29 +155,30 @@ extension AiProviderLanguageSupport on AiProviderType {
     AiProviderType.claude: {},
     AiProviderType.openai: {},
 
-    // Free tier = Groq 백엔드. Groq와 동일한 제한 적용.
+    // Free tier = 자체 프록시 백엔드. 업스트림 모델은 서버가 결정한다.
+    // 모델명을 문구에 박지 말 것 — 서버 환경변수로 바뀌면 즉시 거짓말이 된다.
     AiProviderType.freeTier: {
       AppLanguage.chineseCantonese: const LanguageSupportInfo.limited(
-        'Llama 3.3 has limited Cantonese support. Quality may be lower.',
+        'Cantonese support on the free model may be limited. Quality may be lower.',
       ),
       AppLanguage.chineseMandarin: const LanguageSupportInfo.limited(
-        'Llama 3.3 Chinese quality may be lower than other models.',
+        'Chinese quality on the free model may be lower than premium models.',
       ),
       AppLanguage.italian: const LanguageSupportInfo.limited(
-        'Llama 3.3 Italian quality may be lower than other models.',
+        'Italian quality on the free model may be lower than premium models.',
       ),
     },
 
-    // Groq (Llama 3.3) — 일부 언어 품질 제한
+    // Groq — 소형 오픈 모델이라 일부 언어 품질 제한 가능
     AiProviderType.groq: {
       AppLanguage.chineseCantonese: const LanguageSupportInfo.limited(
-        'Llama 3.3 has limited Cantonese support. Quality may be lower.',
+        'Cantonese support may be limited on this model. Quality may be lower.',
       ),
       AppLanguage.chineseMandarin: const LanguageSupportInfo.limited(
-        'Llama 3.3 Chinese quality may be lower than other models.',
+        'Chinese quality may be lower than premium models.',
       ),
       AppLanguage.italian: const LanguageSupportInfo.limited(
-        'Llama 3.3 Italian quality may be lower than other models.',
+        'Italian quality may be lower than premium models.',
       ),
     },
   };

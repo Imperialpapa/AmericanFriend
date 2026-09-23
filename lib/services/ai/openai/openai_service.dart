@@ -92,11 +92,14 @@ class OpenAiService implements AiService {
       throw Exception(_handleError(e));
     }
 
-    final stream = response.data.stream as Stream<List<int>>;
+    // 멀티바이트 문자가 청크 경계에 걸리면 utf8.decode가 FormatException을 던져
+    // 스트림이 통째로 죽는다(한글·일본어는 3바이트라 흔하다).
+    final stream =
+        (response.data.stream as Stream<List<int>>).transform(utf8.decoder);
     String buffer = '';
 
     await for (final chunk in stream) {
-      buffer += utf8.decode(chunk);
+      buffer += chunk;
       final lines = buffer.split('\n');
       buffer = lines.removeLast();
 

@@ -16,8 +16,11 @@ class GroqService implements AiService {
 
   static const _baseUrl = 'https://api.groq.com/openai/v1';
 
-  GroqService({required this.apiKey, this.model = 'llama-3.3-70b-versatile'})
-      : _dio = Dio(BaseOptions(
+  // 기본값은 ai_provider_type.dart의 Groq 첫 항목과 일치시킬 것.
+  // llama-3.3-70b-versatile은 2026-06-17 폐기되어 호출 시 404.
+  GroqService({required this.apiKey, this.model = 'openai/gpt-oss-120b'})
+    : _dio = Dio(
+        BaseOptions(
           baseUrl: _baseUrl,
           connectTimeout: const Duration(seconds: 30),
           receiveTimeout: const Duration(seconds: 60),
@@ -25,7 +28,14 @@ class GroqService implements AiService {
             'Authorization': 'Bearer $apiKey',
             'Content-Type': 'application/json',
           },
-        ));
+        ),
+      );
+
+  /// gpt-oss 계열은 추론 모델이라 기본값이면 답변 전에 수백 토큰을 속으로 생각한다.
+  /// 음성 대화에서는 사용자가 말을 마친 뒤의 침묵으로 나타난다.
+  /// 실측(2026-08-18): 기본 110토큰/0.237s → effort=low 26토큰/0.086s.
+  Map<String, dynamic> get _reasoningParams =>
+      model.contains('gpt-oss') ? const {'reasoning_effort': 'low'} : const {};
 
   String _handleError(DioException e) {
     final statusCode = e.response?.statusCode;
@@ -44,16 +54,22 @@ class GroqService implements AiService {
     required int userLevel,
   }) async {
     try {
-      final response = await _dio.post('/chat/completions', data: {
-        'model': model,
-        'messages': [
-          {'role': 'system', 'content': systemPrompt},
-          ...conversationHistory.map((m) => {
+      final response = await _dio.post(
+        '/chat/completions',
+        data: {
+          'model': model,
+          ..._reasoningParams,
+          'messages': [
+            {'role': 'system', 'content': systemPrompt},
+            ...conversationHistory.map(
+              (m) => {
                 'role': m.role == MessageRole.user ? 'user' : 'assistant',
                 'content': m.content,
-              }),
-        ],
-      });
+              },
+            ),
+          ],
+        },
+      );
 
       final choices = response.data['choices'] as List;
       return choices.first['message']['content'] as String;
@@ -74,13 +90,16 @@ class GroqService implements AiService {
         '/chat/completions',
         data: {
           'model': model,
+          ..._reasoningParams,
           'stream': true,
           'messages': [
             {'role': 'system', 'content': systemPrompt},
-            ...conversationHistory.map((m) => {
-                  'role': m.role == MessageRole.user ? 'user' : 'assistant',
-                  'content': m.content,
-                }),
+            ...conversationHistory.map(
+              (m) => {
+                'role': m.role == MessageRole.user ? 'user' : 'assistant',
+                'content': m.content,
+              },
+            ),
           ],
         },
         options: Options(responseType: ResponseType.stream),
@@ -89,11 +108,15 @@ class GroqService implements AiService {
       throw Exception(_handleError(e));
     }
 
-    final stream = response.data.stream as Stream<List<int>>;
+    // 멀티바이트 문자가 청크 경계에 걸리면 utf8.decode가 FormatException을 던져
+    // 스트림이 통째로 죽는다(한글·일본어는 3바이트라 흔하다).
+    final stream = (response.data.stream as Stream<List<int>>).transform(
+      utf8.decoder,
+    );
     String buffer = '';
 
     await for (final chunk in stream) {
-      buffer += utf8.decode(chunk);
+      buffer += chunk;
       final lines = buffer.split('\n');
       buffer = lines.removeLast();
 
@@ -125,13 +148,23 @@ class GroqService implements AiService {
         .join('\n');
 
     try {
-      final response = await _dio.post('/chat/completions', data: {
-        'model': model,
-        'messages': [
-          {'role': 'system', 'content': LevelPrompt.build(nativeLanguage: nativeLanguage, targetLanguage: targetLanguage)},
-          {'role': 'user', 'content': userMessages},
-        ],
-      });
+      final response = await _dio.post(
+        '/chat/completions',
+        data: {
+          'model': model,
+          ..._reasoningParams,
+          'messages': [
+            {
+              'role': 'system',
+              'content': LevelPrompt.build(
+                nativeLanguage: nativeLanguage,
+                targetLanguage: targetLanguage,
+              ),
+            },
+            {'role': 'user', 'content': userMessages},
+          ],
+        },
+      );
 
       final choices = response.data['choices'] as List;
       final text = choices.first['message']['content'] as String;
@@ -143,7 +176,10 @@ class GroqService implements AiService {
       );
     } catch (_) {
       return const LevelAssessment(
-          currentLevel: 0, suggestedLevel: 5, reasoning: 'Assessment failed');
+        currentLevel: 0,
+        suggestedLevel: 5,
+        reasoning: 'Assessment failed',
+      );
     }
   }
 
@@ -152,16 +188,23 @@ class GroqService implements AiService {
     required String prompt,
   }) async {
     try {
-      final response = await _dio.post('/chat/completions', data: {
-        'model': model,
-        'messages': [
-          {'role': 'user', 'content': prompt},
-        ],
-      });
+      final response = await _dio.post(
+        '/chat/completions',
+        data: {
+          'model': model,
+          ..._reasoningParams,
+          'messages': [
+            {'role': 'user', 'content': prompt},
+          ],
+        },
+      );
 
       final choices = response.data['choices'] as List;
       var text = choices.first['message']['content'] as String;
-      text = text.replaceAll(RegExp(r'```json\s*'), '').replaceAll(RegExp(r'```\s*'), '').trim();
+      text = text
+          .replaceAll(RegExp(r'```json\s*'), '')
+          .replaceAll(RegExp(r'```\s*'), '')
+          .trim();
       return jsonDecode(text) as Map<String, dynamic>;
     } catch (e) {
       return {'score': 0, 'feedback': [], 'overall': 'Evaluation failed: $e'};
@@ -178,31 +221,41 @@ class GroqService implements AiService {
     String? lastAiMessage,
   }) async {
     final messages = conversationHistory
-        .map((m) => {
-              'role': m.role == MessageRole.user ? 'user' : 'assistant',
-              'content': m.content,
-            })
+        .map(
+          (m) => {
+            'role': m.role == MessageRole.user ? 'user' : 'assistant',
+            'content': m.content,
+          },
+        )
         .toList();
 
     messages.add({
       'role': 'user',
-      'content': SuggestionPrompt.build(userLevel: userLevel, nativeLanguage: nativeLanguage, targetLanguage: targetLanguage, count: count, lastAiMessage: lastAiMessage),
+      'content': SuggestionPrompt.build(
+        userLevel: userLevel,
+        nativeLanguage: nativeLanguage,
+        targetLanguage: targetLanguage,
+        count: count,
+        lastAiMessage: lastAiMessage,
+      ),
     });
 
     try {
-      final response = await _dio.post('/chat/completions', data: {
-        'model': model,
-        'messages': messages,
-      });
+      final response = await _dio.post(
+        '/chat/completions',
+        data: {'model': model, ..._reasoningParams, 'messages': messages},
+      );
 
       final choices = response.data['choices'] as List;
       final text = choices.first['message']['content'] as String;
       final jsonList = jsonDecode(text) as List;
       return jsonList
-          .map((item) => Suggestion(
-                text: item['text'] as String,
-                koreanHint: item['koreanHint'] as String?,
-              ))
+          .map(
+            (item) => Suggestion(
+              text: item['text'] as String,
+              koreanHint: item['koreanHint'] as String?,
+            ),
+          )
           .toList();
     } catch (_) {
       return [];
