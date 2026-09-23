@@ -80,9 +80,25 @@ class _AppLoaderState extends ConsumerState<_AppLoader> {
   /// 알림 예외가 설정 로드와 같은 try에 있으면 시작 오류 화면으로 번진다(tobe.md L-01).
   /// 리마인더는 부가 기능이라 실패해도 로그만 남긴다.
   Future<void> _restoreReminder() async {
-    final settings = ref.read(settingsProvider);
-    if (!settings.reminderEnabled) return;
+    if (!ref.read(settingsProvider).reminderEnabled) return;
     try {
+      // v2.5.0은 알림 권한을 묻지 않아, ON으로 저장된 사용자도 Android 13+에서는 알림이 막혀 있다.
+      // 아직 물은 적이 없으면 한 번 묻고, 그래도 꺼져 있으면 토글을 실제 상태(OFF)로 맞춘다.
+      // 다시 켜면 설정 화면의 권한 요청·스낵바 흐름을 탄다.
+      if (!await NotificationService.areNotificationsEnabled()) {
+        final granted = !await NotificationService.wasPermissionRequested() &&
+            await NotificationService.requestPermission();
+        if (!granted) {
+          await NotificationService.cancelAll();
+          if (mounted) {
+            await ref.read(settingsProvider.notifier).setReminderEnabled(false);
+          }
+          debugPrint('[AppLoader] notifications blocked, reminder turned off');
+          return;
+        }
+      }
+      if (!mounted) return;
+      final settings = ref.read(settingsProvider);
       await NotificationService.scheduleDailyReminder(
         hour: settings.reminderHour,
         minute: settings.reminderMinute,

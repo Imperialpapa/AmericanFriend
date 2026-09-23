@@ -3,6 +3,7 @@ import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 import 'package:eng_friend/core/constants/app_constants.dart';
@@ -12,6 +13,7 @@ class NotificationService {
   static final _plugin = FlutterLocalNotificationsPlugin();
   static bool _initialized = false;
   static const _reminderChannelId = 'daily_reminder';
+  static const _permissionAskedKey = 'notification_permission_asked';
 
   // MainActivity.kt의 채널. iOS에는 없어서 MissingPluginException → UTC로 떨어진다.
   static const _timezoneChannel =
@@ -47,11 +49,36 @@ class NotificationService {
     final android = _plugin.resolvePlatformSpecificImplementation<
         AndroidFlutterLocalNotificationsPlugin>();
     if (android == null) return true;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_permissionAskedKey, true);
     try {
       return await android.requestNotificationsPermission() ?? false;
     } on PlatformException catch (e) {
       debugPrint('[Notification] permission request failed: $e');
       return false;
+    }
+  }
+
+  /// 권한을 한 번이라도 요청했는지. 시작 시 자동 요청은 이게 false일 때 한 번뿐이다(main.dart) —
+  /// OS 설정에서 일부러 끈 사용자에게 매번 다이얼로그를 띄우지 않기 위해서.
+  static Future<bool> wasPermissionRequested() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_permissionAskedKey) ?? false;
+  }
+
+  /// 알림이 실제로 표시될 수 있는지. Android 13+ 권한 미허용과 OS 설정 차단 모두 false.
+  /// 확인에 실패하면 true — 모르는 상태로 사용자의 리마인더를 끄지 않는다.
+  static Future<bool> areNotificationsEnabled() async {
+    if (!Platform.isAndroid) return true;
+    await initialize();
+    final android = _plugin.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+    if (android == null) return true;
+    try {
+      return await android.areNotificationsEnabled() ?? true;
+    } on PlatformException catch (e) {
+      debugPrint('[Notification] notification state check failed: $e');
+      return true;
     }
   }
 
