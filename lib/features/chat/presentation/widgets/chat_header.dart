@@ -7,6 +7,7 @@ import 'package:eng_friend/core/theme/app_typography.dart';
 import 'package:eng_friend/core/widgets/alex_avatar.dart';
 import 'package:eng_friend/core/widgets/kf_streak_chip.dart';
 import 'package:eng_friend/features/level/presentation/providers/level_provider.dart';
+import 'package:eng_friend/features/mission/presentation/providers/mission_provider.dart';
 import 'package:eng_friend/features/streak/presentation/providers/streak_provider.dart';
 import 'package:eng_friend/features/topic/presentation/providers/topic_provider.dart';
 import 'package:eng_friend/features/settings/presentation/screens/settings_screen.dart';
@@ -132,7 +133,15 @@ class ChatHeader extends ConsumerWidget implements PreferredSizeWidget {
         ),
         const SizedBox(width: 4),
         InkWell(
-          onTap: () => ref.read(topicProvider.notifier).endTopic(),
+          onTap: () {
+            // 미션도 토픽 위에서 돈다. 토픽만 끄면 미션이 살아남아 이후 자유 대화 턴으로
+            // '완료'되고 ★이 지급됐다. endMission()이 토픽까지 함께 끝낸다.
+            if (ref.read(missionProvider).isActive) {
+              ref.read(missionProvider.notifier).endMission();
+            } else {
+              ref.read(topicProvider.notifier).endTopic();
+            }
+          },
           borderRadius: BorderRadius.circular(8),
           child: Padding(
             padding: const EdgeInsets.all(2),
