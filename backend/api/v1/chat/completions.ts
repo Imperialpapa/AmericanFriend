@@ -68,9 +68,12 @@ export default async function handler(req: Request): Promise<Response> {
   };
 
   const provider = (process.env.UPSTREAM_PROVIDER ?? 'gemini').toLowerCase();
+  // Groq deprecated llama-3.3-70b-versatile and llama-3.1-8b-instant on 2026-06-17;
+  // calling them now returns 404 model_not_found. Groq's own recommended
+  // replacement is openai/gpt-oss-120b.
   const model =
     process.env.UPSTREAM_MODEL ??
-    (provider === 'gemini' ? 'gemini-2.5-flash' : 'llama-3.3-70b-versatile');
+    (provider === 'gemini' ? 'gemini-2.5-flash' : 'openai/gpt-oss-120b');
 
   try {
     let result;

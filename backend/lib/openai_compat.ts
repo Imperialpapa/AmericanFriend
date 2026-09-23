@@ -60,12 +60,34 @@ export async function callOpenAiCompat(
   throw new Error(`${cfg.label}: no response`);
 }
 
+/**
+ * gpt-oss 계열은 추론(reasoning) 모델이라 기본값으로 두면 답변 전에 수백 토큰을
+ * 속으로 생각한다. 음성 대화 앱에서는 사용자가 말을 마친 뒤 아무 소리도 안 나는
+ * 침묵으로 나타난다.
+ *
+ * 실측(2026-08-18, "Hi, how are you today?" 한 문장):
+ *   기본            reasoning 382자 / 110 tokens / 0.237s
+ *   effort=low      reasoning  20자 /  26 tokens / 0.086s  ← 2.8배 빠름
+ *   format=hidden   reasoning   0자 /  78 tokens / 0.166s  (감추기만 하고 계산은 함)
+ *
+ * `reasoning_effort: "none"`은 지원되지 않는다(에러).
+ */
+function applyReasoningDefaults(body: any, model: string): any {
+  if (!/gpt-oss/i.test(model)) return body;
+  // 클라이언트가 명시했으면 존중한다.
+  if (body.reasoning_effort != null) return body;
+  return {
+    ...body,
+    reasoning_effort: process.env.UPSTREAM_REASONING_EFFORT ?? 'low',
+  };
+}
+
 async function fetchUpstream(
   body: any,
   cfg: OpenAiCompatConfig,
   model: string
 ): Promise<Response> {
-  const upstreamBody = { ...body, model };
+  const upstreamBody = applyReasoningDefaults({ ...body, model }, model);
   return fetch(cfg.url, {
     method: 'POST',
     headers: {
