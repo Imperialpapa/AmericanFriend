@@ -56,3 +56,13 @@ screenshot*.jpg
 screenshot*.png
 ss_*.jpg
 ss_*.png
+
+# Secrets — never commit (tobe.md R-01). Repo is PUBLIC.
+/키정보*
+*.secret*
+.env
+.env.*
+!.env.example
+
+# Android module build output
+/android/build/
