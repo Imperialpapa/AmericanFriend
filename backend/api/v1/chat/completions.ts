@@ -12,9 +12,10 @@ import {
 } from '../../../lib/common';
 import {
   admitFreeTier,
-  refund,
+  refundFailedCall,
   secondsUntilReset,
   upstashEnv,
+  type ChargedKeys,
   type UpstashEnv,
 } from '../../../lib/ratelimit';
 import { callGemini } from '../../../lib/gemini';
@@ -54,9 +55,11 @@ export default async function handler(req: Request): Promise<Response> {
 
   const admitted = await admit(req, deviceId);
   if (admitted instanceof Response) return admitted;
-  // 업스트림이 첫 바이트 전에 실패하면 이 요청의 차감을 모두 되돌린다(tobe S-06).
-  const refundCharged = () =>
-    admitted.redis ? refund(admitted.redis, admitted.charged) : Promise.resolve();
+  // 업스트림이 첫 바이트 전에 실패하면 차감 일부를 되돌린다(tobe S-06, 범위는 refundFailedCall).
+  const refundFailed = (status: number | null) =>
+    admitted.charge
+      ? refundFailedCall(admitted.charge.redis, admitted.charge.keys, status)
+      : Promise.resolve();
 
   const rlHeaders: Record<string, string> = { ...admitted.headers, ...CORS_HEADERS };
 
@@ -93,11 +96,11 @@ export default async function handler(req: Request): Promise<Response> {
         rlHeaders
       );
     }
-    if (!result.response.ok) await refundCharged();
+    if (!result.response.ok) await refundFailed(result.response.status);
     return result.response;
   } catch (e: any) {
     console.log('[upstream] error:', e?.message);
-    await refundCharged();
+    await refundFailed(null);
     return json(
       { error: { code: 'upstream_error', message: e?.message ?? 'Upstream failed' } },
       502
@@ -146,8 +149,7 @@ function resolveUpstream(): Upstream | Response {
 
 interface Admission {
   /** null이면 차감하지 않은 요청(모니터) — 환불할 것도 없다. */
-  redis: UpstashEnv | null;
-  charged: string[];
+  charge: { redis: UpstashEnv; keys: ChargedKeys } | null;
   headers: Record<string, string>;
 }
 
@@ -158,7 +160,7 @@ async function admit(req: Request, deviceId: string): Promise<Admission | Respon
   const monitorId = secretEnv('MONITOR_DEVICE_ID');
   if (monitorId !== undefined && safeEqual(deviceId, monitorId)) {
     console.log('[req] monitor');
-    return { redis: null, charged: [], headers: {} };
+    return { charge: null, headers: {} };
   }
 
   const limits = {
@@ -232,8 +234,7 @@ async function admit(req: Request, deviceId: string): Promise<Admission | Respon
   }
 
   return {
-    redis,
-    charged: admission.charged,
+    charge: { redis, keys: admission.charged },
     headers: {
       'X-RateLimit-Limit': String(rl.limit),
       'X-RateLimit-Remaining': String(rl.remaining),

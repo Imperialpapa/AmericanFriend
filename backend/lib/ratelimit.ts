@@ -159,8 +159,15 @@ export interface FreeTierLimits {
   global: number;
 }
 
+/** 통과한 요청이 올린 카운터 키. */
+export interface ChargedKeys {
+  global: string;
+  ip: string;
+  device: string;
+}
+
 export type AdmitResult =
-  | { kind: 'ok'; device: RateLimitResult; charged: string[] }
+  | { kind: 'ok'; device: RateLimitResult; charged: ChargedKeys }
   | { kind: 'ip_limited' }
   | { kind: 'global_limited' }
   | { kind: 'device_limited'; device: RateLimitResult };
@@ -228,7 +235,25 @@ export async function admitFreeTier(
     markLimited(dKey);
     return { kind: 'device_limited', device };
   }
-  return { kind: 'ok', device, charged: [gKey, iKey, dKey] };
+  return { kind: 'ok', device, charged: { global: gKey, ip: iKey, device: dKey } };
+}
+
+/**
+ * 업스트림이 첫 바이트 전에 실패한 요청의 차감을 되돌린다.
+ * upstreamStatus가 null이면 응답 없이 예외(네트워크 등)로 끝난 경우.
+ *
+ * - 기기: 항상 — 우리 쪽 실패로 사용자 하루 한도를 깎지 않는다.
+ * - 전역: 제공자 장애(5xx·예외)일 때만 — 장애가 풀린 뒤 예산이 남아 있게.
+ * - IP: 되돌리지 않는다. 413처럼 매번 실패하는 요청까지 전액 환불하면 IP 한도에
+ *   걸리지 않아, 한 IP가 Upstash·업스트림 호출을 무제한으로 쓴다.
+ */
+export async function refundFailedCall(
+  env: UpstashEnv,
+  charged: ChargedKeys,
+  upstreamStatus: number | null
+): Promise<void> {
+  const providerFault = upstreamStatus === null || upstreamStatus >= 500;
+  await refund(env, providerFault ? [charged.device, charged.global] : [charged.device]);
 }
 
 export async function peek(
