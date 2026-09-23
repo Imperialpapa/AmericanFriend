@@ -504,6 +504,21 @@ class AppLocalizationsKo extends AppLocalizations {
   String get settingsFeedbackEmailFailed => '이메일 앱을 열 수 없어요';
 
   @override
+  String get settingsPrivacyPolicy => '개인정보처리방침';
+
+  @override
+  String get settingsOpenSourceLicenses => '오픈소스 라이선스';
+
+  @override
+  String get privacyPolicyOpenInBrowser => '브라우저에서 열기';
+
+  @override
+  String get privacyPolicyLoadFailed => '처리방침을 불러오지 못했어요.';
+
+  @override
+  String get onboardPrivacyNotice => '대화 내용은 답변을 만들기 위해 AI 제공자에게 전송돼요.';
+
+  @override
   String get levelDesc1 => '1문장, 기초 단어';
 
   @override

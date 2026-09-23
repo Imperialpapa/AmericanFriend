@@ -88,6 +88,7 @@ flutter:
     - assets/images/
     - assets/sounds/
     - assets/lottie/
+    - assets/legal/
 
   # Pretendard Variable: 다운로드 후 아래 주석 해제 (assets/fonts/README.md 참조)
   # fonts:

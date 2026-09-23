@@ -16,6 +16,7 @@ import 'package:eng_friend/features/level/presentation/providers/level_provider.
 import 'package:eng_friend/features/report/presentation/screens/weekly_report_screen.dart';
 import 'package:eng_friend/features/settings/domain/entities/user_settings.dart';
 import 'package:eng_friend/features/settings/presentation/providers/settings_provider.dart';
+import 'package:eng_friend/features/settings/presentation/screens/privacy_policy_screen.dart';
 import 'package:eng_friend/features/streak/presentation/providers/streak_provider.dart';
 import 'package:eng_friend/di/service_providers.dart';
 import 'package:eng_friend/features/vocabulary/presentation/providers/vocabulary_provider.dart';
@@ -1627,6 +1628,24 @@ class _AppGroup extends ConsumerWidget {
           detail: l.settingsSendFeedbackDetail,
           palette: palette,
           onTap: onFeedback,
+        ),
+        _Row(
+          icon: Icons.privacy_tip_outlined,
+          title: l.settingsPrivacyPolicy,
+          palette: palette,
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const PrivacyPolicyScreen()),
+          ),
+        ),
+        _Row(
+          icon: Icons.description_outlined,
+          title: l.settingsOpenSourceLicenses,
+          palette: palette,
+          onTap: () => showLicensePage(
+            context: context,
+            applicationName: AppConstants.appName,
+            applicationVersion: AppConstants.appVersion,
+          ),
         ),
       ],
     );

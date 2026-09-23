@@ -172,6 +172,11 @@
   "reminderChannelName": "매일 알림",
   "reminderChannelDescription": "매일 언어 연습을 알려 드려요",
   "settingsSendFeedback": "피드백 보내기",
+  "settingsPrivacyPolicy": "개인정보처리방침",
+  "settingsOpenSourceLicenses": "오픈소스 라이선스",
+  "privacyPolicyOpenInBrowser": "브라우저에서 열기",
+  "privacyPolicyLoadFailed": "처리방침을 불러오지 못했어요.",
+  "onboardPrivacyNotice": "대화 내용은 답변을 만들기 위해 AI 제공자에게 전송돼요.",
   "settingsSendFeedbackDetail": "이메일",
   "settingsFeedbackEmailFailed": "이메일 앱을 열 수 없어요",
 

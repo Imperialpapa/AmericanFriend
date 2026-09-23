@@ -530,6 +530,22 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsFeedbackEmailFailed => 'Could not open email app';
 
   @override
+  String get settingsPrivacyPolicy => 'Privacy policy';
+
+  @override
+  String get settingsOpenSourceLicenses => 'Open-source licenses';
+
+  @override
+  String get privacyPolicyOpenInBrowser => 'Open in browser';
+
+  @override
+  String get privacyPolicyLoadFailed => 'Couldn\'t load the privacy policy.';
+
+  @override
+  String get onboardPrivacyNotice =>
+      'Your messages are sent to an AI provider to generate replies.';
+
+  @override
   String get levelDesc1 => '1 sentence, basic words';
 
   @override

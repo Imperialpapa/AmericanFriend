@@ -1004,6 +1004,36 @@ abstract class AppLocalizations {
   /// **'Could not open email app'**
   String get settingsFeedbackEmailFailed;
 
+  /// No description provided for @settingsPrivacyPolicy.
+  ///
+  /// In en, this message translates to:
+  /// **'Privacy policy'**
+  String get settingsPrivacyPolicy;
+
+  /// No description provided for @settingsOpenSourceLicenses.
+  ///
+  /// In en, this message translates to:
+  /// **'Open-source licenses'**
+  String get settingsOpenSourceLicenses;
+
+  /// No description provided for @privacyPolicyOpenInBrowser.
+  ///
+  /// In en, this message translates to:
+  /// **'Open in browser'**
+  String get privacyPolicyOpenInBrowser;
+
+  /// No description provided for @privacyPolicyLoadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t load the privacy policy.'**
+  String get privacyPolicyLoadFailed;
+
+  /// No description provided for @onboardPrivacyNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'Your messages are sent to an AI provider to generate replies.'**
+  String get onboardPrivacyNotice;
+
   /// No description provided for @levelDesc1.
   ///
   /// In en, this message translates to:

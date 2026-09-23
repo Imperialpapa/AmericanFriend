@@ -250,6 +250,11 @@
   "settingsSendFeedback": "Send feedback",
   "settingsSendFeedbackDetail": "Email",
   "settingsFeedbackEmailFailed": "Could not open email app",
+  "settingsPrivacyPolicy": "Privacy policy",
+  "settingsOpenSourceLicenses": "Open-source licenses",
+  "privacyPolicyOpenInBrowser": "Open in browser",
+  "privacyPolicyLoadFailed": "Couldn't load the privacy policy.",
+  "onboardPrivacyNotice": "Your messages are sent to an AI provider to generate replies.",
 
   "levelDesc1": "1 sentence, basic words",
   "levelDesc2": "1-2 sentences, everyday words",
