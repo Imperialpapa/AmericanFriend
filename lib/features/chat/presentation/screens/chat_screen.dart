@@ -106,6 +106,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final palette = KFPalette.of(context);
     final chatState = ref.watch(chatProvider);
     final l = AppLocalizations.of(context);
+    final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
+    final handsFreeActive =
+        ref.watch(voiceProvider.select((s) => s.handsFreeActive));
 
     // streak 목표 달성 축하
     ref.listen(streakProvider, (prev, next) {
@@ -229,7 +232,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   onSendText: (text) =>
                       ref.read(chatProvider.notifier).sendMessage(text),
                 ),
-                const BannerAdWidget(),
+                // 키보드가 열리면 배너가 키보드 바로 위·입력창 바로 아래에 붙고, 핸즈프리 중엔
+                // 화면을 안 보고 말하다 오클릭하기 쉽다 — 둘 다 숨긴다(tobe P-06).
+                BannerAdWidget(
+                  visible: !keyboardOpen && !handsFreeActive,
+                  reserveSpace: true,
+                  separated: true,
+                ),
               ],
             ),
           ),

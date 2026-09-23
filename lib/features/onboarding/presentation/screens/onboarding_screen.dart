@@ -11,7 +11,6 @@ import 'package:eng_friend/core/theme/app_spacing.dart';
 import 'package:eng_friend/core/theme/app_typography.dart';
 import 'package:eng_friend/core/widgets/ai_disclosure_note.dart';
 import 'package:eng_friend/core/widgets/alex_avatar.dart';
-import 'package:eng_friend/core/widgets/banner_ad_widget.dart';
 import 'package:eng_friend/di/service_providers.dart';
 import 'package:eng_friend/features/level/presentation/providers/level_provider.dart';
 import 'package:eng_friend/features/settings/presentation/providers/settings_provider.dart';
@@ -83,8 +82,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                 child: _pageContent(palette),
               ),
             ),
+            // 배너 없음: AdMob은 '다음' 버튼 근처 배치를 권하지 않는다(tobe P-06).
             _ctaSection(palette),
-            const BannerAdWidget(),
           ],
         ),
       ),
