@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 import 'package:eng_friend/features/settings/domain/entities/user_settings.dart';
 import 'package:eng_friend/services/ai/ai_provider_type.dart';
+import 'package:eng_friend/services/ai/model_migrations.dart';
 import 'package:eng_friend/services/language/app_language.dart';
 import 'package:eng_friend/di/service_providers.dart';
 
@@ -177,6 +178,15 @@ class SettingsNotifier extends StateNotifier<UserSettings> {
       freeTierDeviceId: freeTierDeviceId,
       handsFreeEnabled: handsFreeEnabled,
     );
+
+    // 은퇴한 모델 ID 교정. 상태 엔드포인트가 죽어 있어도 내장 매핑은 여기서 적용된다
+    // (서버 매핑은 main.dart의 _syncRemoteStatus가 나중에 다시 적용).
+    // 교정 실패로 앱 시작이 막히면 본말전도라 삼킨다.
+    try {
+      await applyModelMigrations();
+    } catch (e) {
+      debugPrint('[Settings] local model migration skipped: $e');
+    }
   }
 
   Future<void> setHandsFreeEnabled(bool value) async {
@@ -275,26 +285,32 @@ class SettingsNotifier extends StateNotifier<UserSettings> {
     }
   }
 
-  /// 서버가 내려준 「죽은 model ID → 살아있는 ID」 매핑을 저장된 설정에 적용한다.
+  /// 「죽은 model ID → 살아있는 ID」 매핑을 저장된 설정에 적용한다.
+  /// [server]가 비어 있어도 앱 내장 매핑(localModelMigrations)은 항상 적용된다.
   ///
   /// BUG_HISTORY #9 대응: 제공자가 모델을 셧다운하면 그 모델을 고른 사용자는
   /// 앱을 다시 받기 전까지 대화가 안 된다. 이 경로가 있으면 Vercel 환경변수
   /// 하나만 바꿔서 이미 설치된 앱들을 앱 릴리스 없이 복구할 수 있다.
-  Future<void> applyModelMigrations(Map<String, String> migrations) async {
-    if (migrations.isEmpty) return;
-
+  /// 판정 규칙은 modelMigrationTarget 참고(기본값 사용자 포함, 카탈로그에 있는 대상만 저장).
+  Future<void> applyModelMigrations([
+    Map<String, String> server = const {},
+  ]) async {
     for (final entry in <(AiProviderType, String?)>[
       (AiProviderType.claude, state.claudeModelId),
       (AiProviderType.openai, state.openaiModelId),
       (AiProviderType.gemini, state.geminiModelId),
       (AiProviderType.groq, state.groqModelId),
     ]) {
-      final (provider, current) = entry;
-      if (current == null) continue;
-      final replacement = migrations[current];
-      if (replacement == null || replacement == current) continue;
-      debugPrint('[Settings] model migration: $current -> $replacement');
-      await setModelId(provider, replacement);
+      final (provider, stored) = entry;
+      final target = modelMigrationTarget(
+        provider: provider,
+        stored: stored,
+        server: server,
+      );
+      if (target == null) continue;
+      debugPrint('[Settings] model migration (${provider.name}): '
+          '${stored ?? 'default'} -> $target');
+      await setModelId(provider, target);
     }
   }
 
