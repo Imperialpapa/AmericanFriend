@@ -454,6 +454,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsReminderTime => 'Reminder time';
 
   @override
+  String get settingsReminderPermissionDenied =>
+      'Notifications are blocked for this app. Allow them in Settings to get reminders.';
+
+  @override
+  String get settingsReminderFailed =>
+      'Couldn\'t set the reminder. Please try again.';
+
+  @override
   String get settingsSendFeedback => 'Send feedback';
 
   @override

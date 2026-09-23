@@ -433,6 +433,13 @@ class AppLocalizationsKo extends AppLocalizations {
   String get settingsReminderTime => '알림 시간';
 
   @override
+  String get settingsReminderPermissionDenied =>
+      '이 앱의 알림이 꺼져 있어요. 설정에서 알림을 허용하면 리마인더를 받을 수 있어요.';
+
+  @override
+  String get settingsReminderFailed => '리마인더를 설정하지 못했어요. 다시 시도해 주세요.';
+
+  @override
   String get settingsSendFeedback => '피드백 보내기';
 
   @override

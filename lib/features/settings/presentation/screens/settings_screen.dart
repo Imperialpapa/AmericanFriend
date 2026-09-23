@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:permission_handler/permission_handler.dart' show openAppSettings;
 import 'package:eng_friend/core/constants/app_constants.dart';
 import 'package:eng_friend/core/constants/level_constants.dart';
 import 'package:eng_friend/core/theme/app_colors.dart';
@@ -1565,15 +1566,26 @@ class _AppGroup extends ConsumerWidget {
               : l.settingsDailyReminderOff,
           value: settings.reminderEnabled,
           onChanged: (v) async {
-            await notifier.setReminderEnabled(v);
-            if (v) {
-              await NotificationService.initialize();
+            if (!v) {
+              await notifier.setReminderEnabled(false);
+              await NotificationService.cancelAll();
+              return;
+            }
+            // 권한과 예약이 모두 성공한 뒤에만 ON으로 저장한다 — 실패하면 토글이 OFF로 남는다.
+            final granted = await NotificationService.requestPermission();
+            if (!granted) {
+              if (context.mounted) _showReminderPermissionDenied(context);
+              return;
+            }
+            try {
               await NotificationService.scheduleDailyReminder(
                 hour: settings.reminderHour,
                 minute: settings.reminderMinute,
               );
-            } else {
-              await NotificationService.cancelAll();
+              await notifier.setReminderEnabled(true);
+            } catch (e) {
+              debugPrint('[Settings] reminder schedule failed: $e');
+              if (context.mounted) _showReminderFailed(context);
             }
           },
           palette: palette,
@@ -1594,10 +1606,15 @@ class _AppGroup extends ConsumerWidget {
               );
               if (picked != null) {
                 await notifier.setReminderTime(picked.hour, picked.minute);
-                await NotificationService.scheduleDailyReminder(
-                  hour: picked.hour,
-                  minute: picked.minute,
-                );
+                try {
+                  await NotificationService.scheduleDailyReminder(
+                    hour: picked.hour,
+                    minute: picked.minute,
+                  );
+                } catch (e) {
+                  debugPrint('[Settings] reminder reschedule failed: $e');
+                  if (context.mounted) _showReminderFailed(context);
+                }
               }
             },
           ),
@@ -1610,6 +1627,28 @@ class _AppGroup extends ConsumerWidget {
           onTap: onFeedback,
         ),
       ],
+    );
+  }
+
+  // 거부된 알림 권한은 앱 안에서 다시 켤 수 없다(다시 묻지 않음) — OS 설정으로 보낸다.
+  void _showReminderPermissionDenied(BuildContext context) {
+    final l = AppLocalizations.of(context);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(l.settingsReminderPermissionDenied),
+        duration: const Duration(seconds: 6),
+        action: SnackBarAction(
+          label: l.commonSettings,
+          onPressed: openAppSettings,
+        ),
+      ),
+    );
+  }
+
+  void _showReminderFailed(BuildContext context) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+          content: Text(AppLocalizations.of(context).settingsReminderFailed)),
     );
   }
 }

@@ -57,25 +57,30 @@ class _AppLoaderState extends ConsumerState<_AppLoader> {
           .timeout(const Duration(seconds: 5));
       debugPrint('[AppLoader] settings loaded');
 
-      final settings = ref.read(settingsProvider);
-      if (settings.reminderEnabled) {
-        debugPrint('[AppLoader] initializing notifications');
-        await NotificationService.initialize()
-            .timeout(const Duration(seconds: 5));
-        await NotificationService.scheduleDailyReminder(
-          hour: settings.reminderHour,
-          minute: settings.reminderMinute,
-        ).timeout(const Duration(seconds: 5));
-        debugPrint('[AppLoader] notifications ready');
-      }
-
       if (mounted) setState(() => _loaded = true);
 
-      // 서버 공지 + 죽은 모델 ID 교정을 반영. 앱 시작을 막지 않도록 await하지 않는다.
+      // 리마인더 재예약과 서버 공지 동기화는 앱 시작을 막지 않도록 await하지 않는다.
+      unawaited(_restoreReminder());
       unawaited(_syncRemoteStatus());
     } catch (e, st) {
       debugPrint('[AppLoader] FAILED: $e\n$st');
       if (mounted) setState(() => _error = '$e');
+    }
+  }
+
+  /// 알림 예외가 설정 로드와 같은 try에 있으면 시작 오류 화면으로 번진다(tobe.md L-01).
+  /// 리마인더는 부가 기능이라 실패해도 로그만 남긴다.
+  Future<void> _restoreReminder() async {
+    final settings = ref.read(settingsProvider);
+    if (!settings.reminderEnabled) return;
+    try {
+      await NotificationService.scheduleDailyReminder(
+        hour: settings.reminderHour,
+        minute: settings.reminderMinute,
+      ).timeout(const Duration(seconds: 5));
+      debugPrint('[AppLoader] reminder scheduled');
+    } catch (e) {
+      debugPrint('[AppLoader] reminder schedule skipped: $e');
     }
   }
 

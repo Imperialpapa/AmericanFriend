@@ -221,6 +221,8 @@
   },
   "settingsDailyReminderOff": "Get nudged to practice",
   "settingsReminderTime": "Reminder time",
+  "settingsReminderPermissionDenied": "Notifications are blocked for this app. Allow them in Settings to get reminders.",
+  "settingsReminderFailed": "Couldn't set the reminder. Please try again.",
   "settingsSendFeedback": "Send feedback",
   "settingsSendFeedbackDetail": "Email",
   "settingsFeedbackEmailFailed": "Could not open email app",

@@ -872,6 +872,18 @@ abstract class AppLocalizations {
   /// **'Reminder time'**
   String get settingsReminderTime;
 
+  /// No description provided for @settingsReminderPermissionDenied.
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications are blocked for this app. Allow them in Settings to get reminders.'**
+  String get settingsReminderPermissionDenied;
+
+  /// No description provided for @settingsReminderFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t set the reminder. Please try again.'**
+  String get settingsReminderFailed;
+
   /// No description provided for @settingsSendFeedback.
   ///
   /// In en, this message translates to:
