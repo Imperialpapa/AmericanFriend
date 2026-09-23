@@ -31,8 +31,13 @@ function utcDate(): string {
   return `${yyyy}-${mm}-${dd}`;
 }
 
+/** 날짜가 붙은 일일 카운터 키. incrementDaily()와 함께 쓴다. */
+export function dailyKey(prefix: string, id: string): string {
+  return `${prefix}:${id}:${utcDate()}`;
+}
+
 function todayKey(deviceId: string): string {
-  return `rl:${deviceId}:${utcDate()}`;
+  return dailyKey('rl', deviceId);
 }
 
 function globalKey(): string {
@@ -40,7 +45,7 @@ function globalKey(): string {
 }
 
 function ipKey(ipId: string): string {
-  return `rli:${ipId}:${utcDate()}`;
+  return dailyKey('rli', ipId);
 }
 
 function nextMidnightUtc(): string {

@@ -25,6 +25,7 @@ Upstream LLM
 - `GET  /api/healthz` — health check
 - `GET  /api/v1/quota` — 현재 기기 사용량 조회 (`x-device-id` 헤더 필요)
 - `POST /api/v1/chat/completions` — 채팅 (OpenAI 호환)
+- `POST /api/v1/report` — AI 응답 신고. Upstash 리스트 `reports`(최근 2000건)에 저장, 확인은 Upstash 콘솔 CLI `LRANGE reports 0 49`
 
 ## 최초 1회 배포
 
@@ -71,6 +72,7 @@ Vercel 프로젝트 → **Settings → Environment Variables**에서 추가:
 | `FREE_GLOBAL_DAILY_LIMIT` | `2000` | 전체 일 한도(비용 상한). 초과 시 503 `free_tier_busy`. `0` = 무료 티어 차단 |
 | `MONITOR_DEVICE_ID` | 32자 이상 랜덤 | 모니터 전용 device-id(기기·IP·전역 한도 면제). GitHub secret `MONITOR_DEVICE_ID`와 같은 값. 32자 미만이면 무시 |
 | `MONITOR_TOKEN` | 32자 이상 랜덤 | `/api/v1/status?probe=1`의 `x-monitor-token` 헤더 값. 없으면 probe는 401 |
+| `REPORT_DAILY_LIMIT` | `20` | 기기당 일 신고 한도(채팅 한도와 별개) |
 
 Production / Preview / Development 모두 체크.
 
