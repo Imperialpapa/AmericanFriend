@@ -48,6 +48,11 @@ class LevelNotifier extends StateNotifier<LevelState> {
   final AppLanguage Function() _getTargetLanguage;
   final Future<void> Function(int level, String reasoning) _recordLevelChange;
   int _messagesSinceAssessment = 0;
+  // 메모리에만 둔다 — 재시작 후엔 짧은 간격부터 다시 시작해도 손해가 작다.
+  int _consecutiveFailures = 0;
+
+  /// 실패 1회마다 다음 재평가까지 늘어나는 메시지 수.
+  static const _retryStep = 2;
 
   LevelNotifier(
     this._aiService,
@@ -106,11 +111,11 @@ class LevelNotifier extends StateNotifier<LevelState> {
         targetLanguage: _getTargetLanguage(),
       );
 
-      // 실패는 레벨도 평가 카운터도 건드리지 않는다 — 다음 메시지에서 다시 평가한다.
-      // 예전엔 실패가 suggestedLevel 5로 위장돼 초급자가 끌려 올라갔다(tobe A-06).
+      // 실패는 레벨을 건드리지 않는다. 예전엔 실패가 suggestedLevel 5로 위장돼
+      // 초급자가 끌려 올라갔다(tobe A-06).
       if (assessment.isFailure) {
         debugPrint('[Level] assessment failed: ${assessment.reasoning}');
-        state = state.copyWith(isAssessing: false);
+        await _backOffAfterFailure();
         return;
       }
 
@@ -122,6 +127,7 @@ class LevelNotifier extends StateNotifier<LevelState> {
           .clamp(LevelConstants.minLevel, LevelConstants.maxLevel);
       final changed = newLevel != state.currentLevel;
 
+      _consecutiveFailures = 0;
       _messagesSinceAssessment = 0;
       await _prefs.setInt(_levelKey, newLevel);
       await _prefs.setInt(_messageCountKey, 0);
@@ -138,6 +144,19 @@ class LevelNotifier extends StateNotifier<LevelState> {
     } catch (_) {
       state = state.copyWith(isAssessing: false);
     }
+  }
+
+  /// 카운터를 그대로 두면 이후 사용자 메시지마다 재평가가 나간다(분석 T14의
+  /// '재시도 폭주'). BYOK는 호출마다 과금, 무료 티어는 하루 20회에서 1회씩 깎인다.
+  /// 일시 장애는 곧 다시 보도록 2 → 4메시지 뒤로 미루고, 계속 실패하면 정상 주기
+  /// (messagesPerAssessment)보다 자주 부르지 않는다.
+  Future<void> _backOffAfterFailure() async {
+    _consecutiveFailures++;
+    final wait = (_retryStep * _consecutiveFailures)
+        .clamp(1, LevelConstants.messagesPerAssessment);
+    _messagesSinceAssessment = LevelConstants.messagesPerAssessment - wait;
+    state = state.copyWith(isAssessing: false);
+    await _prefs.setInt(_messageCountKey, _messagesSinceAssessment);
   }
 
   /// 수동 레벨 설정 (온보딩용)
