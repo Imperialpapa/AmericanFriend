@@ -47,6 +47,12 @@ class FreeTierUnavailableFailure extends Failure {
   });
 }
 
+/// AI가 보여줄 답변을 내지 않았다(빈 스트림, 안전 차단).
+/// 빈 문자열을 정상 응답으로 히스토리에 넣으면 이후 Claude 요청이 매번 400이 된다.
+class EmptyResponseFailure extends Failure {
+  const EmptyResponseFailure(super.message);
+}
+
 class GeneralFailure extends Failure {
   const GeneralFailure(super.message);
 }

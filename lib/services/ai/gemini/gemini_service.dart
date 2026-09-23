@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart' show debugPrint, visibleForTesting;
 import 'package:eng_friend/features/chat/domain/entities/message.dart';
 import 'package:eng_friend/features/chat/domain/entities/suggestion.dart';
 import 'package:eng_friend/features/level/domain/entities/level_assessment.dart';
@@ -56,6 +57,60 @@ class GeminiService implements AiService {
     throw Exception('Gemini: max retries exceeded');
   }
 
+  static const _blockedFinishReasons = {
+    'SAFETY',
+    'PROHIBITED_CONTENT',
+    'BLOCKLIST',
+    'SPII',
+  };
+
+  /// SSE data 한 줄에서 텍스트를 꺼낸다. 없으면 null.
+  /// 안전 차단(finishReason SAFETY 등, promptFeedback.blockReason)은 던진다 —
+  /// 조용히 끝나면 빈 답변이 정상 완료로 저장된다(A-05). 이미 텍스트를
+  /// 보냈다면([hasText]) 그 답변을 살리려고 로그만 남긴다.
+  @visibleForTesting
+  static String? textFromSseData(String data, {bool hasText = false}) {
+    final Object? json;
+    try {
+      json = jsonDecode(data);
+    } catch (_) {
+      return null;
+    }
+    if (json is! Map) return null;
+
+    String? text;
+    String? blocked;
+    final candidates = json['candidates'];
+    final first =
+        candidates is List && candidates.isNotEmpty ? candidates.first : null;
+    if (first is Map) {
+      final content = first['content'];
+      final parts = content is Map ? content['parts'] : null;
+      if (parts is List && parts.isNotEmpty) {
+        final part = parts.first;
+        final t = part is Map ? part['text'] : null;
+        if (t is String) text = t;
+      }
+      final finish = first['finishReason'];
+      if (finish is String && _blockedFinishReasons.contains(finish)) {
+        blocked = finish;
+      } else if (finish == 'MAX_TOKENS') {
+        debugPrint('[Gemini] response truncated (MAX_TOKENS)');
+      }
+    }
+    final feedback = json['promptFeedback'];
+    final blockReason = feedback is Map ? feedback['blockReason'] : null;
+    if (blockReason != null) blocked ??= '$blockReason';
+
+    if (blocked != null) {
+      if (!hasText && (text == null || text.isEmpty)) {
+        throw AiResponseBlockedException(blocked);
+      }
+      debugPrint('[Gemini] response cut by $blocked');
+    }
+    return text;
+  }
+
   String _handleError(DioException e) {
     final statusCode = e.response?.statusCode;
     final body = e.response?.data;
@@ -81,7 +136,7 @@ class GeminiService implements AiService {
     final contents = <Map<String, dynamic>>[];
 
     // Gemini는 system instruction을 별도로 처리
-    for (final m in history) {
+    for (final m in nonEmptyHistory(history)) {
       contents.add({
         'role': m.role == MessageRole.user ? 'user' : 'model',
         'parts': [
@@ -154,6 +209,7 @@ class GeminiService implements AiService {
     final stream =
         (response.data.stream as Stream<List<int>>).transform(utf8.decoder);
     String buffer = '';
+    var hasText = false;
 
     await for (final chunk in stream) {
       buffer += chunk;
@@ -165,15 +221,10 @@ class GeminiService implements AiService {
         final data = line.substring(6).trim();
         if (data.isEmpty) continue;
 
-        try {
-          final json = jsonDecode(data) as Map<String, dynamic>;
-          final candidates = json['candidates'] as List?;
-          if (candidates == null || candidates.isEmpty) continue;
-          final parts = candidates.first['content']?['parts'] as List?;
-          if (parts == null || parts.isEmpty) continue;
-          final text = parts.first['text'] as String?;
-          if (text != null) yield text;
-        } catch (_) {}
+        final text = textFromSseData(data, hasText: hasText);
+        if (text == null) continue;
+        if (text.isNotEmpty) hasText = true;
+        yield text;
       }
     }
   }

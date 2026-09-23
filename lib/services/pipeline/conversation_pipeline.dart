@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:eng_friend/features/chat/domain/entities/message.dart';
-import 'package:eng_friend/services/ai/ai_service.dart';
+import 'package:eng_friend/services/ai/ai_service.dart'
+    show AiService, AiResponseBlockedException;
 import 'package:eng_friend/services/ai/free_tier/free_tier_ai_service.dart'
     show FreeTierRateLimitException, FreeTierUnavailableException;
 import 'package:eng_friend/services/pipeline/pipeline_event.dart';
@@ -63,7 +64,14 @@ class ConversationPipeline {
         }
       }
 
-      yield AiResponseComplete(fullResponse.toString().trim());
+      // 빈 답변을 정상 완료로 올리면 빈 assistant 메시지가 히스토리에 남아
+      // 이후 Claude 요청이 매 턴 400이 된다(A-05). 오류로 올리고 저장하지 않는다.
+      final text = fullResponse.toString().trim();
+      if (text.isEmpty) {
+        yield PipelineError(const EmptyResponseFailure('Empty AI response'));
+      } else {
+        yield AiResponseComplete(text);
+      }
       turnCompleted = true;
     } catch (e) {
       yield PipelineError(_toFailure(e));
@@ -94,6 +102,9 @@ class ConversationPipeline {
         used: e.used,
         resetAt: e.resetAt,
       );
+    }
+    if (e is AiResponseBlockedException) {
+      return EmptyResponseFailure(e.toString());
     }
     if (e is FreeTierUnavailableException) {
       return FreeTierUnavailableFailure(

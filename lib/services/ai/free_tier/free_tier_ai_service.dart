@@ -117,7 +117,7 @@ class FreeTierAiService implements AiService {
       final response = await _dio.post('/api/v1/chat/completions', data: {
         'messages': [
           {'role': 'system', 'content': systemPrompt},
-          ...conversationHistory.map((m) => {
+          ...nonEmptyHistory(conversationHistory).map((m) => {
                 'role': m.role == MessageRole.user ? 'user' : 'assistant',
                 'content': m.content,
               }),
@@ -144,7 +144,7 @@ class FreeTierAiService implements AiService {
           'stream': true,
           'messages': [
             {'role': 'system', 'content': systemPrompt},
-            ...conversationHistory.map((m) => {
+            ...nonEmptyHistory(conversationHistory).map((m) => {
                   'role': m.role == MessageRole.user ? 'user' : 'assistant',
                   'content': m.content,
                 }),
@@ -251,7 +251,7 @@ class FreeTierAiService implements AiService {
     int count = 2,
     String? lastAiMessage,
   }) async {
-    final messages = conversationHistory
+    final messages = nonEmptyHistory(conversationHistory)
         .map((m) => {
               'role': m.role == MessageRole.user ? 'user' : 'assistant',
               'content': m.content,

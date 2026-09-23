@@ -15,7 +15,7 @@ import 'package:eng_friend/features/topic/presentation/providers/topic_provider.
 
 /// 에러의 종류. 문자열 메시지만으로는 쿼터 소진과 네트워크 오류를 구분할 수 없어서,
 /// 핸즈프리 같은 자동 재시도 루프가 어떤 실패인지 알 방법이 없었다.
-enum ChatErrorKind { quota, noKey, network, freeTierDown, unknown }
+enum ChatErrorKind { quota, noKey, network, freeTierDown, emptyResponse, unknown }
 
 /// 채팅 상태
 /// userLevel은 levelProvider에서 직접 읽음 (별도 보관하지 않음).
@@ -255,6 +255,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
             FreeTierUnavailableFailure(isNetwork: true) => ChatErrorKind.network,
             FreeTierUnavailableFailure() => ChatErrorKind.freeTierDown,
             NetworkFailure() => ChatErrorKind.network,
+            EmptyResponseFailure() => ChatErrorKind.emptyResponse,
             _ => ChatErrorKind.unknown,
           },
         );

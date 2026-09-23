@@ -755,6 +755,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'Something went wrong. Please try again in a moment.';
 
   @override
+  String get chatErrorEmptyResponse =>
+      'The AI didn\'t send a reply. Try sending it again, or say it a different way.';
+
+  @override
   String get handsFreeStoppedError =>
       'Hands-free turned off because the AI couldn\'t respond.';
 }

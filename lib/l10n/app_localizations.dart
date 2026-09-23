@@ -1424,6 +1424,12 @@ abstract class AppLocalizations {
   /// **'Something went wrong. Please try again in a moment.'**
   String get chatErrorUnknown;
 
+  /// No description provided for @chatErrorEmptyResponse.
+  ///
+  /// In en, this message translates to:
+  /// **'The AI didn\'t send a reply. Try sending it again, or say it a different way.'**
+  String get chatErrorEmptyResponse;
+
   /// No description provided for @handsFreeStoppedError.
   ///
   /// In en, this message translates to:

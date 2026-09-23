@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart' show visibleForTesting;
+import 'package:flutter/foundation.dart' show debugPrint, visibleForTesting;
 import 'package:eng_friend/features/chat/domain/entities/message.dart';
 import 'package:eng_friend/features/chat/domain/entities/suggestion.dart';
 import 'package:eng_friend/features/level/domain/entities/level_assessment.dart';
@@ -47,6 +47,41 @@ class ClaudeService implements AiService {
     return texts.join();
   }
 
+  /// SSE data 한 줄에서 사용자에게 보일 텍스트를 꺼낸다. 없으면 null.
+  /// error 이벤트(overloaded_error 등)는 던진다 — 예전엔 삼켜서 빈 답변이
+  /// 정상 완료로 저장됐고, 그 빈 메시지 때문에 이후 모든 요청이 400이 났다(A-05).
+  @visibleForTesting
+  static String? textFromSseData(String data) {
+    final Object? json;
+    try {
+      json = jsonDecode(data);
+    } catch (_) {
+      return null;
+    }
+    if (json is! Map) return null;
+    switch (json['type']) {
+      // thinking_delta·signature_delta는 사용자에게 보일 텍스트가 아니다.
+      case 'content_block_delta':
+        final delta = json['delta'];
+        if (delta is Map && delta['type'] == 'text_delta') {
+          final text = delta['text'];
+          if (text is String) return text;
+        }
+      case 'error':
+        final err = json['error'];
+        final type = err is Map ? err['type'] : null;
+        final message = err is Map ? err['message'] : null;
+        throw Exception('Claude stream error: ${type ?? 'unknown'} ${message ?? ''}'
+            .trim());
+      case 'message_delta':
+        final delta = json['delta'];
+        if (delta is Map && delta['stop_reason'] == 'max_tokens') {
+          debugPrint('[Claude] response truncated (max_tokens)');
+        }
+    }
+    return null;
+  }
+
   String _handleError(DioException e) {
     final statusCode = e.response?.statusCode;
     final body = e.response?.data;
@@ -74,7 +109,7 @@ class ClaudeService implements AiService {
         'model': model,
         'max_tokens': 1024,
         'system': systemPrompt,
-        'messages': conversationHistory
+        'messages': nonEmptyHistory(conversationHistory)
             .map((m) => {
                   'role': m.role == MessageRole.user ? 'user' : 'assistant',
                   'content': m.content,
@@ -103,7 +138,7 @@ class ClaudeService implements AiService {
           'max_tokens': 1024,
           'stream': true,
           'system': systemPrompt,
-          'messages': conversationHistory
+          'messages': nonEmptyHistory(conversationHistory)
               .map((m) => {
                     'role': m.role == MessageRole.user ? 'user' : 'assistant',
                     'content': m.content,
@@ -132,16 +167,8 @@ class ClaudeService implements AiService {
         final data = line.substring(6);
         if (data == '[DONE]') return;
 
-        try {
-          final json = jsonDecode(data) as Map<String, dynamic>;
-          // thinking_delta·signature_delta는 사용자에게 보일 텍스트가 아니다.
-          if (json['type'] == 'content_block_delta') {
-            final delta = json['delta'] as Map<String, dynamic>;
-            if (delta['type'] != 'text_delta') continue;
-            final text = delta['text'] as String?;
-            if (text != null) yield text;
-          }
-        } catch (_) {}
+        final text = textFromSseData(data);
+        if (text != null) yield text;
       }
     }
   }
@@ -214,7 +241,7 @@ class ClaudeService implements AiService {
     int count = 2,
     String? lastAiMessage,
   }) async {
-    final messages = conversationHistory
+    final messages = nonEmptyHistory(conversationHistory)
         .map((m) => {
               'role': m.role == MessageRole.user ? 'user' : 'assistant',
               'content': m.content,

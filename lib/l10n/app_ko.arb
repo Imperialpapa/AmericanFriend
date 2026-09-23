@@ -251,5 +251,6 @@
   "chatErrorNetwork": "서버에 연결할 수 없어요. 인터넷 연결을 확인해 주세요.",
   "chatErrorNoKey": "API 키가 필요해요. 설정에서 등록하거나 무료 티어로 바꿔 주세요.",
   "chatErrorUnknown": "문제가 생겼어요. 잠시 후 다시 시도해 주세요.",
+  "chatErrorEmptyResponse": "AI가 답변을 보내지 않았어요. 다시 보내거나 다르게 말해 보세요.",
   "handsFreeStoppedError": "AI가 응답하지 못해 핸즈프리를 껐어요."
 }

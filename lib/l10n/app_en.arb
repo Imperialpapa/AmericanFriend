@@ -327,5 +327,6 @@
   "chatErrorNetwork": "Can't reach the server. Please check your internet connection.",
   "chatErrorNoKey": "An API key is needed. Add one in Settings, or switch to the free tier.",
   "chatErrorUnknown": "Something went wrong. Please try again in a moment.",
+  "chatErrorEmptyResponse": "The AI didn't send a reply. Try sending it again, or say it a different way.",
   "handsFreeStoppedError": "Hands-free turned off because the AI couldn't respond."
 }

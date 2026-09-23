@@ -61,7 +61,7 @@ class GroqService implements AiService {
           ..._reasoningParams,
           'messages': [
             {'role': 'system', 'content': systemPrompt},
-            ...conversationHistory.map(
+            ...nonEmptyHistory(conversationHistory).map(
               (m) => {
                 'role': m.role == MessageRole.user ? 'user' : 'assistant',
                 'content': m.content,
@@ -94,7 +94,7 @@ class GroqService implements AiService {
           'stream': true,
           'messages': [
             {'role': 'system', 'content': systemPrompt},
-            ...conversationHistory.map(
+            ...nonEmptyHistory(conversationHistory).map(
               (m) => {
                 'role': m.role == MessageRole.user ? 'user' : 'assistant',
                 'content': m.content,
@@ -220,7 +220,7 @@ class GroqService implements AiService {
     int count = 2,
     String? lastAiMessage,
   }) async {
-    final messages = conversationHistory
+    final messages = nonEmptyHistory(conversationHistory)
         .map(
           (m) => {
             'role': m.role == MessageRole.user ? 'user' : 'assistant',

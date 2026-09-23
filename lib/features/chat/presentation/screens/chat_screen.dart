@@ -253,6 +253,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       ChatErrorKind.quota => l.chatErrorQuota,
       ChatErrorKind.network => l.chatErrorNetwork,
       ChatErrorKind.noKey => l.chatErrorNoKey,
+      ChatErrorKind.emptyResponse => l.chatErrorEmptyResponse,
       _ => l.chatErrorUnknown,
     };
     return Container(

@@ -70,6 +70,8 @@ function openAiToGemini(messages: Array<{ role: string; content: string }>): any
   const contents: any[] = [];
   let systemInstruction: any = undefined;
   for (const msg of messages) {
+    // 빈 text part는 거부될 수 있고 대화에 의미도 없다(tobe A-05).
+    if (typeof msg.content !== 'string' || msg.content.trim() === '') continue;
     if (msg.role === 'system') {
       const text = msg.content;
       if (systemInstruction) systemInstruction.parts[0].text += '\n\n' + text;
