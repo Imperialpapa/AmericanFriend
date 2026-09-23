@@ -670,9 +670,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get pronScoreNeedsWork => 'Needs work';
 
   @override
-  String pronError(String message) {
-    return 'Error: $message';
-  }
+  String get pronEvalFailed =>
+      'Couldn\'t check your pronunciation. Please try again.';
+
+  @override
+  String get pronRetryEvaluation => 'Retry';
 
   @override
   String get handsFreeLabel => 'Hands-free';

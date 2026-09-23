@@ -2,9 +2,11 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart' show debugPrint, visibleForTesting;
 import 'package:eng_friend/features/chat/domain/entities/message.dart';
+import 'package:eng_friend/features/chat/domain/entities/pronunciation_result.dart';
 import 'package:eng_friend/features/chat/domain/entities/suggestion.dart';
 import 'package:eng_friend/features/level/domain/entities/level_assessment.dart';
 import 'package:eng_friend/services/ai/ai_provider_type.dart';
+import 'package:eng_friend/services/ai/ai_json.dart';
 import 'package:eng_friend/services/ai/ai_service.dart';
 import 'package:eng_friend/services/ai/prompts/level_prompts.dart';
 import 'package:eng_friend/services/ai/prompts/suggestion_prompt.dart';
@@ -184,35 +186,24 @@ class ClaudeService implements AiService {
         .map((m) => m.content)
         .join('\n');
 
-    final response = await _dio.post('/messages', data: _body({
-      'model': model,
-      'max_tokens': 256,
-      'system': LevelPrompt.build(nativeLanguage: nativeLanguage, targetLanguage: targetLanguage),
-      'messages': [
-        {'role': 'user', 'content': userMessages},
-      ],
-    }));
-
-    final text = textOf(response.data);
-
+    // post도 try 안에 — 밖에 있으면 네트워크 오류가 호출자로 던져진다.
     try {
-      final json = jsonDecode(text) as Map<String, dynamic>;
-      return LevelAssessment(
-        currentLevel: 0,
-        suggestedLevel: json['suggestedLevel'] as int,
-        reasoning: json['reasoning'] as String? ?? '',
-      );
+      final response = await _dio.post('/messages', data: _body({
+        'model': model,
+        'max_tokens': 256,
+        'system': LevelPrompt.build(nativeLanguage: nativeLanguage, targetLanguage: targetLanguage),
+        'messages': [
+          {'role': 'user', 'content': userMessages},
+        ],
+      }));
+      return parseLevelAssessment(textOf(response.data));
     } catch (_) {
-      return const LevelAssessment(
-        currentLevel: 0,
-        suggestedLevel: 5,
-        reasoning: 'Failed to parse assessment',
-      );
+      return const LevelAssessment.failed();
     }
   }
 
   @override
-  Future<Map<String, dynamic>> evaluatePronunciation({
+  Future<PronunciationResult> evaluatePronunciation({
     required String prompt,
   }) async {
     try {
@@ -223,12 +214,9 @@ class ClaudeService implements AiService {
           {'role': 'user', 'content': prompt},
         ],
       }));
-
-      var text = textOf(response.data);
-      text = text.replaceAll(RegExp(r'```json\s*'), '').replaceAll(RegExp(r'```\s*'), '').trim();
-      return jsonDecode(text) as Map<String, dynamic>;
-    } catch (e) {
-      return {'score': 0, 'feedback': [], 'overall': 'Evaluation failed: $e'};
+      return PronunciationResult.fromJson(extractJson(textOf(response.data)));
+    } on DioException catch (e) {
+      throw Exception(_handleError(e));
     }
   }
 
@@ -253,22 +241,13 @@ class ClaudeService implements AiService {
       'content': SuggestionPrompt.build(userLevel: userLevel, nativeLanguage: nativeLanguage, targetLanguage: targetLanguage, count: count, lastAiMessage: lastAiMessage),
     });
 
-    final response = await _dio.post('/messages', data: _body({
-      'model': model,
-      'max_tokens': 512,
-      'messages': messages,
-    }));
-
-    final text = textOf(response.data);
-
     try {
-      final jsonList = jsonDecode(text) as List;
-      return jsonList
-          .map((item) => Suggestion(
-                text: item['text'] as String,
-                koreanHint: item['koreanHint'] as String?,
-              ))
-          .toList();
+      final response = await _dio.post('/messages', data: _body({
+        'model': model,
+        'max_tokens': 512,
+        'messages': messages,
+      }));
+      return parseSuggestions(textOf(response.data));
     } catch (_) {
       return [];
     }

@@ -1,8 +1,10 @@
 import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:eng_friend/features/chat/domain/entities/message.dart';
+import 'package:eng_friend/features/chat/domain/entities/pronunciation_result.dart';
 import 'package:eng_friend/features/chat/domain/entities/suggestion.dart';
 import 'package:eng_friend/features/level/domain/entities/level_assessment.dart';
+import 'package:eng_friend/services/ai/ai_json.dart';
 import 'package:eng_friend/services/ai/ai_service.dart';
 import 'package:eng_friend/services/ai/prompts/level_prompts.dart';
 import 'package:eng_friend/services/ai/prompts/suggestion_prompt.dart';
@@ -131,35 +133,24 @@ class OpenAiService implements AiService {
         .map((m) => m.content)
         .join('\n');
 
-    final response = await _dio.post('/chat/completions', data: {
-      'model': model,
-      'messages': [
-        {'role': 'system', 'content': LevelPrompt.build(nativeLanguage: nativeLanguage, targetLanguage: targetLanguage)},
-        {'role': 'user', 'content': userMessages},
-      ],
-    });
-
-    final choices = response.data['choices'] as List;
-    final text = choices.first['message']['content'] as String;
-
+    // post도 try 안에 — 밖에 있으면 네트워크 오류가 호출자로 던져진다.
     try {
-      final json = jsonDecode(text) as Map<String, dynamic>;
-      return LevelAssessment(
-        currentLevel: 0,
-        suggestedLevel: json['suggestedLevel'] as int,
-        reasoning: json['reasoning'] as String? ?? '',
-      );
+      final response = await _dio.post('/chat/completions', data: {
+        'model': model,
+        'messages': [
+          {'role': 'system', 'content': LevelPrompt.build(nativeLanguage: nativeLanguage, targetLanguage: targetLanguage)},
+          {'role': 'user', 'content': userMessages},
+        ],
+      });
+      final choices = response.data['choices'] as List;
+      return parseLevelAssessment(choices.first['message']['content'] as String);
     } catch (_) {
-      return const LevelAssessment(
-        currentLevel: 0,
-        suggestedLevel: 5,
-        reasoning: 'Failed to parse assessment',
-      );
+      return const LevelAssessment.failed();
     }
   }
 
   @override
-  Future<Map<String, dynamic>> evaluatePronunciation({
+  Future<PronunciationResult> evaluatePronunciation({
     required String prompt,
   }) async {
     try {
@@ -169,13 +160,11 @@ class OpenAiService implements AiService {
           {'role': 'user', 'content': prompt},
         ],
       });
-
       final choices = response.data['choices'] as List;
-      var text = choices.first['message']['content'] as String;
-      text = text.replaceAll(RegExp(r'```json\s*'), '').replaceAll(RegExp(r'```\s*'), '').trim();
-      return jsonDecode(text) as Map<String, dynamic>;
-    } catch (e) {
-      return {'score': 0, 'feedback': [], 'overall': 'Evaluation failed: $e'};
+      return PronunciationResult.fromJson(
+          extractJson(choices.first['message']['content'] as String));
+    } on DioException catch (e) {
+      throw Exception(_handleError(e));
     }
   }
 
@@ -200,22 +189,13 @@ class OpenAiService implements AiService {
       'content': SuggestionPrompt.build(userLevel: userLevel, nativeLanguage: nativeLanguage, targetLanguage: targetLanguage, count: count, lastAiMessage: lastAiMessage),
     });
 
-    final response = await _dio.post('/chat/completions', data: {
-      'model': model,
-      'messages': messages,
-    });
-
-    final choices = response.data['choices'] as List;
-    final text = choices.first['message']['content'] as String;
-
     try {
-      final jsonList = jsonDecode(text) as List;
-      return jsonList
-          .map((item) => Suggestion(
-                text: item['text'] as String,
-                koreanHint: item['koreanHint'] as String?,
-              ))
-          .toList();
+      final response = await _dio.post('/chat/completions', data: {
+        'model': model,
+        'messages': messages,
+      });
+      final choices = response.data['choices'] as List;
+      return parseSuggestions(choices.first['message']['content'] as String);
     } catch (_) {
       return [];
     }

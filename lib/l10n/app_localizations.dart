@@ -1280,11 +1280,17 @@ abstract class AppLocalizations {
   /// **'Needs work'**
   String get pronScoreNeedsWork;
 
-  /// No description provided for @pronError.
+  /// No description provided for @pronEvalFailed.
   ///
   /// In en, this message translates to:
-  /// **'Error: {message}'**
-  String pronError(String message);
+  /// **'Couldn\'t check your pronunciation. Please try again.'**
+  String get pronEvalFailed;
+
+  /// No description provided for @pronRetryEvaluation.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry'**
+  String get pronRetryEvaluation;
 
   /// No description provided for @handsFreeLabel.
   ///

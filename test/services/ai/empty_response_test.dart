@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:eng_friend/core/error/failures.dart';
 import 'package:eng_friend/features/chat/domain/entities/message.dart';
+import 'package:eng_friend/features/chat/domain/entities/pronunciation_result.dart';
 import 'package:eng_friend/features/chat/domain/entities/suggestion.dart';
 import 'package:eng_friend/features/level/domain/entities/level_assessment.dart';
 import 'package:eng_friend/services/ai/ai_service.dart';
@@ -47,7 +48,7 @@ class _TokenAi implements AiService {
       throw UnimplementedError();
 
   @override
-  Future<Map<String, dynamic>> evaluatePronunciation({required String prompt}) =>
+  Future<PronunciationResult> evaluatePronunciation({required String prompt}) =>
       throw UnimplementedError();
 
   @override

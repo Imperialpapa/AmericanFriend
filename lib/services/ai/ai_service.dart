@@ -1,4 +1,5 @@
 import 'package:eng_friend/features/chat/domain/entities/message.dart';
+import 'package:eng_friend/features/chat/domain/entities/pronunciation_result.dart';
 import 'package:eng_friend/features/chat/domain/entities/suggestion.dart';
 import 'package:eng_friend/features/level/domain/entities/level_assessment.dart';
 import 'package:eng_friend/services/language/app_language.dart';
@@ -36,19 +37,19 @@ abstract class AiService {
     required int userLevel,
   });
 
-  /// 사용자 레벨 평가
+  /// 사용자 레벨 평가. 던지지 않는다 — 실패는 [LevelAssessment.failed].
   Future<LevelAssessment> assessLevel({
     required List<Message> recentMessages,
     required AppLanguage nativeLanguage,
     required AppLanguage targetLanguage,
   });
 
-  /// 발음 평가
-  Future<Map<String, dynamic>> evaluatePronunciation({
+  /// 발음 평가. 실패(네트워크·파싱)는 던진다 — 0점으로 위장하지 않는다.
+  Future<PronunciationResult> evaluatePronunciation({
     required String prompt,
   });
 
-  /// 대화 제안 생성
+  /// 대화 제안 생성. 던지지 않는다 — 실패는 빈 목록.
   Future<List<Suggestion>> generateSuggestions({
     required List<Message> conversationHistory,
     required int userLevel,

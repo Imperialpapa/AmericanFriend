@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:eng_friend/core/constants/level_constants.dart';
@@ -45,6 +46,7 @@ class LevelNotifier extends StateNotifier<LevelState> {
   final SharedPreferences _prefs;
   final AppLanguage Function() _getNativeLanguage;
   final AppLanguage Function() _getTargetLanguage;
+  final Future<void> Function(int level, String reasoning) _recordLevelChange;
   int _messagesSinceAssessment = 0;
 
   LevelNotifier(
@@ -52,8 +54,11 @@ class LevelNotifier extends StateNotifier<LevelState> {
     this._prefs, {
     required AppLanguage Function() getNativeLanguage,
     required AppLanguage Function() getTargetLanguage,
+    required Future<void> Function(int level, String reasoning)
+        recordLevelChange,
   })  : _getNativeLanguage = getNativeLanguage,
         _getTargetLanguage = getTargetLanguage,
+        _recordLevelChange = recordLevelChange,
         super(const LevelState()) {
     _load();
   }
@@ -101,12 +106,21 @@ class LevelNotifier extends StateNotifier<LevelState> {
         targetLanguage: _getTargetLanguage(),
       );
 
+      // 실패는 레벨도 평가 카운터도 건드리지 않는다 — 다음 메시지에서 다시 평가한다.
+      // 예전엔 실패가 suggestedLevel 5로 위장돼 초급자가 끌려 올라갔다(tobe A-06).
+      if (assessment.isFailure) {
+        debugPrint('[Level] assessment failed: ${assessment.reasoning}');
+        state = state.copyWith(isAssessing: false);
+        return;
+      }
+
       // 급격한 변동 방지: 최대 1단계 변경
       final diff = assessment.suggestedLevel - state.currentLevel;
       final clampedDiff = diff.clamp(
           -LevelConstants.maxLevelChange, LevelConstants.maxLevelChange);
       final newLevel = (state.currentLevel + clampedDiff)
           .clamp(LevelConstants.minLevel, LevelConstants.maxLevel);
+      final changed = newLevel != state.currentLevel;
 
       _messagesSinceAssessment = 0;
       await _prefs.setInt(_levelKey, newLevel);
@@ -118,6 +132,9 @@ class LevelNotifier extends StateNotifier<LevelState> {
         isAssessing: false,
         lastAssessment: assessment,
       );
+
+      // 주간 리포트 Level Changes의 입력. 무변동까지 넣으면 리포트가 잡음이 된다.
+      if (changed) await _recordLevelChange(newLevel, assessment.reasoning);
     } catch (_) {
       state = state.copyWith(isAssessing: false);
     }
@@ -144,6 +161,9 @@ final StateNotifierProvider<LevelNotifier, LevelState> levelProvider =
     prefs,
     getNativeLanguage: () => ref.read(settingsProvider).nativeLanguage,
     getTargetLanguage: () => ref.read(settingsProvider).targetLanguage,
+    // appDatabaseProvider는 leaf라 순환 의존 위험이 없다(BUG #5).
+    recordLevelChange: (level, reasoning) =>
+        ref.read(appDatabaseProvider).insertLevelRecord(level, reasoning),
   );
 
   // chatProvider 상태 변화 감지

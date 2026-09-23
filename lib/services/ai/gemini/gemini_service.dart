@@ -2,9 +2,11 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart' show debugPrint, visibleForTesting;
 import 'package:eng_friend/features/chat/domain/entities/message.dart';
+import 'package:eng_friend/features/chat/domain/entities/pronunciation_result.dart';
 import 'package:eng_friend/features/chat/domain/entities/suggestion.dart';
 import 'package:eng_friend/features/level/domain/entities/level_assessment.dart';
 import 'package:eng_friend/services/ai/ai_provider_type.dart';
+import 'package:eng_friend/services/ai/ai_json.dart';
 import 'package:eng_friend/services/ai/ai_service.dart';
 import 'package:eng_friend/services/ai/prompts/level_prompts.dart';
 import 'package:eng_friend/services/ai/prompts/suggestion_prompt.dart';
@@ -129,6 +131,11 @@ class GeminiService implements AiService {
     }
     // 요청 URL은 붙이지 않는다 — 복사 버튼·logcat으로 그대로 나간다.
     return 'Gemini ($statusCode): ${detail.isNotEmpty ? detail : e.type.name}';
+  }
+
+  static String _firstText(dynamic data) {
+    final candidates = data['candidates'] as List;
+    return (candidates.first['content']['parts'] as List).first['text'] as String;
   }
 
   List<Map<String, dynamic>> _buildContents(
@@ -260,23 +267,14 @@ class GeminiService implements AiService {
         }),
       );
 
-      final candidates = response.data['candidates'] as List;
-      var text = (candidates.first['content']['parts'] as List).first['text'] as String;
-      text = text.replaceAll(RegExp(r'```json\s*'), '').replaceAll(RegExp(r'```\s*'), '').trim();
-      final json = jsonDecode(text) as Map<String, dynamic>;
-      return LevelAssessment(
-        currentLevel: 0,
-        suggestedLevel: json['suggestedLevel'] as int,
-        reasoning: json['reasoning'] as String? ?? '',
-      );
+      return parseLevelAssessment(_firstText(response.data));
     } catch (_) {
-      return const LevelAssessment(
-          currentLevel: 0, suggestedLevel: 5, reasoning: 'Assessment failed');
+      return const LevelAssessment.failed();
     }
   }
 
   @override
-  Future<Map<String, dynamic>> evaluatePronunciation({
+  Future<PronunciationResult> evaluatePronunciation({
     required String prompt,
   }) async {
     try {
@@ -294,12 +292,10 @@ class GeminiService implements AiService {
         }),
       );
 
-      final candidates = response.data['candidates'] as List;
-      var text = (candidates.first['content']['parts'] as List).first['text'] as String;
-      text = text.replaceAll(RegExp(r'```json\s*'), '').replaceAll(RegExp(r'```\s*'), '').trim();
-      return jsonDecode(text) as Map<String, dynamic>;
-    } catch (e) {
-      return {'score': 0, 'feedback': [], 'overall': 'Evaluation failed: $e'};
+      return PronunciationResult.fromJson(
+          extractJson(_firstText(response.data)));
+    } on DioException catch (e) {
+      throw Exception(_handleError(e));
     }
   }
 
@@ -326,17 +322,7 @@ class GeminiService implements AiService {
         data: _body({'contents': contents}),
       );
 
-      final candidates = response.data['candidates'] as List;
-      var text = (candidates.first['content']['parts'] as List).first['text'] as String;
-      // Gemini가 ```json ... ``` 코드블록으로 감싸는 경우 제거
-      text = text.replaceAll(RegExp(r'```json\s*'), '').replaceAll(RegExp(r'```\s*'), '').trim();
-      final jsonList = jsonDecode(text) as List;
-      return jsonList
-          .map((item) => Suggestion(
-                text: item['text'] as String,
-                koreanHint: item['koreanHint'] as String?,
-              ))
-          .toList();
+      return parseSuggestions(_firstText(response.data));
     } catch (_) {
       return [];
     }

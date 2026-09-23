@@ -301,8 +301,8 @@
   "pronScoreGood": "Good!",
   "pronScoreKeepPracticing": "Keep practicing",
   "pronScoreNeedsWork": "Needs work",
-  "pronError": "Error: {message}",
-  "@pronError": { "placeholders": { "message": { "type": "String" } } },
+  "pronEvalFailed": "Couldn't check your pronunciation. Please try again.",
+  "pronRetryEvaluation": "Retry",
 
   "handsFreeLabel": "Hands-free",
   "handsFreeTurnOn": "Turn on hands-free — talk without the mic button",

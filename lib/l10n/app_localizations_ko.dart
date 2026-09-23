@@ -647,9 +647,10 @@ class AppLocalizationsKo extends AppLocalizations {
   String get pronScoreNeedsWork => '더 연습이 필요해요';
 
   @override
-  String pronError(String message) {
-    return '오류: $message';
-  }
+  String get pronEvalFailed => '발음을 평가하지 못했어요. 다시 시도해 주세요.';
+
+  @override
+  String get pronRetryEvaluation => '다시 평가';
 
   @override
   String get handsFreeLabel => '핸즈프리';
