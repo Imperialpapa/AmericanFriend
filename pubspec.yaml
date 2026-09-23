@@ -26,7 +26,8 @@ dependencies:
   dio: ^5.7.0
 
   # Voice
-  speech_to_text: ^7.0.0
+  # 7.4.0부터 Android에 pauseFor를 실제로 넘겨 세션 종료 타이밍이 바뀐다. 실험 브랜치에서 검증 전까지 7.3.x 고정 (tobe.md V-12)
+  speech_to_text: '>=7.3.0 <7.4.0'
   flutter_tts: ^4.2.0
   record: ^6.0.0
 
