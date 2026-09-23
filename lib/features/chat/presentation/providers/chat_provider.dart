@@ -143,6 +143,12 @@ class ChatNotifier extends StateNotifier<ChatState> {
     Message? interrupted;
     if (state.isAiTyping) {
       interrupted = await _stopActiveTurn();
+    } else {
+      // 스트리밍(1~3초)이 끝났어도 TTS는 앞 답변을 10~30초 더 읽는다. 새 턴의
+      // beginTurn()은 턴 id만 올리고 큐는 그대로 두므로, 여기서 안 끊으면 새 답변이
+      // 옛 문장들 뒤에 줄 선다. 핸즈프리는 turnDone(큐가 빈 뒤)에만 보내고 idle은
+      // 무시하므로 영향이 없다.
+      await _stopTts();
     }
 
     // 대화 ID가 없으면 새로 생성
@@ -306,12 +312,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
     // 화면과 DB에 같은 내용이 들어간다(예전엔 비운 뒤에 읽어 DB에 빈 문자열이 갔다).
     final partial = state.currentAiResponse;
 
-    try {
-      await _getPipeline().interrupt();
-    } catch (e) {
-      // TTS 정지 실패로 끼어들기·새 전송이 막히면 안 된다.
-      debugPrint('[Chat] pipeline interrupt failed: $e');
-    }
+    await _stopTts();
 
     if (partial.trim().isEmpty) return null;
 
@@ -335,6 +336,16 @@ class ChatNotifier extends StateNotifier<ChatState> {
       timestamp: now,
       conversationId: conversationId,
     );
+  }
+
+  /// TTS 재생을 멈추고 대기 중인 문장을 버린다.
+  Future<void> _stopTts() async {
+    try {
+      await _getPipeline().interrupt();
+    } catch (e) {
+      // TTS 정지 실패로 끼어들기·새 전송이 막히면 안 된다.
+      debugPrint('[Chat] pipeline interrupt failed: $e');
+    }
   }
 
   /// 대화 기록 저장은 화면 흐름의 부수효과다. 실패를 그대로 던지면 기다리지 않는

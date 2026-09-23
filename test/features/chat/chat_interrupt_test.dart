@@ -60,9 +60,12 @@ class _ControlledAi implements AiService {
       throw UnimplementedError();
 }
 
+/// 재생은 하지 않고 대기열만 쌓는다 — 스트리밍이 끝난 뒤에도 앞 답변을
+/// 아직 읽고 있는 상태를 흉내 낸다.
 class _FakeTtsQueue implements TtsQueue {
   int _turn = 0;
   int interrupts = 0;
+  final pending = <String>[];
 
   @override
   int beginTurn() => ++_turn;
@@ -71,12 +74,13 @@ class _FakeTtsQueue implements TtsQueue {
   void markTurnEnd(int turnId) {}
 
   @override
-  Future<void> enqueue(String sentence) async {}
+  Future<void> enqueue(String sentence) async => pending.add(sentence);
 
   @override
   Future<void> interrupt() async {
     interrupts++;
     _turn++;
+    pending.clear();
   }
 
   @override
@@ -120,18 +124,20 @@ void main() {
   late _FakeTtsQueue tts;
   late _FakeDb db;
   late ChatNotifier chat;
+  var ttsEnabled = false;
 
   setUp(() {
     ai = _ControlledAi();
     tts = _FakeTtsQueue();
     db = _FakeDb();
+    ttsEnabled = false;
     final pipeline = ConversationPipeline(aiService: ai, ttsQueue: tts);
     chat = ChatNotifier(
       db,
       getPipeline: () => pipeline,
       hasApiKey: () => true,
       showNativeHint: () => false,
-      getTargetTtsEnabled: () => false,
+      getTargetTtsEnabled: () => ttsEnabled,
       getNativeTtsEnabled: () => false,
       getNativeLanguage: () => AppLanguage.korean,
       getTargetLanguage: () => AppLanguage.englishUS,
@@ -160,6 +166,7 @@ void main() {
     await pumpEventQueue();
     expect(chat.state.currentAiResponse, 'Hello there.');
 
+    final interruptsBefore = tts.interrupts;
     await chat.sendMessage('second');
     await pumpEventQueue();
 
@@ -170,7 +177,7 @@ void main() {
     ]);
     expect(chat.state.isAiTyping, isTrue);
     expect(chat.state.currentAiResponse, '');
-    expect(tts.interrupts, 1);
+    expect(tts.interrupts - interruptsBefore, 1);
     expect(db.contentsOf('assistant'), ['Hello there.']);
     expect(ai.turns, hasLength(2));
 
@@ -179,6 +186,35 @@ void main() {
     ai.turns[1].add('Second answer. ');
     await pumpEventQueue();
     expect(chat.state.currentAiResponse, 'Second answer.');
+  });
+
+  test('스트리밍은 끝났지만 TTS가 아직 읽는 중에 새 전송: 남은 문장을 버린다 (A-07)',
+      () async {
+    ttsEnabled = true;
+    await chat.sendMessage('first');
+    await pumpEventQueue();
+    ai.turns[0].add('Hello there. How are you? ');
+    await ai.turns[0].close();
+    await pumpEventQueue();
+    expect(chat.state.isAiTyping, isFalse);
+    expect(tts.pending, ['Hello there.', 'How are you?']);
+
+    final interruptsBefore = tts.interrupts;
+    await chat.sendMessage('second');
+    await pumpEventQueue();
+
+    expect(tts.interrupts - interruptsBefore, 1);
+    expect(tts.pending, isEmpty);
+    expect(transcript(), [
+      (MessageRole.user, 'first'),
+      (MessageRole.assistant, 'Hello there. How are you?'),
+      (MessageRole.user, 'second'),
+    ]);
+
+    // 새 답변은 옛 문장 뒤가 아니라 빈 큐에서 바로 시작한다.
+    ai.turns[1].add('Second answer. ');
+    await pumpEventQueue();
+    expect(tts.pending, ['Second answer.']);
   });
 
   test('끼어들기: 화면과 DB에 같은 부분 응답이 들어간다 (D-05)', () async {
