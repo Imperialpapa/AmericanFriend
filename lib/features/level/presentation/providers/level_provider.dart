@@ -135,7 +135,8 @@ class LevelNotifier extends StateNotifier<LevelState> {
   }
 }
 
-final levelProvider = StateNotifierProvider<LevelNotifier, LevelState>((ref) {
+final StateNotifierProvider<LevelNotifier, LevelState> levelProvider =
+    StateNotifierProvider<LevelNotifier, LevelState>((ref) {
   final aiService = ref.watch(aiServiceProvider);
   final prefs = ref.watch(sharedPreferencesProvider);
   final notifier = LevelNotifier(
@@ -146,7 +147,7 @@ final levelProvider = StateNotifierProvider<LevelNotifier, LevelState>((ref) {
   );
 
   // chatProvider 상태 변화 감지
-  ref.listen(chatProvider, (prev, next) {
+  ref.listen<ChatState>(chatProvider, (prev, next) {
     if (prev != null) {
       notifier.onChatStateChanged(prev, next);
     }

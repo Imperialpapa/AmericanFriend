@@ -51,5 +51,12 @@
             <action android:name="android.intent.action.SENDTO"/>
             <data android:scheme="mailto"/>
         </intent>
+        <!-- Required for speech_to_text on Android 11+ (API 30+) to discover
+             the on-device SpeechRecognizer service. Without this, release
+             builds get isRecognitionAvailable()=false and the mic button
+             does nothing. -->
+        <intent>
+            <action android:name="android.speech.RecognitionService"/>
+        </intent>
     </queries>
 </manifest>

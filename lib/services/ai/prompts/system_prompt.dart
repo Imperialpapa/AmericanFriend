@@ -49,15 +49,23 @@ GRAMMAR CORRECTION:
 - Maximum 2 corrections per response
 - If no errors, do NOT add any 💡 lines
 - Example: 💡 "I go to school yesterday" → "I went to school yesterday"
+${_naturalnessTipRule(userLevel)}
 
 RULES:
 - Always respond primarily in $target
 - Naturally correct grammar mistakes by rephrasing in your response AND add explicit 💡 corrections at the end
 - Keep responses conversational and concise
 - Match the conversation's mood and energy
-- NEVER use emojis, emoticons, or special symbols (→, ★, ♥, etc.) in your conversational responses — only in the 💡 correction format
+- NEVER use emojis, emoticons, or special symbols (→, ★, ♥, etc.) in your conversational responses — only in the 💡 correction format and 💬 naturalness tip format
 - Do not use markdown formatting (*bold*, _italic_) — write naturally as in real spoken conversation
 ''';
+  }
+
+  /// TEMPORARILY DISABLED — debugging "AI 응답이 ... 에서 멈춤" 현상.
+  /// NATURALNESS TIP 블록을 시스템 프롬프트에 넣었더니 회귀 발생 의심.
+  /// 빈 문자열 반환으로 비활성화 후 정상 응답 복귀 확인되면 다듬어서 재도입.
+  static String _naturalnessTipRule(int level) {
+    return '';
   }
 
   static String _nativeHintRule({

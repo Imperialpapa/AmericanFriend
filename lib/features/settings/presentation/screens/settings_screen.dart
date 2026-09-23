@@ -11,7 +11,6 @@ import 'package:eng_friend/core/theme/app_typography.dart';
 import 'package:eng_friend/core/widgets/alex_avatar.dart';
 import 'package:eng_friend/core/widgets/banner_ad_widget.dart';
 import 'package:eng_friend/core/widgets/kf_xp_bar.dart';
-import 'package:eng_friend/features/chat/presentation/providers/suggestion_provider.dart';
 import 'package:eng_friend/features/level/presentation/providers/level_provider.dart';
 import 'package:eng_friend/features/report/presentation/screens/weekly_report_screen.dart';
 import 'package:eng_friend/features/settings/domain/entities/user_settings.dart';
@@ -785,39 +784,50 @@ class _LanguageInlineRow extends StatelessWidget {
     final l = AppLocalizations.of(context);
     final picked = await showModalBottomSheet<AppLanguage>(
       context: context,
+      isScrollControlled: true,
       builder: (ctx) {
+        final maxHeight = MediaQuery.of(ctx).size.height * 0.75;
         return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(KFSpacing.x4),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: KFSpacing.x3, vertical: KFSpacing.x2),
-                  child: Text(
-                    isNative
-                        ? l.settingsRowNativeLanguage
-                        : l.settingsRowTargetLanguage,
-                    style: KFTypography.h2(color: palette.ink),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxHeight: maxHeight),
+            child: Padding(
+              padding: const EdgeInsets.all(KFSpacing.x4),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: KFSpacing.x3, vertical: KFSpacing.x2),
+                    child: Text(
+                      isNative
+                          ? l.settingsRowNativeLanguage
+                          : l.settingsRowTargetLanguage,
+                      style: KFTypography.h2(color: palette.ink),
+                    ),
                   ),
-                ),
-                ...AppLanguage.values.map((lang) {
-                  final isCurrent = lang == current;
-                  final isDisabled = lang == disabled;
-                  return ListTile(
-                    enabled: !isDisabled,
-                    title: Text(lang.label,
-                        style: KFTypography.body(
-                            color: isDisabled ? palette.ink3 : palette.ink)),
-                    trailing: isCurrent
-                        ? Icon(Icons.check, color: palette.sage)
-                        : null,
-                    onTap: () => Navigator.pop(ctx, lang),
-                  );
-                }),
-              ],
+                  Flexible(
+                    child: ListView(
+                      shrinkWrap: true,
+                      children: AppLanguage.values.map((lang) {
+                        final isCurrent = lang == current;
+                        final isDisabled = lang == disabled;
+                        return ListTile(
+                          enabled: !isDisabled,
+                          title: Text(lang.label,
+                              style: KFTypography.body(
+                                  color:
+                                      isDisabled ? palette.ink3 : palette.ink)),
+                          trailing: isCurrent
+                              ? Icon(Icons.check, color: palette.sage)
+                              : null,
+                          onTap: () => Navigator.pop(ctx, lang),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         );
@@ -1143,7 +1153,7 @@ class _AiGroup extends StatelessWidget {
   String _providerName(AiProviderType p) => switch (p) {
         AiProviderType.freeTier => 'Free (no key)',
         AiProviderType.gemini => 'Google Gemini',
-        AiProviderType.groq => 'Groq (Llama 3.3)',
+        AiProviderType.groq => 'Groq',
         AiProviderType.claude => 'Claude',
         AiProviderType.openai => 'OpenAI',
       };
@@ -1207,7 +1217,8 @@ class _AiGroup extends StatelessWidget {
   String _providerDescription(AiProviderType p) => switch (p) {
         AiProviderType.freeTier => 'No API key required · 20 msg/day',
         AiProviderType.gemini => 'Free tier · 1,500 req/day',
-        AiProviderType.groq => 'Free · 14,400 req/day, ultra fast',
+        // 구체 수치를 박지 말 것 — 모델별로 다르고 제공자가 예고 없이 바꾼다.
+        AiProviderType.groq => 'Free tier · ultra fast',
         AiProviderType.claude => 'Paid · highest quality',
         AiProviderType.openai => 'Paid · GPT-4o',
       };
@@ -1294,48 +1305,32 @@ class _ConversationGroup extends StatelessWidget {
         _InlineRow(
           icon: Icons.lightbulb_outline,
           title: l.settingsSuggestionTiming,
+          subtitle: l.settingsSuggestionTimingSub,
           palette: palette,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: Row(
             children: [
-              SegmentedButton<SuggestionMode>(
-                segments: [
-                  ButtonSegment(
-                    value: SuggestionMode.immediate,
-                    label: Text(l.settingsSuggestionImmediate),
-                    icon: const Icon(Icons.flash_on, size: 16),
-                  ),
-                  ButtonSegment(
-                    value: SuggestionMode.delayed,
-                    label: Text(l.settingsSuggestionDelayed),
-                    icon: const Icon(Icons.timer_outlined, size: 16),
-                  ),
-                ],
-                selected: {settings.suggestionMode},
-                onSelectionChanged: (s) =>
-                    notifier.setSuggestionMode(s.first),
-                showSelectedIcon: false,
-              ),
-              if (settings.suggestionMode == SuggestionMode.delayed) ...[
-                const SizedBox(height: KFSpacing.x2),
-                Row(
-                  children: [
-                    Text('${settings.suggestionDelaySec}s',
-                        style: KFTypography.meta(color: palette.ink3)),
-                    Expanded(
-                      child: Slider(
-                        value: settings.suggestionDelaySec.toDouble(),
-                        min: 1,
-                        max: 15,
-                        divisions: 14,
-                        label: '${settings.suggestionDelaySec}s',
-                        onChanged: (v) =>
-                            notifier.setSuggestionDelay(v.round()),
-                      ),
-                    ),
-                  ],
+              SizedBox(
+                width: 56,
+                child: Text(
+                  settings.suggestionDelaySec == 0
+                      ? l.settingsSuggestionImmediate
+                      : '${settings.suggestionDelaySec}s',
+                  style: KFTypography.meta(color: palette.ink3),
                 ),
-              ],
+              ),
+              Expanded(
+                child: Slider(
+                  value: settings.suggestionDelaySec.toDouble(),
+                  min: 0,
+                  max: 15,
+                  divisions: 15,
+                  label: settings.suggestionDelaySec == 0
+                      ? l.settingsSuggestionImmediate
+                      : '${settings.suggestionDelaySec}s',
+                  onChanged: (v) =>
+                      notifier.setSuggestionDelay(v.round()),
+                ),
+              ),
             ],
           ),
         ),
@@ -1429,6 +1424,14 @@ class _VoiceGroup extends StatelessWidget {
       palette: palette,
       children: [
         _SwitchRow(
+          icon: Icons.hearing_outlined,
+          title: l.settingsHandsFree,
+          subtitle: l.settingsHandsFreeSub,
+          value: settings.handsFreeEnabled,
+          onChanged: notifier.setHandsFreeEnabled,
+          palette: palette,
+        ),
+        _SwitchRow(
           icon: Icons.volume_up_outlined,
           title: l.settingsReadTargetAloud(settings.targetLanguage.displayName),
           value: settings.targetTtsEnabled,
@@ -1481,15 +1484,33 @@ class _VoiceGroup extends StatelessWidget {
           title: l.settingsMicPause,
           subtitle: l.settingsMicPauseSub,
           palette: palette,
-          child: SegmentedButton<int>(
-            segments: [
-              ButtonSegment(value: 3, label: Text(l.settingsMicPauseQuick)),
-              ButtonSegment(value: 5, label: Text(l.settingsMicPauseNormal)),
-              ButtonSegment(value: 8, label: Text(l.settingsMicPausePatient)),
+          child: Row(
+            children: [
+              SizedBox(
+                width: 56,
+                child: Text(
+                  settings.sttPauseSeconds == 0
+                      ? l.settingsSuggestionImmediate
+                      : '${settings.sttPauseSeconds}s',
+                  style: KFTypography.meta(color: palette.ink3),
+                ),
+              ),
+              Expanded(
+                child: Slider(
+                  value: settings.sttPauseSeconds
+                      .clamp(0, 15)
+                      .toDouble(),
+                  min: 0,
+                  max: 15,
+                  divisions: 15,
+                  label: settings.sttPauseSeconds == 0
+                      ? l.settingsSuggestionImmediate
+                      : '${settings.sttPauseSeconds}s',
+                  onChanged: (v) =>
+                      notifier.setSttPauseSeconds(v.round()),
+                ),
+              ),
             ],
-            selected: {_nearestPauseOption(settings.sttPauseSeconds)},
-            onSelectionChanged: (s) => notifier.setSttPauseSeconds(s.first),
-            showSelectedIcon: false,
           ),
         ),
         _SwitchRow(
@@ -1502,12 +1523,6 @@ class _VoiceGroup extends StatelessWidget {
         ),
       ],
     );
-  }
-
-  int _nearestPauseOption(int seconds) {
-    if (seconds <= 3) return 3;
-    if (seconds <= 6) return 5;
-    return 8;
   }
 
   String _speedLabel(AppLocalizations l, double rate) {

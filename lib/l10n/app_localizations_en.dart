@@ -369,13 +369,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsShowNativeTranslationSub => 'Inline hints in parentheses';
 
   @override
-  String get settingsSuggestionTiming => 'Suggestion timing';
+  String get settingsSuggestionTiming => 'Time before hints';
+
+  @override
+  String get settingsSuggestionTimingSub =>
+      'Wait before reply suggestions appear (0 = immediate)';
 
   @override
   String get settingsSuggestionImmediate => 'Immediate';
-
-  @override
-  String get settingsSuggestionDelayed => 'Delayed';
 
   @override
   String settingsReadTargetAloud(String language) {
@@ -407,19 +408,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsSpeedFast => 'Fast';
 
   @override
-  String get settingsMicPause => 'Mic pause tolerance';
+  String get settingsMicPause => 'Time to respond';
 
   @override
-  String get settingsMicPauseSub => 'How long you can pause mid-sentence';
-
-  @override
-  String get settingsMicPauseQuick => 'Quick 3s';
-
-  @override
-  String get settingsMicPauseNormal => 'Normal 5s';
-
-  @override
-  String get settingsMicPausePatient => 'Patient 8s';
+  String get settingsMicPauseSub =>
+      'How long the AI waits while you pause mid-sentence';
 
   @override
   String get settingsAutoSendVoice => 'Auto-send voice';
@@ -665,4 +658,88 @@ class AppLocalizationsEn extends AppLocalizations {
   String pronError(String message) {
     return 'Error: $message';
   }
+
+  @override
+  String get handsFreeLabel => 'Hands-free';
+
+  @override
+  String get handsFreeTurnOn =>
+      'Turn on hands-free — talk without the mic button';
+
+  @override
+  String get handsFreeTurnOff => 'Turn off hands-free';
+
+  @override
+  String get handsFreeListening => 'Listening — just speak';
+
+  @override
+  String get handsFreeThinking => 'Thinking…';
+
+  @override
+  String get handsFreeSpeaking => 'Speaking…';
+
+  @override
+  String get handsFreePaused => 'Paused';
+
+  @override
+  String get handsFreeStop => 'Stop';
+
+  @override
+  String get handsFreeStoppedIdle =>
+      'Hands-free turned off — no speech detected';
+
+  @override
+  String get handsFreeSttUnavailable =>
+      'Speech recognition is unavailable. Check the microphone permission.';
+
+  @override
+  String get handsFreeOpenSettings => 'Open settings';
+
+  @override
+  String get handsFreeStoppedQuota =>
+      'Daily free limit reached — hands-free turned off. Add your own API key in Settings to keep going.';
+
+  @override
+  String get settingsHandsFree => 'Hands-free conversation';
+
+  @override
+  String get settingsHandsFreeSub =>
+      'The mic opens by itself and reopens after each reply — no mic button';
+
+  @override
+  String get noticeUpdateTitle => 'Update required';
+
+  @override
+  String get noticeUpdateBody =>
+      'This version is out of date and some features may not work. Please update to continue.';
+
+  @override
+  String get noticeUpdateAction => 'Update now';
+
+  @override
+  String get noticeDetails => 'Learn more';
+
+  @override
+  String get chatErrorFreeTierDown =>
+      'Free chat isn\'t available right now. Add your own API key in Settings to keep talking.';
+
+  @override
+  String get chatErrorQuota =>
+      'You\'ve used up today\'s free messages. Add your own API key in Settings to keep going.';
+
+  @override
+  String get chatErrorNetwork =>
+      'Can\'t reach the server. Please check your internet connection.';
+
+  @override
+  String get chatErrorNoKey =>
+      'An API key is needed. Add one in Settings, or switch to the free tier.';
+
+  @override
+  String get chatErrorUnknown =>
+      'Something went wrong. Please try again in a moment.';
+
+  @override
+  String get handsFreeStoppedError =>
+      'Hands-free turned off because the AI couldn\'t respond.';
 }

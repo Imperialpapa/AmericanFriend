@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'package:eng_friend/features/chat/domain/entities/message.dart';
 import 'package:eng_friend/services/ai/ai_service.dart';
+import 'package:eng_friend/services/ai/free_tier/free_tier_ai_service.dart'
+    show FreeTierRateLimitException, FreeTierUnavailableException;
 import 'package:eng_friend/services/pipeline/pipeline_event.dart';
 import 'package:eng_friend/services/pipeline/sentence_splitter.dart';
 import 'package:eng_friend/services/pipeline/tts_queue.dart';
@@ -24,6 +26,8 @@ class ConversationPipeline {
     bool targetTtsEnabled = true,
     bool nativeTtsEnabled = false,
   }) async* {
+    final turnId = ttsQueue.beginTurn();
+    var turnCompleted = false;
     try {
       final tokenStream = aiService.streamMessage(
         conversationHistory: conversationHistory,
@@ -38,7 +42,10 @@ class ConversationPipeline {
         fullResponse.write('$sentence ');
         yield AiSentenceComplete(sentence);
 
-        if (targetTtsEnabled && !sentence.trimLeft().startsWith('💡')) {
+        final trimmedLeft = sentence.trimLeft();
+        if (targetTtsEnabled &&
+            !trimmedLeft.startsWith('💡') &&
+            !trimmedLeft.startsWith('💬')) {
           final ttsText = nativeTtsEnabled
               ? sentence.trim()
               : sentence
@@ -56,9 +63,45 @@ class ConversationPipeline {
       }
 
       yield AiResponseComplete(fullResponse.toString().trim());
+      turnCompleted = true;
     } catch (e) {
-      yield PipelineError(GeneralFailure(e.toString()));
+      yield PipelineError(_toFailure(e));
+      turnCompleted = true; // 실패도 "AI가 더 말할 게 없다" = 턴 종료
+    } finally {
+      // CRITICAL: 이 메서드는 async* 제너레이터고, ChatNotifier는 barge-in마다
+      // (chat_provider.dart:254) 그리고 매 sendMessage 직전에(:187) 구독을 취소한다.
+      // async* 구독 취소는 예외가 아니라서 catch도, await for 이후 코드도 실행되지
+      // 않는다 — 오직 finally만 돈다. 턴 종료 신호를 루프 뒤나 catch에 두면
+      // 사용자가 말을 끊을 때마다(정상 경로다) 핸즈프리 루프가 멈춘다.
+      //
+      // 취소된 턴은 turnCompleted가 false라 센티넬을 보내지 않는다. barge-in 시엔
+      // 사용자가 이미 말하는 중이므로 마이크를 다시 열면 안 되기 때문.
+      if (turnCompleted) {
+        ttsQueue.markTurnEnd(turnId);
+      }
     }
+  }
+
+  /// 예외를 타입 있는 Failure로 옮긴다.
+  /// e.toString()으로 뭉개면 상위(ChatState → VoiceNotifier)에서 쿼터 소진과
+  /// 네트워크 오류를 구분할 방법이 영문 메시지 부분 문자열 매칭밖에 없어진다.
+  static Failure _toFailure(Object e) {
+    if (e is FreeTierRateLimitException) {
+      return RateLimitFailure(
+        e.toString(),
+        limit: e.limit,
+        used: e.used,
+        resetAt: e.resetAt,
+      );
+    }
+    if (e is FreeTierUnavailableException) {
+      return FreeTierUnavailableFailure(
+        e.technicalDetail,
+        statusCode: e.statusCode,
+        isNetwork: e.isNetwork,
+      );
+    }
+    return GeneralFailure(e.toString());
   }
 
   Future<void> interrupt() async {

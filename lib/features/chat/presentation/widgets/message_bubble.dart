@@ -10,6 +10,7 @@ import 'package:eng_friend/di/service_providers.dart';
 import 'package:eng_friend/features/chat/presentation/widgets/pronunciation_bottom_sheet.dart';
 import 'package:eng_friend/features/settings/presentation/providers/settings_provider.dart';
 import 'package:eng_friend/features/vocabulary/presentation/providers/vocabulary_provider.dart';
+import 'package:eng_friend/features/voice/presentation/providers/voice_provider.dart';
 import 'package:eng_friend/l10n/app_localizations.dart';
 import 'package:eng_friend/services/pipeline/tts_queue.dart';
 
@@ -51,15 +52,22 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
 
   // --- Helpers ---
   static final _correctionPattern = RegExp(r'^💡\s*.+$', multiLine: true);
+  static final _naturalnessTipPattern = RegExp(r'^💬\s*.+$', multiLine: true);
   static final _hintPattern = RegExp(r'(\s*\([^)]+\))');
 
-  ({String body, List<String> corrections}) _splitCorrections(String text) {
+  ({String body, List<String> corrections, List<String> tips}) _splitCorrections(
+      String text) {
     final corrections = <String>[];
-    final body = text.replaceAllMapped(_correctionPattern, (m) {
+    final tips = <String>[];
+    var body = text.replaceAllMapped(_correctionPattern, (m) {
       corrections.add(m.group(0)!.replaceFirst(RegExp(r'^💡\s*'), ''));
       return '';
-    }).trimRight();
-    return (body: body, corrections: corrections);
+    });
+    body = body.replaceAllMapped(_naturalnessTipPattern, (m) {
+      tips.add(m.group(0)!.replaceFirst(RegExp(r'^💬\s*'), ''));
+      return '';
+    });
+    return (body: body.trimRight(), corrections: corrections, tips: tips);
   }
 
   /// 괄호 번역을 제거한 순수 본문 (TTS skip / 단어장 저장 시 사용)
@@ -70,9 +78,9 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
 
   /// 본문을 TextSpan으로 렌더 — showNative=true면 (괄호) 부분을 회색으로 인라인 표시
   TextSpan _buildBodySpan(KFPalette palette, String body,
-      {required bool showNative}) {
+      {required bool showNative, required double fontScale}) {
     final base = KFTypography.body(color: palette.ink).copyWith(
-      fontSize: 15,
+      fontSize: 15 * fontScale,
       letterSpacing: -0.2,
       height: 1.45,
     );
@@ -81,7 +89,7 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
     }
     final hintStyle = base.copyWith(
       color: palette.ink3,
-      fontSize: 13,
+      fontSize: 13 * fontScale,
       fontWeight: FontWeight.w400,
     );
     final spans = <TextSpan>[];
@@ -101,11 +109,16 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
 
   Future<void> _speak(String text) async {
     final ttsQueue = ref.read(ttsQueueProvider);
+    final voice = ref.read(voiceProvider.notifier);
     if (_isSpeaking) {
       await ttsQueue.interrupt();
       setState(() => _isSpeaking = false);
+      await voice.resumeHandsFree();
       return;
     }
+    // 핸즈프리로 마이크가 열려 있으면 스피커에서 나온 이 소리를 그대로 받아쓴다.
+    // 재생 동안 멈춰둔다 (핸즈프리가 꺼져 있으면 no-op).
+    await voice.suspendHandsFree();
     final settings = ref.read(settingsProvider);
     final ttsText = settings.nativeTtsEnabled
         ? text.trim()
@@ -141,6 +154,7 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
       if (state == TtsQueueState.idle) break;
     }
     sub.cancel();
+    await voice.resumeHandsFree();
   }
 
   void _showSaveToVocab(String defaultText) {
@@ -206,6 +220,7 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
 
   Widget _buildUserMessage(BuildContext context) {
     final palette = KFPalette.of(context);
+    final fontScale = ref.watch(settingsProvider.select((s) => s.chatFontScale));
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: KFSpacing.x4, vertical: 5),
       child: Row(
@@ -228,7 +243,7 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
                 child: Text(
                   widget.content,
                   style: KFTypography.body(color: Colors.white).copyWith(
-                    fontSize: 15,
+                    fontSize: 15 * fontScale,
                     letterSpacing: -0.2,
                     height: 1.45,
                   ),
@@ -275,10 +290,11 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
   Widget _buildAiMessage(BuildContext context) {
     final palette = KFPalette.of(context);
     final settings = ref.watch(settingsProvider);
+    final fontScale = settings.chatFontScale;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     final isHidden = !settings.showTargetText && !_revealed;
-    final (:body, :corrections) = _splitCorrections(widget.content);
+    final (:body, :corrections, :tips) = _splitCorrections(widget.content);
     final cleanBody = _stripParens(body);
 
     // 본문이 있으면(타이핑 중 아닌 한) 항상 드로어 열기 가능 — 액션 버튼 접근 보장.
@@ -336,13 +352,14 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
                                 AppLocalizations.of(context).chatMessageTapToReveal,
                                 style: KFTypography.body(color: palette.ink3)
                                     .copyWith(
-                                  fontSize: 15,
+                                  fontSize: 15 * fontScale,
                                   fontStyle: FontStyle.italic,
                                 ),
                               )
                             : Text.rich(
                                 _buildBodySpan(palette, body,
-                                    showNative: settings.showNativeHint),
+                                    showNative: settings.showNativeHint,
+                                    fontScale: fontScale),
                               ),
                   ),
                 ),
@@ -350,7 +367,7 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
                 // Learning Drawer (corrections + actions). 인라인 번역은 본문에서 처리됨.
                 if (_drawerOpen && hasDrawer && !isHidden) ...[
                   const SizedBox(height: 4),
-                  _buildDrawer(palette, corrections, body, cleanBody),
+                  _buildDrawer(palette, corrections, tips, body, cleanBody),
                 ],
               ],
             ),
@@ -363,6 +380,7 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
   Widget _buildDrawer(
     KFPalette palette,
     List<String> corrections,
+    List<String> tips,
     String bodyForTts,
     String cleanBody,
   ) {
@@ -380,7 +398,7 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Corrections
+          // Corrections (grammar / spelling)
           if (corrections.isNotEmpty) ...[
             ...corrections.map((c) => Padding(
                   padding: const EdgeInsets.only(bottom: 4),
@@ -388,6 +406,19 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
                     icon: Icons.auto_awesome,
                     iconColor: palette.mustard,
                     child: _correctionText(palette, c),
+                  ),
+                )),
+            const SizedBox(height: 6),
+          ],
+
+          // Naturalness tips (backchannel / register / filler)
+          if (tips.isNotEmpty) ...[
+            ...tips.map((t) => Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: _drawerRow(
+                    icon: Icons.chat_bubble_outline,
+                    iconColor: palette.sageDeep,
+                    child: _correctionText(palette, t),
                   ),
                 )),
             const SizedBox(height: 6),

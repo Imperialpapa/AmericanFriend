@@ -1,4 +1,3 @@
-import 'package:eng_friend/features/chat/presentation/providers/suggestion_provider.dart';
 import 'package:eng_friend/services/ai/ai_provider_type.dart';
 import 'package:eng_friend/services/language/app_language.dart';
 
@@ -25,7 +24,7 @@ class UserSettings {
   /// 대상 언어: 음성 읽기 (default: ON)
   final bool targetTtsEnabled;
 
-  final SuggestionMode suggestionMode;
+  /// 제안 노출까지 사용자에게 주는 답변 시간(초). 0=즉시 노출, 1~15=대기 후 노출.
   final int suggestionDelaySec;
   final double ttsSpeechRate;
   final TtsVoiceGender ttsVoiceGender;
@@ -45,14 +44,22 @@ class UserSettings {
   final int reminderMinute;
 
   /// STT 침묵 허용 시간(초) — 사용자가 말 중간 생각할 수 있는 여유.
-  /// 3=Quick, 5=Normal(기본), 8=Patient
+  /// 슬라이더 범위 0~15. 0=즉시(가장 빠른 응답), 기본 2초.
   final int sttPauseSeconds;
 
   /// STT 결과를 자동으로 전송할지. false면 텍스트가 입력창에 채워지고 사용자가 send 버튼을 눌러야 함.
   final bool autoSendVoice;
 
+  /// 채팅 메시지 본문 폰트 스케일. 1.0=기본. 핀치 제스처로 0.5~2.8 범위.
+  final double chatFontScale;
+
   /// 무료 티어 프록시 인증용 기기 UUID. 앱 설치 시 1회 생성 후 유지.
   final String freeTierDeviceId;
+
+  /// 핸즈프리 모드 선호. ON이면 채팅 화면 진입 시 마이크가 자동으로 열리고,
+  /// AI 응답이 끝날 때마다 다시 열려 마이크 버튼 없이 대화가 이어진다.
+  /// 마이크가 저절로 켜지는 동작이므로 기본값은 OFF.
+  final bool handsFreeEnabled;
 
   const UserSettings({
     this.claudeApiKey = '',
@@ -66,8 +73,7 @@ class UserSettings {
     this.nativeTtsEnabled = false,
     this.showTargetText = true,
     this.targetTtsEnabled = true,
-    this.suggestionMode = SuggestionMode.immediate,
-    this.suggestionDelaySec = 5,
+    this.suggestionDelaySec = 0,
     this.ttsSpeechRate = 0.5,
     this.ttsVoiceGender = TtsVoiceGender.female,
     this.claudeModelId,
@@ -78,9 +84,11 @@ class UserSettings {
     this.reminderEnabled = false,
     this.reminderHour = 20,
     this.reminderMinute = 0,
-    this.sttPauseSeconds = 5,
+    this.sttPauseSeconds = 2,
     this.autoSendVoice = true,
+    this.chatFontScale = 1.0,
     this.freeTierDeviceId = '',
+    this.handsFreeEnabled = false,
   });
 
   /// 현재 선택된 프로바이더의 API 키 (freeTier는 device UUID).
@@ -122,7 +130,6 @@ class UserSettings {
     bool? nativeTtsEnabled,
     bool? showTargetText,
     bool? targetTtsEnabled,
-    SuggestionMode? suggestionMode,
     int? suggestionDelaySec,
     double? ttsSpeechRate,
     TtsVoiceGender? ttsVoiceGender,
@@ -136,7 +143,9 @@ class UserSettings {
     int? reminderMinute,
     int? sttPauseSeconds,
     bool? autoSendVoice,
+    double? chatFontScale,
     String? freeTierDeviceId,
+    bool? handsFreeEnabled,
   }) {
     return UserSettings(
       claudeApiKey: claudeApiKey ?? this.claudeApiKey,
@@ -150,7 +159,6 @@ class UserSettings {
       nativeTtsEnabled: nativeTtsEnabled ?? this.nativeTtsEnabled,
       showTargetText: showTargetText ?? this.showTargetText,
       targetTtsEnabled: targetTtsEnabled ?? this.targetTtsEnabled,
-      suggestionMode: suggestionMode ?? this.suggestionMode,
       suggestionDelaySec: suggestionDelaySec ?? this.suggestionDelaySec,
       ttsSpeechRate: ttsSpeechRate ?? this.ttsSpeechRate,
       ttsVoiceGender: ttsVoiceGender ?? this.ttsVoiceGender,
@@ -164,7 +172,9 @@ class UserSettings {
       reminderMinute: reminderMinute ?? this.reminderMinute,
       sttPauseSeconds: sttPauseSeconds ?? this.sttPauseSeconds,
       autoSendVoice: autoSendVoice ?? this.autoSendVoice,
+      chatFontScale: chatFontScale ?? this.chatFontScale,
       freeTierDeviceId: freeTierDeviceId ?? this.freeTierDeviceId,
+      handsFreeEnabled: handsFreeEnabled ?? this.handsFreeEnabled,
     );
   }
 }

@@ -719,20 +719,20 @@ abstract class AppLocalizations {
   /// No description provided for @settingsSuggestionTiming.
   ///
   /// In en, this message translates to:
-  /// **'Suggestion timing'**
+  /// **'Time before hints'**
   String get settingsSuggestionTiming;
+
+  /// No description provided for @settingsSuggestionTimingSub.
+  ///
+  /// In en, this message translates to:
+  /// **'Wait before reply suggestions appear (0 = immediate)'**
+  String get settingsSuggestionTimingSub;
 
   /// No description provided for @settingsSuggestionImmediate.
   ///
   /// In en, this message translates to:
   /// **'Immediate'**
   String get settingsSuggestionImmediate;
-
-  /// No description provided for @settingsSuggestionDelayed.
-  ///
-  /// In en, this message translates to:
-  /// **'Delayed'**
-  String get settingsSuggestionDelayed;
 
   /// No description provided for @settingsReadTargetAloud.
   ///
@@ -791,32 +791,14 @@ abstract class AppLocalizations {
   /// No description provided for @settingsMicPause.
   ///
   /// In en, this message translates to:
-  /// **'Mic pause tolerance'**
+  /// **'Time to respond'**
   String get settingsMicPause;
 
   /// No description provided for @settingsMicPauseSub.
   ///
   /// In en, this message translates to:
-  /// **'How long you can pause mid-sentence'**
+  /// **'How long the AI waits while you pause mid-sentence'**
   String get settingsMicPauseSub;
-
-  /// No description provided for @settingsMicPauseQuick.
-  ///
-  /// In en, this message translates to:
-  /// **'Quick 3s'**
-  String get settingsMicPauseQuick;
-
-  /// No description provided for @settingsMicPauseNormal.
-  ///
-  /// In en, this message translates to:
-  /// **'Normal 5s'**
-  String get settingsMicPauseNormal;
-
-  /// No description provided for @settingsMicPausePatient.
-  ///
-  /// In en, this message translates to:
-  /// **'Patient 8s'**
-  String get settingsMicPausePatient;
 
   /// No description provided for @settingsAutoSendVoice.
   ///
@@ -1273,6 +1255,150 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Error: {message}'**
   String pronError(String message);
+
+  /// No description provided for @handsFreeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Hands-free'**
+  String get handsFreeLabel;
+
+  /// No description provided for @handsFreeTurnOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn on hands-free — talk without the mic button'**
+  String get handsFreeTurnOn;
+
+  /// No description provided for @handsFreeTurnOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn off hands-free'**
+  String get handsFreeTurnOff;
+
+  /// No description provided for @handsFreeListening.
+  ///
+  /// In en, this message translates to:
+  /// **'Listening — just speak'**
+  String get handsFreeListening;
+
+  /// No description provided for @handsFreeThinking.
+  ///
+  /// In en, this message translates to:
+  /// **'Thinking…'**
+  String get handsFreeThinking;
+
+  /// No description provided for @handsFreeSpeaking.
+  ///
+  /// In en, this message translates to:
+  /// **'Speaking…'**
+  String get handsFreeSpeaking;
+
+  /// No description provided for @handsFreePaused.
+  ///
+  /// In en, this message translates to:
+  /// **'Paused'**
+  String get handsFreePaused;
+
+  /// No description provided for @handsFreeStop.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop'**
+  String get handsFreeStop;
+
+  /// No description provided for @handsFreeStoppedIdle.
+  ///
+  /// In en, this message translates to:
+  /// **'Hands-free turned off — no speech detected'**
+  String get handsFreeStoppedIdle;
+
+  /// No description provided for @handsFreeSttUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Speech recognition is unavailable. Check the microphone permission.'**
+  String get handsFreeSttUnavailable;
+
+  /// No description provided for @handsFreeOpenSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Open settings'**
+  String get handsFreeOpenSettings;
+
+  /// No description provided for @handsFreeStoppedQuota.
+  ///
+  /// In en, this message translates to:
+  /// **'Daily free limit reached — hands-free turned off. Add your own API key in Settings to keep going.'**
+  String get handsFreeStoppedQuota;
+
+  /// No description provided for @settingsHandsFree.
+  ///
+  /// In en, this message translates to:
+  /// **'Hands-free conversation'**
+  String get settingsHandsFree;
+
+  /// No description provided for @settingsHandsFreeSub.
+  ///
+  /// In en, this message translates to:
+  /// **'The mic opens by itself and reopens after each reply — no mic button'**
+  String get settingsHandsFreeSub;
+
+  /// No description provided for @noticeUpdateTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Update required'**
+  String get noticeUpdateTitle;
+
+  /// No description provided for @noticeUpdateBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This version is out of date and some features may not work. Please update to continue.'**
+  String get noticeUpdateBody;
+
+  /// No description provided for @noticeUpdateAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Update now'**
+  String get noticeUpdateAction;
+
+  /// No description provided for @noticeDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'Learn more'**
+  String get noticeDetails;
+
+  /// No description provided for @chatErrorFreeTierDown.
+  ///
+  /// In en, this message translates to:
+  /// **'Free chat isn\'t available right now. Add your own API key in Settings to keep talking.'**
+  String get chatErrorFreeTierDown;
+
+  /// No description provided for @chatErrorQuota.
+  ///
+  /// In en, this message translates to:
+  /// **'You\'ve used up today\'s free messages. Add your own API key in Settings to keep going.'**
+  String get chatErrorQuota;
+
+  /// No description provided for @chatErrorNetwork.
+  ///
+  /// In en, this message translates to:
+  /// **'Can\'t reach the server. Please check your internet connection.'**
+  String get chatErrorNetwork;
+
+  /// No description provided for @chatErrorNoKey.
+  ///
+  /// In en, this message translates to:
+  /// **'An API key is needed. Add one in Settings, or switch to the free tier.'**
+  String get chatErrorNoKey;
+
+  /// No description provided for @chatErrorUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'Something went wrong. Please try again in a moment.'**
+  String get chatErrorUnknown;
+
+  /// No description provided for @handsFreeStoppedError.
+  ///
+  /// In en, this message translates to:
+  /// **'Hands-free turned off because the AI couldn\'t respond.'**
+  String get handsFreeStoppedError;
 }
 
 class _AppLocalizationsDelegate

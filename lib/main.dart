@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -64,9 +66,26 @@ class _AppLoaderState extends ConsumerState<_AppLoader> {
       }
 
       if (mounted) setState(() => _loaded = true);
+
+      // 서버 공지 + 죽은 모델 ID 교정을 반영. 앱 시작을 막지 않도록 await하지 않는다.
+      unawaited(_syncRemoteStatus());
     } catch (e, st) {
       debugPrint('[AppLoader] FAILED: $e\n$st');
       if (mounted) setState(() => _error = '$e');
+    }
+  }
+
+  /// 제공자 모델 셧다운 같은 사고를 앱 릴리스 없이 복구하기 위한 경로 (BUG_HISTORY #9).
+  /// 실패해도 조용히 넘어간다 — 상태 확인 실패로 앱을 못 쓰게 되면 본말전도다.
+  Future<void> _syncRemoteStatus() async {
+    try {
+      final status = await ref.read(appStatusProvider.future);
+      if (status == null || !mounted) return;
+      await ref
+          .read(settingsProvider.notifier)
+          .applyModelMigrations(status.modelMigrations);
+    } catch (e) {
+      debugPrint('[AppLoader] status sync skipped: $e');
     }
   }
 

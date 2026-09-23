@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:eng_friend/core/constants/ad_constants.dart';
@@ -20,8 +21,11 @@ class _BannerAdWidgetState extends State<BannerAdWidget> {
   }
 
   void _loadAd() {
+    final adUnitId = AdConstants.bannerAdUnitId;
+    // 실기기 테스트 시 테스트 광고가 맞는지 로그로 확인 (실광고 클릭 = AdMob 정책 위반)
+    debugPrint('[Ads] banner unit=$adUnitId debug=$kDebugMode');
     _bannerAd = BannerAd(
-      adUnitId: AdConstants.bannerAdUnitId,
+      adUnitId: adUnitId,
       size: AdSize.banner,
       request: const AdRequest(),
       listener: BannerAdListener(

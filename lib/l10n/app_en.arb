@@ -187,9 +187,9 @@
     "placeholders": { "language": { "type": "String" } }
   },
   "settingsShowNativeTranslationSub": "Inline hints in parentheses",
-  "settingsSuggestionTiming": "Suggestion timing",
+  "settingsSuggestionTiming": "Time before hints",
+  "settingsSuggestionTimingSub": "Wait before reply suggestions appear (0 = immediate)",
   "settingsSuggestionImmediate": "Immediate",
-  "settingsSuggestionDelayed": "Delayed",
 
   "settingsReadTargetAloud": "Read {language} aloud",
   "@settingsReadTargetAloud": {
@@ -203,11 +203,8 @@
   "settingsSpeedSlow": "Slow",
   "settingsSpeedNormal": "Normal",
   "settingsSpeedFast": "Fast",
-  "settingsMicPause": "Mic pause tolerance",
-  "settingsMicPauseSub": "How long you can pause mid-sentence",
-  "settingsMicPauseQuick": "Quick 3s",
-  "settingsMicPauseNormal": "Normal 5s",
-  "settingsMicPausePatient": "Patient 8s",
+  "settingsMicPause": "Time to respond",
+  "settingsMicPauseSub": "How long the AI waits while you pause mid-sentence",
   "settingsAutoSendVoice": "Auto-send voice",
   "settingsAutoSendVoiceSub": "Off: tap send to confirm what you said",
 
@@ -300,5 +297,30 @@
   "pronScoreKeepPracticing": "Keep practicing",
   "pronScoreNeedsWork": "Needs work",
   "pronError": "Error: {message}",
-  "@pronError": { "placeholders": { "message": { "type": "String" } } }
+  "@pronError": { "placeholders": { "message": { "type": "String" } } },
+
+  "handsFreeLabel": "Hands-free",
+  "handsFreeTurnOn": "Turn on hands-free — talk without the mic button",
+  "handsFreeTurnOff": "Turn off hands-free",
+  "handsFreeListening": "Listening — just speak",
+  "handsFreeThinking": "Thinking…",
+  "handsFreeSpeaking": "Speaking…",
+  "handsFreePaused": "Paused",
+  "handsFreeStop": "Stop",
+  "handsFreeStoppedIdle": "Hands-free turned off — no speech detected",
+  "handsFreeSttUnavailable": "Speech recognition is unavailable. Check the microphone permission.",
+  "handsFreeOpenSettings": "Open settings",
+  "handsFreeStoppedQuota": "Daily free limit reached — hands-free turned off. Add your own API key in Settings to keep going.",
+  "settingsHandsFree": "Hands-free conversation",
+  "settingsHandsFreeSub": "The mic opens by itself and reopens after each reply — no mic button",
+  "noticeUpdateTitle": "Update required",
+  "noticeUpdateBody": "This version is out of date and some features may not work. Please update to continue.",
+  "noticeUpdateAction": "Update now",
+  "noticeDetails": "Learn more",
+  "chatErrorFreeTierDown": "Free chat isn't available right now. Add your own API key in Settings to keep talking.",
+  "chatErrorQuota": "You've used up today's free messages. Add your own API key in Settings to keep going.",
+  "chatErrorNetwork": "Can't reach the server. Please check your internet connection.",
+  "chatErrorNoKey": "An API key is needed. Add one in Settings, or switch to the free tier.",
+  "chatErrorUnknown": "Something went wrong. Please try again in a moment.",
+  "handsFreeStoppedError": "Hands-free turned off because the AI couldn't respond."
 }

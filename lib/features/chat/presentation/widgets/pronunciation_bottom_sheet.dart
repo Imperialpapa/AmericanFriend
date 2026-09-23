@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 import 'package:eng_friend/di/service_providers.dart';
 import 'package:eng_friend/features/settings/presentation/providers/settings_provider.dart';
+import 'package:eng_friend/features/voice/presentation/providers/voice_provider.dart';
 import 'package:eng_friend/l10n/app_localizations.dart';
 import 'package:eng_friend/services/ai/prompts/pronunciation_prompt.dart';
 
@@ -28,9 +29,16 @@ class _PronunciationBottomSheetState
   Map<String, dynamic>? _result;
   String? _error;
 
+  /// dispose에서 ref를 쓰지 않도록 initState에서 잡아둔다.
+  VoiceNotifier? _voiceNotifier;
+
   @override
   void initState() {
     super.initState();
+    // 이 시트는 자체 SpeechToText 인스턴스를 쓴다(위 _stt). 핸즈프리가 돌고 있으면
+    // 마이크를 두 곳에서 잡게 되므로 시트가 열려 있는 동안 멈춰둔다.
+    _voiceNotifier = ref.read(voiceProvider.notifier);
+    _voiceNotifier?.suspendHandsFree();
     _initStt();
   }
 
@@ -365,6 +373,7 @@ class _PronunciationBottomSheetState
   @override
   void dispose() {
     _stt.stop();
+    _voiceNotifier?.resumeHandsFree();
     super.dispose();
   }
 }

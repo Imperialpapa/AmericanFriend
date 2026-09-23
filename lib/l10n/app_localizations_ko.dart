@@ -351,13 +351,13 @@ class AppLocalizationsKo extends AppLocalizations {
   String get settingsShowNativeTranslationSub => '괄호 안 인라인 힌트';
 
   @override
-  String get settingsSuggestionTiming => '제안 시점';
+  String get settingsSuggestionTiming => '제안 대기 시간';
+
+  @override
+  String get settingsSuggestionTimingSub => 'AI 응답 후 제안이 나오기까지 (0초 = 즉시)';
 
   @override
   String get settingsSuggestionImmediate => '즉시';
-
-  @override
-  String get settingsSuggestionDelayed => '지연';
 
   @override
   String settingsReadTargetAloud(String language) {
@@ -389,19 +389,10 @@ class AppLocalizationsKo extends AppLocalizations {
   String get settingsSpeedFast => '빠름';
 
   @override
-  String get settingsMicPause => '마이크 멈춤 허용';
+  String get settingsMicPause => '답변 대기 시간';
 
   @override
-  String get settingsMicPauseSub => '말 도중에 멈출 수 있는 시간';
-
-  @override
-  String get settingsMicPauseQuick => '빠름 3초';
-
-  @override
-  String get settingsMicPauseNormal => '보통 5초';
-
-  @override
-  String get settingsMicPausePatient => '여유 8초';
+  String get settingsMicPauseSub => '말 도중 잠깐 멈춰도 AI가 가로채지 않고 기다리는 시간';
 
   @override
   String get settingsAutoSendVoice => '음성 자동 전송';
@@ -644,4 +635,80 @@ class AppLocalizationsKo extends AppLocalizations {
   String pronError(String message) {
     return '오류: $message';
   }
+
+  @override
+  String get handsFreeLabel => '핸즈프리';
+
+  @override
+  String get handsFreeTurnOn => '핸즈프리 켜기 — 마이크 버튼 없이 대화';
+
+  @override
+  String get handsFreeTurnOff => '핸즈프리 끄기';
+
+  @override
+  String get handsFreeListening => '듣고 있어요 — 그냥 말하세요';
+
+  @override
+  String get handsFreeThinking => '생각 중…';
+
+  @override
+  String get handsFreeSpeaking => '말하는 중…';
+
+  @override
+  String get handsFreePaused => '일시중지됨';
+
+  @override
+  String get handsFreeStop => '중지';
+
+  @override
+  String get handsFreeStoppedIdle => '말소리가 없어 핸즈프리를 껐어요';
+
+  @override
+  String get handsFreeSttUnavailable => '음성 인식을 사용할 수 없어요. 마이크 권한을 확인해 주세요.';
+
+  @override
+  String get handsFreeOpenSettings => '설정 열기';
+
+  @override
+  String get handsFreeStoppedQuota =>
+      '오늘의 무료 사용량을 다 썼어요 — 핸즈프리를 껐습니다. 설정에서 본인 API 키를 등록하면 계속 사용할 수 있어요.';
+
+  @override
+  String get settingsHandsFree => '핸즈프리 대화';
+
+  @override
+  String get settingsHandsFreeSub => '마이크가 저절로 열리고 답변이 끝나면 다시 열려요 — 마이크 버튼 불필요';
+
+  @override
+  String get noticeUpdateTitle => '업데이트가 필요해요';
+
+  @override
+  String get noticeUpdateBody =>
+      '현재 버전이 오래되어 일부 기능이 동작하지 않을 수 있어요. 업데이트 후 계속 이용해 주세요.';
+
+  @override
+  String get noticeUpdateAction => '지금 업데이트';
+
+  @override
+  String get noticeDetails => '자세히 보기';
+
+  @override
+  String get chatErrorFreeTierDown =>
+      '지금은 무료 대화를 이용할 수 없어요. 설정에서 본인 API 키를 등록하면 바로 이어서 대화할 수 있어요.';
+
+  @override
+  String get chatErrorQuota =>
+      '오늘의 무료 대화를 다 사용했어요. 설정에서 본인 API 키를 등록하면 계속 이용할 수 있어요.';
+
+  @override
+  String get chatErrorNetwork => '서버에 연결할 수 없어요. 인터넷 연결을 확인해 주세요.';
+
+  @override
+  String get chatErrorNoKey => 'API 키가 필요해요. 설정에서 등록하거나 무료 티어로 바꿔 주세요.';
+
+  @override
+  String get chatErrorUnknown => '문제가 생겼어요. 잠시 후 다시 시도해 주세요.';
+
+  @override
+  String get handsFreeStoppedError => 'AI가 응답하지 못해 핸즈프리를 껐어요.';
 }

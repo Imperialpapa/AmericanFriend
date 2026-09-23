@@ -3,37 +3,28 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:eng_friend/features/chat/domain/entities/message.dart' show MessageRole;
 import 'package:eng_friend/features/chat/domain/entities/suggestion.dart';
 import 'package:eng_friend/features/chat/presentation/providers/chat_provider.dart';
+import 'package:eng_friend/core/constants/level_constants.dart';
 import 'package:eng_friend/features/settings/presentation/providers/settings_provider.dart';
 import 'package:eng_friend/di/service_providers.dart';
 import 'package:eng_friend/services/ai/ai_service.dart';
 import 'package:eng_friend/services/language/app_language.dart';
 
-enum SuggestionMode { immediate, delayed }
-
 class SuggestionState {
   final List<Suggestion> suggestions;
   final bool isLoading;
-  final SuggestionMode mode;
-  final int delaySec;
 
   const SuggestionState({
     this.suggestions = const [],
     this.isLoading = false,
-    this.mode = SuggestionMode.delayed,
-    this.delaySec = 5,
   });
 
   SuggestionState copyWith({
     List<Suggestion>? suggestions,
     bool? isLoading,
-    SuggestionMode? mode,
-    int? delaySec,
   }) {
     return SuggestionState(
       suggestions: suggestions ?? this.suggestions,
       isLoading: isLoading ?? this.isLoading,
-      mode: mode ?? this.mode,
-      delaySec: delaySec ?? this.delaySec,
     );
   }
 }
@@ -43,6 +34,8 @@ class SuggestionNotifier extends StateNotifier<SuggestionState> {
   final ChatNotifier _chatNotifier;
   final AppLanguage Function() _getNativeLanguage;
   final AppLanguage Function() _getTargetLanguage;
+  final int Function() _getDelaySec;
+  final int Function() _getUserLevel;
   Timer? _delayTimer;
   bool _wasAiTyping = false;
 
@@ -51,9 +44,13 @@ class SuggestionNotifier extends StateNotifier<SuggestionState> {
     required AiService Function() getAiService,
     required AppLanguage Function() getNativeLanguage,
     required AppLanguage Function() getTargetLanguage,
+    required int Function() getDelaySec,
+    required int Function() getUserLevel,
   })  : _getAiService = getAiService,
         _getNativeLanguage = getNativeLanguage,
         _getTargetLanguage = getTargetLanguage,
+        _getDelaySec = getDelaySec,
+        _getUserLevel = getUserLevel,
         super(const SuggestionState());
 
   /// chatProvider의 상태 변화를 감지하여 호출
@@ -69,10 +66,11 @@ class SuggestionNotifier extends StateNotifier<SuggestionState> {
     _delayTimer?.cancel();
     state = state.copyWith(suggestions: []);
 
-    if (state.mode == SuggestionMode.immediate) {
+    final delay = _getDelaySec();
+    if (delay <= 0) {
       _fetchSuggestions(chatState);
     } else {
-      _delayTimer = Timer(Duration(seconds: state.delaySec), () {
+      _delayTimer = Timer(Duration(seconds: delay), () {
         _fetchSuggestions(chatState);
       });
     }
@@ -93,7 +91,7 @@ class SuggestionNotifier extends StateNotifier<SuggestionState> {
     try {
       final suggestions = await _getAiService().generateSuggestions(
         conversationHistory: chatState.messages,
-        userLevel: chatState.userLevel,
+        userLevel: _getUserLevel(),
         nativeLanguage: _getNativeLanguage(),
         targetLanguage: _getTargetLanguage(),
         lastAiMessage: lastAiMsg,
@@ -117,14 +115,6 @@ class SuggestionNotifier extends StateNotifier<SuggestionState> {
     state = state.copyWith(suggestions: [], isLoading: false);
   }
 
-  void setMode(SuggestionMode mode) {
-    state = state.copyWith(mode: mode);
-  }
-
-  void setDelay(int seconds) {
-    state = state.copyWith(delaySec: seconds);
-  }
-
   @override
   void dispose() {
     _delayTimer?.cancel();
@@ -141,10 +131,17 @@ final suggestionProvider =
     getAiService: () => ref.read(aiServiceProvider),
     getNativeLanguage: () => ref.read(settingsProvider).nativeLanguage,
     getTargetLanguage: () => ref.read(settingsProvider).targetLanguage,
+    getDelaySec: () => ref.read(settingsProvider).suggestionDelaySec,
+    getUserLevel: () {
+      // levelProvider 직접 read 시 chatProvider와의 순환 의존성 위험.
+      // SharedPreferences를 single source of truth로 사용 (chat_provider와 동일 패턴).
+      final prefs = ref.read(sharedPreferencesProvider);
+      return prefs.getInt('user_level') ?? LevelConstants.defaultLevel;
+    },
   );
 
   // chatProvider 상태 변화 감지
-  ref.listen(chatProvider, (prev, next) {
+  ref.listen<ChatState>(chatProvider, (prev, next) {
     notifier.onChatStateChanged(next);
   });
 

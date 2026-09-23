@@ -6,25 +6,32 @@ import 'package:eng_friend/services/language/app_language.dart';
 import 'package:eng_friend/services/local_db/app_database.dart' hide Message;
 import 'package:eng_friend/services/pipeline/conversation_pipeline.dart';
 import 'package:eng_friend/services/pipeline/pipeline_event.dart';
+import 'package:eng_friend/core/constants/level_constants.dart';
+import 'package:eng_friend/core/error/failures.dart';
 import 'package:eng_friend/features/settings/presentation/providers/settings_provider.dart';
 import 'package:eng_friend/di/service_providers.dart';
 import 'package:eng_friend/features/topic/presentation/providers/topic_provider.dart';
 
+/// 에러의 종류. 문자열 메시지만으로는 쿼터 소진과 네트워크 오류를 구분할 수 없어서,
+/// 핸즈프리 같은 자동 재시도 루프가 어떤 실패인지 알 방법이 없었다.
+enum ChatErrorKind { quota, noKey, network, freeTierDown, unknown }
+
 /// 채팅 상태
+/// userLevel은 levelProvider에서 직접 읽음 (별도 보관하지 않음).
 class ChatState {
   final List<Message> messages;
   final bool isAiTyping;
   final String currentAiResponse;
-  final int userLevel;
   final String? error;
+  final ChatErrorKind? errorKind;
   final String? conversationId;
 
   const ChatState({
     this.messages = const [],
     this.isAiTyping = false,
     this.currentAiResponse = '',
-    this.userLevel = 5,
     this.error,
+    this.errorKind,
     this.conversationId,
   });
 
@@ -32,16 +39,17 @@ class ChatState {
     List<Message>? messages,
     bool? isAiTyping,
     String? currentAiResponse,
-    int? userLevel,
     String? error,
+    ChatErrorKind? errorKind,
     String? conversationId,
   }) {
     return ChatState(
       messages: messages ?? this.messages,
       isAiTyping: isAiTyping ?? this.isAiTyping,
       currentAiResponse: currentAiResponse ?? this.currentAiResponse,
-      userLevel: userLevel ?? this.userLevel,
+      // error/errorKind는 의도적으로 ?? 를 쓰지 않는다 — 매 갱신마다 초기화되어야 함
       error: error,
+      errorKind: error == null ? null : errorKind,
       conversationId: conversationId ?? this.conversationId,
     );
   }
@@ -57,6 +65,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
   final bool Function() _getNativeTtsEnabled;
   final AppLanguage Function() _getNativeLanguage;
   final AppLanguage Function() _getTargetLanguage;
+  final int Function() _getUserLevel;
   final String? Function() _getTopicTitle;
   final String? Function() _getTopicSituation;
   final String? Function() _getTopicAiRole;
@@ -71,6 +80,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
     required bool Function() getNativeTtsEnabled,
     required AppLanguage Function() getNativeLanguage,
     required AppLanguage Function() getTargetLanguage,
+    required int Function() getUserLevel,
     required String? Function() getTopicTitle,
     required String? Function() getTopicSituation,
     required String? Function() getTopicAiRole,
@@ -81,6 +91,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
         _getNativeTtsEnabled = getNativeTtsEnabled,
         _getNativeLanguage = getNativeLanguage,
         _getTargetLanguage = getTargetLanguage,
+        _getUserLevel = getUserLevel,
         _getTopicTitle = getTopicTitle,
         _getTopicSituation = getTopicSituation,
         _getTopicAiRole = getTopicAiRole,
@@ -165,11 +176,12 @@ class ChatNotifier extends StateNotifier<ChatState> {
 
     // 파이프라인 실행 (매번 최신 설정 반영)
     final pipeline = _getPipeline();
+    final level = _getUserLevel();
     final eventStream = pipeline.processTextInput(
       text: text,
       conversationHistory: state.messages,
       systemPrompt: SystemPrompt.build(
-        userLevel: state.userLevel,
+        userLevel: level,
         nativeLanguage: _getNativeLanguage(),
         targetLanguage: _getTargetLanguage(),
         showNativeHint: _showNativeHint(),
@@ -177,7 +189,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
         topicSituation: _getTopicSituation(),
         topicAiRole: _getTopicAiRole(),
       ),
-      userLevel: state.userLevel,
+      userLevel: level,
       targetTtsEnabled: _getTargetTtsEnabled(),
       nativeTtsEnabled: _getNativeTtsEnabled(),
     );
@@ -189,6 +201,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
         state = state.copyWith(
           isAiTyping: false,
           error: e.toString(),
+          errorKind: ChatErrorKind.unknown,
         );
       },
     );
@@ -236,6 +249,13 @@ class ChatNotifier extends StateNotifier<ChatState> {
         state = state.copyWith(
           isAiTyping: false,
           error: failure.message,
+          errorKind: switch (failure) {
+            RateLimitFailure() => ChatErrorKind.quota,
+            FreeTierUnavailableFailure(isNetwork: true) => ChatErrorKind.network,
+            FreeTierUnavailableFailure() => ChatErrorKind.freeTierDown,
+            NetworkFailure() => ChatErrorKind.network,
+            _ => ChatErrorKind.unknown,
+          },
         );
 
       case TtsSpeakingStarted():
@@ -285,10 +305,6 @@ class ChatNotifier extends StateNotifier<ChatState> {
     }
   }
 
-  void updateLevel(int level) {
-    state = state.copyWith(userLevel: level);
-  }
-
   @override
   void dispose() {
     _pipelineSubscription?.cancel();
@@ -297,7 +313,8 @@ class ChatNotifier extends StateNotifier<ChatState> {
 }
 
 /// 채팅 프로바이더
-final chatProvider = StateNotifierProvider<ChatNotifier, ChatState>((ref) {
+final StateNotifierProvider<ChatNotifier, ChatState> chatProvider =
+    StateNotifierProvider<ChatNotifier, ChatState>((ref) {
   final db = ref.read(appDatabaseProvider);
 
   return ChatNotifier(
@@ -322,6 +339,14 @@ final chatProvider = StateNotifierProvider<ChatNotifier, ChatState>((ref) {
     },
     getTargetLanguage: () {
       return ref.read(settingsProvider).targetLanguage;
+    },
+    getUserLevel: () {
+      // SharedPreferences에서 직접 읽어 levelProvider와의 순환 의존성 회피.
+      // levelProvider는 chatProvider를 listen하므로 ref.read(levelProvider)는
+      // CircularDependencyError를 일으킴. 두 provider 모두 'user_level' 키에
+      // 저장하므로 prefs를 single source of truth로 사용.
+      final prefs = ref.read(sharedPreferencesProvider);
+      return prefs.getInt('user_level') ?? LevelConstants.defaultLevel;
     },
     getTopicTitle: () {
       final topic = ref.read(topicProvider).activeTopic;
