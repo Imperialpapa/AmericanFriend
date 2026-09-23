@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show kReleaseMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -11,6 +12,9 @@ import 'package:eng_friend/services/notification/notification_service.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 void main() async {
+  // release logcat에 사용자 발화 전사·오류 원문이 찍히지 않게 한다(tobe.md S-07).
+  // debug/profile은 그대로 둔다. 전사 길이만 남기는 로그 래퍼는 후속 작업.
+  if (kReleaseMode) debugPrint = (String? message, {int? wrapWidth}) {};
   WidgetsFlutterBinding.ensureInitialized();
   await MobileAds.instance.initialize();
 
