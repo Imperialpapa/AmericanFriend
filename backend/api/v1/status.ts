@@ -57,10 +57,13 @@ async function probeUpstream(): Promise<ProbeResult> {
     return { ok: probeCache.ok, code: probeCache.code };
   }
 
-  const provider = (process.env.UPSTREAM_PROVIDER ?? 'gemini').toLowerCase();
-  const model =
-    process.env.UPSTREAM_MODEL ??
-    (provider === 'gemini' ? 'gemini-2.5-flash' : 'openai/gpt-oss-120b');
+  // completions와 같이 기본값으로 추측하지 않는다(tobe S-17).
+  const provider = process.env.UPSTREAM_PROVIDER?.trim().toLowerCase();
+  // UPSTREAM_MODEL은 쉼표 체인일 수 있다 — 1순위 모델만 확인한다.
+  const model = process.env.UPSTREAM_MODEL?.split(',')[0]?.trim();
+  if (!provider || !model || !['gemini', 'groq', 'openrouter'].includes(provider)) {
+    return { ok: false, code: 'misconfigured' };
+  }
 
   let result: ProbeResult;
   try {
@@ -136,7 +139,8 @@ export default async function handler(req: Request): Promise<Response> {
       return json({ error: { code: 'unauthorized' } }, 401, { 'Cache-Control': 'no-store' });
     }
     const probe = await probeUpstream();
-    return json({ ok: probe.ok, code: probe.code }, probe.ok ? 200 : 503, {
+    const httpStatus = probe.ok ? 200 : probe.code === 'misconfigured' ? 500 : 503;
+    return json({ ok: probe.ok, code: probe.code }, httpStatus, {
       'Cache-Control': 'no-store',
     });
   }

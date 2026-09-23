@@ -61,8 +61,8 @@ Vercel 프로젝트 → **Settings → Environment Variables**에서 추가:
 
 | Key | Value | Notes |
 |---|---|---|
-| `UPSTREAM_PROVIDER` | `gemini` | |
-| `UPSTREAM_MODEL` | `gemini-2.5-flash` | |
+| `UPSTREAM_PROVIDER` | `gemini` | 필수. 없으면 500 `misconfigured` |
+| `UPSTREAM_MODEL` | `gemini-2.5-flash` | 필수. 없으면 500 `misconfigured` |
 | `GEMINI_API_KEY` | (1번에서 발급한 키) | |
 | `UPSTASH_REDIS_REST_URL` | (1번에서 복사) | |
 | `UPSTASH_REDIS_REST_TOKEN` | (1번에서 복사) | |

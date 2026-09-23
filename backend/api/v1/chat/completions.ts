@@ -48,6 +48,10 @@ export default async function handler(req: Request): Promise<Response> {
     `[req] stream=${body.stream} msgs=${body.messages.length} trimmed=${parsed.trimmed}`
   );
 
+  // 설정 오류는 한도를 깎기 전에 거른다.
+  const upstream = resolveUpstream();
+  if (upstream instanceof Response) return upstream;
+
   const admitted = await admit(req, deviceId);
   if (admitted instanceof Response) return admitted;
   // 업스트림이 첫 바이트 전에 실패하면 이 요청의 차감을 모두 되돌린다(tobe S-06).
@@ -56,23 +60,12 @@ export default async function handler(req: Request): Promise<Response> {
 
   const rlHeaders: Record<string, string> = { ...admitted.headers, ...CORS_HEADERS };
 
-  const provider = (process.env.UPSTREAM_PROVIDER ?? 'gemini').toLowerCase();
-  // Groq deprecated llama-3.3-70b-versatile and llama-3.1-8b-instant on 2026-06-17;
-  // calling them now returns 404 model_not_found. Groq's own recommended
-  // replacement is openai/gpt-oss-120b.
-  const model =
-    process.env.UPSTREAM_MODEL ??
-    (provider === 'gemini' ? 'gemini-2.5-flash' : 'openai/gpt-oss-120b');
-
   try {
+    const { provider, model, key } = upstream;
     let result;
     if (provider === 'gemini') {
-      const key = process.env.GEMINI_API_KEY;
-      if (!key) throw new Error('GEMINI_API_KEY not set');
       result = await callGemini(body, key, model, rlHeaders);
     } else if (provider === 'groq') {
-      const key = process.env.GROQ_API_KEY;
-      if (!key) throw new Error('GROQ_API_KEY not set');
       result = await callOpenAiCompat(
         body,
         {
@@ -84,9 +77,7 @@ export default async function handler(req: Request): Promise<Response> {
         },
         rlHeaders
       );
-    } else if (provider === 'openrouter') {
-      const key = process.env.OPENROUTER_API_KEY;
-      if (!key) throw new Error('OPENROUTER_API_KEY not set');
+    } else {
       result = await callOpenAiCompat(
         body,
         {
@@ -101,9 +92,6 @@ export default async function handler(req: Request): Promise<Response> {
         },
         rlHeaders
       );
-    } else {
-      await refundCharged();
-      return json({ error: { code: 'bad_provider', message: `Unknown provider: ${provider}` } }, 500);
     }
     if (!result.response.ok) await refundCharged();
     return result.response;
@@ -115,6 +103,45 @@ export default async function handler(req: Request): Promise<Response> {
       502
     );
   }
+}
+
+const PROVIDER_KEY_ENV = {
+  gemini: 'GEMINI_API_KEY',
+  groq: 'GROQ_API_KEY',
+  openrouter: 'OPENROUTER_API_KEY',
+} as const;
+
+type Provider = keyof typeof PROVIDER_KEY_ENV;
+
+interface Upstream {
+  provider: Provider;
+  model: string;
+  key: string;
+}
+
+/**
+ * env가 비면 코드 기본값(gemini)으로 추측하지 않고 500 misconfigured로 멈춘다.
+ * 조용히 다른 제공자로 붙으면 모니터가 못 잡고, Gemini는 약관상 18세 미만
+ * 이용 앱에 쓸 수 없다(tobe S-17). 원인은 서버 로그에만 남긴다.
+ */
+function resolveUpstream(): Upstream | Response {
+  const provider = process.env.UPSTREAM_PROVIDER?.trim().toLowerCase();
+  const model = process.env.UPSTREAM_MODEL?.trim();
+  const keyEnv =
+    provider && Object.hasOwn(PROVIDER_KEY_ENV, provider)
+      ? PROVIDER_KEY_ENV[provider as Provider]
+      : undefined;
+  const key = keyEnv ? process.env[keyEnv] : undefined;
+  if (!provider || !model || !keyEnv || !key) {
+    console.log(
+      `[config] misconfigured: provider=${provider || '-'} model=${model ? 'set' : '-'} key=${key ? 'set' : '-'}`
+    );
+    return json(
+      { error: { code: 'misconfigured', message: 'Free tier is not configured' } },
+      500
+    );
+  }
+  return { provider: provider as Provider, model, key };
 }
 
 interface Admission {
