@@ -3,15 +3,24 @@
 AI tutor Alex와 자연스러운 대화를 통해 외국어를 배우는 앱입니다.
 9개 언어를 지원하며, 모국어와 대상 언어를 자유롭게 선택할 수 있습니다.
 
-> **v2.3.0 업데이트 (2026-04)**
+> **v2.5.0 업데이트 (2026-04-27)** — Play Store 릴리즈
 >
-> - **무료 체험 내장** — API 키 없이 하루 20회 무료 대화 가능 (Vercel 프록시 + Groq)
-> - **UI 한/영 자동 전환** — 설정의 모국어가 한국어면 UI도 한글, 그 외는 영어
-> - **스마트 마이크** — 말 도중 최대 5초 멈춤 허용, 자동 전송 끄기 옵션
-> - **온보딩 3단계로 간소화** — Welcome → Language → Level (API 키 입력 제거, 필요 시 설정에서)
-> - **Learning Drawer 항상 접근 가능** — 듣기/따라하기/저장 버튼이 모든 AI 답변에서 작동
+> **신규 (v2.3.2 → 2.5.0 누적)**
+> - **자연스러움 팁 `💬 More natural`** — 레벨 4+ 응답 끝에 더 native한 표현 1줄 (문법 교정 `💡`과 별개)
+> - **두 손가락 핀치 → 메시지 폰트 즉시 조절** — 채팅 화면에서 두 손가락 모으기/벌리기, 사진 앱과 동일한 UX (0.5x ~ 2.8x)
+>
+> **개선 (v2.3.1)**
+> - **답변 대기 시간 — Samsung OEM 우회** — STT 자체 silence 타이머로 슬라이더 값(3~15초) 그대로 보장
+> - **제안 대기 시간 슬라이더 통합** — 0=즉시, 1~15초로 단순화 (이전 모드 토글 + 슬라이더 분리되어 있던 것 통합)
+> - **레벨 동기화 버그 수정** — 앱 재시작 후 첫 메시지가 저장된 레벨 무시하던 문제 수정
+>
+> **이전 핵심 기능 (v2.3.0)**
+> - **무료 체험 내장** — API 키 없이 하루 20회 무료 대화 (Vercel 프록시 + Groq)
+> - **UI 한/영 자동 전환** — 모국어가 한국어면 UI도 한글, 그 외는 영어
+> - **온보딩 3단계** — Welcome → Language → Level (API 키 입력 제거)
+> - **Learning Drawer** — 듣기/따라하기/저장 버튼이 모든 AI 답변에서 작동
 > - **사용자 메시지 발음 연습** — 본인이 보낸 메시지도 길게 눌러 연습·단어장 저장
-> - **시작 오류 자동 복구** — 보안 저장소 손상 시 복구 옵션 제공
+> - **시작 오류 자동 복구** — 보안 저장소 손상 시 자동 복구
 >
 > 기반 디자인: **Modern Sage** (sage 그린 + 베이지 + 머스타드 톤, Alex 페블 마스코트).
 
@@ -127,7 +136,7 @@ Settings → Learning → Level 슬라이더에서 조정. 어휘 난이도와 �
 - 첫 번째 칩에 머스타드 sparkle 아이콘 강조
 - 각 칩: target 언어 텍스트 + (설정 시) native 힌트
 - 탭하면 즉시 전송
-- 모드: Immediate (즉시 표시) 또는 Delayed (1-15초 지연)
+- **제안 대기 시간** 슬라이더 (0~15초): 0이면 AI 응답 직후 즉시 노출, 1~15초면 그 시간만큼 직접 답할 시간을 준 뒤 노출
 
 ### Voice (TTS)
 - AI 응답을 대상 언어로 자동 재생
@@ -139,11 +148,10 @@ Settings → Learning → Level 슬라이더에서 조정. 어휘 난이도와 �
 - 실시간 부분 인식 결과가 입력바 상단에 sage-wash 영역으로 표시
 - 최종 결과는 자동 전송 (옵션으로 끄기 가능)
 
-#### Mic Pause Tolerance (NEW)
-말하는 도중 생각할 시간을 주는 침묵 허용 설정. Settings → Voice → **Mic pause tolerance**:
-- **Quick 3s** — 빠른 인식 (유창한 사용자)
-- **Normal 5s** (기본) — 1~2초 생각 가능
-- **Patient 8s** — 충분한 사고 시간 (초보자 권장)
+#### Time to Respond (답변 대기 시간)
+말하는 도중 잠깐 멈춰도 AI가 답변을 가로채지 않게 하는 설정. Settings → Voice → **답변 대기 시간 / Time to respond** 슬라이더 (3~15초, 기본 5초).
+
+> **내부 동작**: Android(특히 Samsung)는 OS 차원의 STT silence detection이 강해서 라이브러리의 `pauseFor` 인자를 무시하는 경우가 많음. 그래서 v2.3.1부터 앱이 자체 silence 타이머를 관리 — STT가 일찍 종료되어도 자동 재시작해서 사용자 발화를 끝까지 받음. 슬라이더 값만큼 진짜로 기다려준다.
 
 #### Auto-Send Voice (NEW)
 Settings → Voice → **Auto-send voice**:
@@ -358,13 +366,13 @@ v2.3부터 "Settings" → **"Profile"** 로 개편.
 
 **Conversation**
 - Show target text / Show translation 스위치
-- Suggestion timing (Immediate / Delayed + 슬라이더)
+- 제안 대기 시간 / Time before hints — 슬라이더 (0~15초, 0=즉시)
 
 **Voice**
 - Read aloud 스위치 (target / translation)
 - Voice gender / Speed
-- Mic pause tolerance (Quick 3s / Normal 5s / Patient 8s) — NEW
-- Auto-send voice 스위치 — NEW
+- 답변 대기 시간 / Time to respond — 슬라이더 (3~15초)
+- Auto-send voice 스위치
 
 **App**
 - Daily reminder + 시간
@@ -394,7 +402,7 @@ v2.3부터 "Settings" → **"Profile"** 로 개편.
 | Invalid API key error | Settings → AI Setup 에서 키 재확인 |
 | Suggestions 안 보임 | AI 응답 완료까지 대기 |
 | 문법 교정 안 보임 | 사용자가 실제 오류를 낼 때만 표시. Learning Drawer 를 열어봤는지 확인 |
-| 마이크가 중간에 끊김 | Settings → Voice → Mic pause tolerance 를 Patient 8s 로 변경 |
+| 마이크가 중간에 끊김 / 답변 도중 가로채임 | Settings → Voice → **답변 대기 시간(Time to respond)** 슬라이더를 12~15초로 늘리기. v2.3.1부터 자체 silence 타이머로 OEM 무시 우회 |
 | 자동 전송이 빨라 말이 잘림 | Settings → Voice → Auto-send voice OFF → 수동 확인 후 전송 |
 | Pronunciation 마이크 안 됨 | 마이크 권한 확인. STT 초기화 확인 |
 | Pronunciation 점수가 이상 | STT가 발음을 자동 교정할 수 있음 (알려진 한계) |
@@ -449,3 +457,245 @@ Modern Sage 테마는 `lib/core/theme/` 에 토큰화되어 있음:
 - Samsung Galaxy 디바이스: **Auto Blocker** 를 꺼야 USB 디버깅 가능
   - Settings > Security and privacy > Auto Blocker > OFF
 - 디버그 모드에서 첫 실행 시 `flutter_secure_storage` 복호화 실패가 나면 앱이 자동으로 저장소를 비움 (API 키만 재입력 필요)
+
+---
+
+## v2.3.1 변경 사항 (2026-04-26)
+
+### 한 일 — 설정 옵션 점검 + 버그 3건 수정
+
+이번 패치는 사용자가 보고한 "설정 옵션이 잘 작동하지 않는 것 같다"는 의심에서 출발해, 설정 화면의 모든 옵션이 실제 코드 동작과 일치하는지 전수 점검. 결과 점검 리포트는 `docs/SETTINGS_AUDIT_2026-04-26.md`.
+
+**🔴 버그 1 — 사용자 레벨 동기화 누락**
+- 증상: 앱 재시작 후 첫 메시지가 항상 레벨 5 시스템 프롬프트로 처리 (저장된 레벨 무시)
+- 원인: `ChatNotifier`가 자체 `userLevel` state(default 5)를 가지고 있고, `chat_screen`의 `ref.listen(levelProvider)`은 변경 시에만 트리거됨 → 첫 진입 시 동기화 안 됨
+- 수정: `ChatState.userLevel` 필드 제거, 매 메시지 전송 시 `ref.read(levelProvider).currentLevel`로 직접 조회. 두 provider 간 type-inference cycle은 명시 타입으로 해결.
+
+**🔴 버그 2 — 제안 타이밍 옵션 완전 미작동**
+- 증상: Immediate ↔ Delayed 토글, 1~15초 슬라이더 모두 효과 없음. 항상 default(delayed, 5초)로 동작.
+- 원인: `SuggestionNotifier`가 자체 mode/delaySec state를 가지는데, `settingsProvider` 변경 시 동기화하는 코드가 없음. `setMode`/`setDelay` 호출처 0건.
+- 수정 + 옵션 통합: 두 옵션이 사실상 같은 축이라 슬라이더 하나로 통합 (0~15초, 0=즉시). 라벨 "**제안 대기 시간 / Time before hints**". 마이그레이션: 옛 immediate 사용자 → delay=0 자동 변환.
+
+**🟡 버그 3 — flutterTtsProvider 인스턴스 재생성**
+- 증상: 모든 설정 변경 시마다 FlutterTts 새 인스턴스 생성 → TtsQueue/ConversationPipeline cascade로 재생성 → 진행 중인 TTS 끊김 가능
+- 수정: `ref.watch` → `ref.read` + 3개의 `select()` 기반 `ref.listen`. 인스턴스 1개만 유지. `ref.onDispose(() => tts.stop())`.
+
+### STT 우회 구현 — 답변 대기 시간이 진짜로 작동
+
+**문제**: Android(특히 Samsung 등 한국 OEM)가 `SpeechRecognizer`의 `EXTRA_SPEECH_INPUT_*_SILENCE_LENGTH_MILLIS`를 자체 silence detection으로 덮어씀. 그래서 `speech_to_text` 패키지의 `pauseFor`를 8초로 줘도 2~3초만에 STT가 자체 종료되고, autoSendVoice가 켜져 있으면 즉시 send → AI가 답변을 가로채는 현상.
+
+**우회 (`voice_provider.dart`)**: 자체 silence 타이머 도입.
+1. STT final 결과를 받아도 즉시 send X → `_pendingText`에 누적
+2. `sttPauseSeconds` 길이의 타이머 시작 + STT 자동 재시작
+3. 추가 final 오면 텍스트 누적 + 타이머 리셋
+4. 타이머 만료 → 누적 텍스트 한 번에 send
+5. 사용자가 마이크 버튼 토글로 끄면 즉시 send (현행 동작 유지)
+
+옵션 범위도 확장: SegmentedButton (3/5/8) → 슬라이더 (3~15초).
+
+### 라벨 정리
+
+| 옵션 | v2.3 라벨 | v2.3.1 라벨 |
+|------|-----------|-------------|
+| `sttPauseSeconds` | 마이크 멈춤 허용 / Mic pause tolerance | **답변 대기 시간 / Time to respond** |
+| `suggestionDelaySec` | 제안 시점 / Suggestion timing | **제안 대기 시간 / Time before hints** |
+
+> 두 옵션 모두 "사용자에게 시간을 주는" 개념이지만 작용 시점이 다름 — 답변 대기 시간은 **말하는 도중** 멈춰도 AI가 가로채지 않는 시간, 제안 대기 시간은 **AI 응답 후** 직접 답해볼 시간.
+
+---
+
+---
+
+## v2.3.2 변경 사항 (2026-04-26 후속)
+
+### Filler / Naturalness Tip 도입 (#10)
+
+회화 능력 향상 아이디어 중 ROI 가장 높다고 본 항목 1순위 진행.
+
+**변경:**
+- `system_prompt.dart` — `_naturalnessTipRule(level)` 추가. 레벨 4+에서만 NATURALNESS TIP 블록을 시스템 프롬프트에 주입. 레벨 1-3은 기본 어휘 학습에 집중하기 위해 제외.
+- AI가 응답 끝에 (있을 경우) 한 줄의 `💬 More natural: "<alternative>"` 추가
+- 이 줄은 grammar correction(💡)과는 별개 — 문법은 맞지만 더 자연스럽게 말할 수 있는 경우용
+- `message_bubble.dart` — `_splitCorrections`을 corrections + tips 두 그룹으로 분리. Learning Drawer에 sage 컬러 chat_bubble 아이콘으로 별도 표시
+- `conversation_pipeline.dart` — TTS skip 패턴에 💬 추가 (자연스러움 팁은 음성 재생 안 함)
+- 응답당 최대 1개 💬, 의미 있는 개선이 있을 때만 (강제 X)
+
+**예시:**
+- User: "Yes" → AI 응답 끝: `💬 More casual: "Yeah, totally"`
+- User: "I don't know" → `💬 Native often: "I'm not too sure"`
+
+### Pinch-to-Resize — 메시지 폰트 크기
+
+채팅 화면에서 **두 손가락으로 모으거나 벌려서** 메시지 폰트 크기를 즉시 조절. 사진/지도 앱과 동일한 UX.
+
+**구현:**
+- `chat_screen.dart` — `RawGestureDetector` + `ScaleGestureRecognizer`. 두 손가락 이상(`pointerCount >= 2`)일 때만 활성, 한 손가락 스크롤은 그대로 ListView에 전달
+- `setChatFontScale(scale, {persist: true})` — 핀치 도중엔 `persist: false`로 메모리만, 제스처 종료 시 디스크 저장
+- 범위: 0.5 ~ 2.8 (clamp, 기본 1.0의 1/2 ~ 2배 이상). 사용자 메시지/AI 메시지/숨김 텍스트 본문 모두 적용. drawer 내 corrections/tips는 보조 정보라 고정 크기 유지
+- `user_settings.dart` — `chatFontScale: double` (default 1.0) 영구 저장
+
+설정 화면에 별도 옵션은 두지 않음 — 핀치만으로 충분히 직관적이라 판단.
+
+**다음 후보 (Phase A 남은 항목):**
+- #15 실전 모드 토글
+- #16 자동 단어 강조
+
+---
+
+## v2.5.0 릴리즈 (2026-04-27) — Play Store
+
+### 의미
+v2.3.1 안정화 + v2.3.2 신규 기능을 묶어 Play Store 정식 업로드용 릴리즈.
+versionCode 24 → 25, versionName 2.3.1 → **2.5.0**.
+
+### 포함 변경
+- v2.3.1: 설정 점검 + 3건 버그 수정 (레벨 동기화 / 제안 타이밍 / TTS 인스턴스 재생성), STT silence 우회
+- v2.3.2: 자연스러움 팁 (`💬 More natural`), 두 손가락 핀치 폰트 조절
+
+### 빌드
+- AAB: `build/app/outputs/bundle/release/app-release.aab` (51 MB)
+- 서명: release keystore (key.properties)
+- minSdk / targetSdk: Flutter 기본값 사용 (`android/app/build.gradle.kts`)
+
+### 업로드 절차
+1. [Play Console](https://play.google.com/console) → 앱 선택
+2. **프로덕션** 또는 **테스트 트랙** → **새 버전 만들기**
+3. 위 AAB 업로드 → 릴리즈 노트 작성 → 검토 → 출시
+
+> 다음 패치 버전부터는 `pubspec.yaml`의 `version: 2.5.X+N` 형식으로 올리면 됨 (versionCode `+N`은 항상 직전보다 커야 함).
+
+---
+
+## 할 일 (Roadmap)
+
+### 즉시 — 실기기 검증
+
+- [ ] **Galaxy S26 Ultra 실기기 테스트** (사용자 진행 중)
+  - 답변 대기 시간 12s로 두고 영어로 말하다 4~5초 멈춤 → AI가 가로채지 않고 끝까지 듣는지
+  - STT 재시작 갭(~80ms)에서 첫 단어 누락이 있는지
+  - 첫 발화 없이 마이크 토글 → 정상 idle 복귀
+  - 레벨 슬라이더 변경 → 앱 재시작 → 첫 메시지가 새 레벨로 응답하는지
+  - 제안 대기 시간 0초/8초로 바꿔보고 실제 노출 시점 확인
+
+### 다음 우선순위 (메모리에 보관 중인 작업)
+
+- [ ] **발음 평가** (Phase 1: AI 기반 → Phase 2: Azure Speech)
+  - 상세: `docs/ANALYSIS_PRONUNCIATION_LEVEL.md`
+- [ ] **레벨 테스트 확장** — Speaking / Listening / Grammar / Vocabulary 4영역 멀티스킬 평가
+  - 상세: `docs/feature_roadmap.md`
+
+---
+
+## 회화 능력 향상을 위한 추가 아이디어
+
+기존 기능(대화, 단어장, streak, mission, weekly report)과 시너지를 낼 수 있는 후보들. 우선순위 매겨놓되, 모두 구현이 아니라 **고를 후보 리스트**.
+
+### High Impact (회화 능력 직결)
+
+**1. Shadowing 모드** — 듣고 따라 말하기
+- AI 응답 → TTS 재생 → 사용자가 같은 문장 음성 발화 → 발음/속도/억양 일치도 평가
+- Pronunciation Practice의 확장 — 선택한 한 문장이 아니라 응답 전체를 따라 함
+- 발음 평가 Phase 1과 자연스럽게 결합
+
+**2. 약점 진단 → 집중 미션 자동 생성**
+- Weekly Report 데이터에서 "이번 주 가장 자주 틀린 패턴"을 추출 (예: 시제 실수, a/the 누락)
+- 그 패턴을 **강제로 발화하게 하는 시나리오 미션** 자동 생성
+- 예: 과거 시제 실수 잦으면 → "Tell me about yesterday" 형식의 회상 미션
+- 기존 mission 시스템과 그대로 통합 가능
+
+**3. 표현(Phrase) SRS — 단어 너머**
+- 현재 단어장은 단어/짧은 문장 단위. 회화는 단어보다 **chunk(in the long run, by and large, get the hang of)**가 핵심
+- 메시지 길게 누를 때 "phrase로 저장" 옵션 추가, SRS 카드도 "이 표현을 새 문장에 사용해보세요" 형식
+- 수동적 암기 → 능동적 사용으로
+
+### Medium Impact (재미/지속력)
+
+**4. 일상 시나리오 제너레이터**
+- 사용자가 "Today I have a dentist appointment" 같은 한 줄 입력
+- AI가 그 상황의 모의 대화 자동 구성 (역할, 예상 질문, 핵심 어휘 미리 표시)
+- 미션 시스템과 통합 — 사용자 자작 미션
+
+**5. 음성 발화 강제 모드 (Voice-Only 토글)**
+- 텍스트 입력 잠금 → 음성으로만 입력
+- 회피 본능을 강제로 막아 발화량 증가
+- "오늘은 voice-only" 같은 daily challenge 카드로
+
+**6. Conversation Highlights — 주간 회고 카드**
+- Weekly Report에 새 섹션: 이번 주 "잘한 표현 / 새로 배운 표현 / 자주 막힌 부분"
+- AI가 대화 로그에서 자동 추출
+- 학습 동기 유지 (게임의 end-of-match summary 효과)
+
+### 회화 특유 스킬 / 자가 모니터링 (책에 없는 영역)
+
+**10. Filler / Backchanneling 코칭** ⭐
+- AI 응답에 "자연스러움 팁" 한 줄 — *Native speakers might say 'uh-huh' or 'right' here*
+- 사용자 응답 시 backchannel 사용 빈도 추적, weekly report에 표시
+- **한국 학습자가 가장 빠르게 native-like해지는 영역**. 시스템 프롬프트 한 블록 추가로 구현 가능
+- 비용 낮음 / 효과 큼 → **1순위 후보**
+
+**11. 본인 음성 다시 듣기 (Self-listening)**
+- STT 입력의 원본 오디오를 7일 보관 → "1주일 전 본인 발화" 카드
+- 같은 표현을 1주 전과 오늘 어떻게 발음했는지 비교
+- 자기 발음 인식 + 진전 체감
+- 비용 중간 (오디오 저장 인프라 필요)
+
+**12. 응답 다양성 코치**
+- 반복 패턴 감지: "이번 주 'I think' 23번 사용 → 'In my view / I'd say' 시도해볼래요?"
+- weekly report에 "다양성 점수" 카드 추가
+- 자동화된 데이터 기반, 사용자 노력 0
+- 비용 작음 (DB 쿼리 + 분석)
+
+**13. 1분 Monologue Challenge**
+- 매일 한 번 "Speak about your weekend for 1 minute non-stop"
+- 측정: 분당 단어 수, hesitation(uh, um) 비율, 사용 어휘 폭
+- **발화 지속력**은 회화 자신감의 기반인데 단답 대화로는 안 길러짐
+- 비용 중간 (별도 화면 + 분석 로직)
+
+**14. Paraphrase 챌린지 (어휘 부족 우회)**
+- "Explain *'procrastinate'* without using the word itself"
+- 모르는 단어 마주쳤을 때 풀어서 설명하는 능력 — 회화에서 막히지 않게 하는 핵심 기술
+- 미션 시스템에 한 카테고리로 통합
+- 비용 작음
+
+**15. 실전 모드 토글**
+- 평소 모드: 교정/번역/제안 모두 ON (학습용)
+- 실전 모드: native speaker처럼만 — 자신감 측정용
+- 일주일에 한 번 자동 권유 → 결과를 weekly report에 기록 ("실전 점수")
+- 비용 작음 (시스템 프롬프트 분기 + 토글 UI)
+
+### Polish / Experimental
+
+**16. 레벨에 맞춘 자동 단어 강조**
+- AI 응답에서 사용자 레벨 대비 **어려운 단어만** 자동 강조 + 인라인 번역
+- 현재 showNativeHint는 전체 ON/OFF — 한 단계 더 정교하게
+- 본문 가독성을 해치지 않으면서 학습 효과↑
+
+**17. Listening test (받아쓰기 모드)**
+- AI가 음성으로만 한 문장 발화 (텍스트 숨김) → 사용자가 받아쓰기
+- 듣기 능력 단독 훈련. 현재는 "Tap to reveal"로 비슷한 효과를 내지만 정식 모드화
+
+**18. 장기 목표 → 자동 주간 미션**
+- 온보딩에 "Why are you learning English?" 한 줄 입력 받기 (예: "I want to give a presentation in 3 months")
+- AI가 그 목표 기반으로 **매주 미션 셋트 자동 생성**
+- 학습이 일회성 대화가 아니라 목표 지향 여정이 됨
+
+### 추천 진행 순서 (ROI 기준)
+
+**Phase A — 시스템 프롬프트만으로 가능 (즉시):**
+1. **#10 Filler/Backchanneling 코칭** — 시스템 프롬프트 한 블록 추가, 가장 빠른 자연스러움 향상
+2. **#15 실전 모드 토글** — 시스템 프롬프트 분기 + 설정 토글
+3. **#16 자동 단어 강조** — 시스템 프롬프트 + 인라인 표시 살짝 수정
+
+**Phase B — UI/로직 추가 (중기):**
+4. **#5 Voice-Only 토글** — 입력바에 토글 한 개
+5. **#12 응답 다양성 코치** — DB 쿼리 + weekly report 카드 추가
+6. **#14 Paraphrase 챌린지** — mission 카테고리 추가
+
+**Phase C — 별도 인프라 필요 (장기):**
+7. **#1 Shadowing** — 발음 평가 Phase 1과 결합
+8. **#11 본인 음성 다시 듣기** — 오디오 보관 인프라
+9. **#13 1분 Monologue** — 별도 화면 + 분석
+10. **#2 약점 진단 미션** — 패턴 분석 파이프라인
+11. **#3 Phrase SRS** — 단어장 시스템 확장
+
+> Phase A는 매우 빠르게 (각 1-2시간) 구현 가능. Phase B는 별도 세션 단위. Phase C는 메모리에 보관 중인 발음 평가/레벨 테스트와 함께 일정 잡아 진행.
