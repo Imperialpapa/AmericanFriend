@@ -11,6 +11,7 @@ import 'package:eng_friend/l10n/app_localizations.dart';
 class NotificationService {
   static final _plugin = FlutterLocalNotificationsPlugin();
   static bool _initialized = false;
+  static const _reminderChannelId = 'daily_reminder';
 
   // MainActivity.kt의 채널. iOS에는 없어서 MissingPluginException → UTC로 떨어진다.
   static const _timezoneChannel =
@@ -66,6 +67,18 @@ class NotificationService {
     await _setLocalTimeZone();
     await cancelAll();
 
+    // 채널을 예약 때마다 직접 만든다. 없으면 생성하고, 있으면 이름·설명만 현재 언어로 바뀐다.
+    // 표시 시점 channelAction.update는 채널이 없으면 아예 만들지 않아 알림이 버려진다.
+    await _plugin
+        .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>()
+        ?.createNotificationChannel(AndroidNotificationChannel(
+          _reminderChannelId,
+          l10n.reminderChannelName,
+          description: l10n.reminderChannelDescription,
+          importance: Importance.high,
+        ));
+
     await _plugin.zonedSchedule(
       0,
       l10n.reminderNotificationTitle,
@@ -73,12 +86,9 @@ class NotificationService {
       _nextInstanceOfTime(hour, minute),
       NotificationDetails(
         android: AndroidNotificationDetails(
-          'daily_reminder',
+          _reminderChannelId,
           l10n.reminderChannelName,
           channelDescription: l10n.reminderChannelDescription,
-          // 기본값(createIfNotExists)은 이미 만든 채널을 건드리지 않아, 언어를 바꿔도
-          // 시스템 알림 설정의 채널 이름이 첫 언어로 남는다. update는 이름·설명만 갱신된다.
-          channelAction: AndroidNotificationChannelAction.update,
           importance: Importance.high,
           priority: Priority.defaultPriority,
         ),
