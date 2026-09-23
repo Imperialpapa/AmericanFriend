@@ -8,7 +8,13 @@ import {
   ipBucket,
   sha256Hex,
 } from '../../../lib/common';
-import { admitFreeTier, secondsUntilReset, upstashEnv } from '../../../lib/ratelimit';
+import {
+  admitFreeTier,
+  refund,
+  secondsUntilReset,
+  upstashEnv,
+  type UpstashEnv,
+} from '../../../lib/ratelimit';
 import { callGemini } from '../../../lib/gemini';
 import { callOpenAiCompat } from '../../../lib/openai_compat';
 import { parseChatRequest } from '../../../lib/chat_request';
@@ -48,9 +54,11 @@ export default async function handler(req: Request): Promise<Response> {
   // IP 원문은 저장하지 않는다 — 키에는 해시 앞부분만.
   const ipId = (await sha256Hex(ipBucket(clientIp(req)))).slice(0, 32);
 
+  let redis: UpstashEnv;
   let admission;
   try {
-    admission = await admitFreeTier(upstashEnv(), deviceId, ipId, limits);
+    redis = upstashEnv();
+    admission = await admitFreeTier(redis, deviceId, ipId, limits);
   } catch (e: any) {
     console.log('[rate-limit] error:', e?.message);
     return json(
@@ -108,6 +116,9 @@ export default async function handler(req: Request): Promise<Response> {
     );
   }
 
+  // 업스트림이 첫 바이트 전에 실패하면 이 요청의 차감을 모두 되돌린다(tobe S-06).
+  const charged = admission.charged;
+
   const rlHeaders: Record<string, string> = {
     'X-RateLimit-Limit': String(rl.limit),
     'X-RateLimit-Remaining': String(rl.remaining),
@@ -161,11 +172,14 @@ export default async function handler(req: Request): Promise<Response> {
         rlHeaders
       );
     } else {
+      await refund(redis, charged);
       return json({ error: { code: 'bad_provider', message: `Unknown provider: ${provider}` } }, 500);
     }
+    if (!result.response.ok) await refund(redis, charged);
     return result.response;
   } catch (e: any) {
     console.log('[upstream] error:', e?.message);
+    await refund(redis, charged);
     return json(
       { error: { code: 'upstream_error', message: e?.message ?? 'Upstream failed' } },
       502
