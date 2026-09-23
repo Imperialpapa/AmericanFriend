@@ -13,7 +13,7 @@ import 'package:eng_friend/core/error/redact_secrets.dart';
 class ConversationPipeline {
   final AiService aiService;
   final TtsQueue ttsQueue;
-  final SentenceSplitter _splitter = SentenceSplitter();
+  final SentenceSplitter _splitter = const SentenceSplitter();
 
   ConversationPipeline({
     required this.aiService,
@@ -119,7 +119,6 @@ class ConversationPipeline {
 
   Future<void> interrupt() async {
     await ttsQueue.interrupt();
-    _splitter.reset();
   }
 
   static final _specialCharPattern = RegExp(
@@ -137,9 +136,5 @@ class ConversationPipeline {
         .replaceAll(_specialCharPattern, '')
         .replaceAll(RegExp(r'\s{2,}'), ' ')
         .trim();
-  }
-
-  void dispose() {
-    _splitter.reset();
   }
 }
