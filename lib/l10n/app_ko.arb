@@ -15,7 +15,10 @@
   "commonUndo": "실행 취소",
 
   "chatWelcomeTitle": "안녕! 난 {name}이야",
-  "chatWelcomeSubtitle": "{language} 연습을 도와줄게.\n대화를 시작해보자!",
+  "chatWelcomeSubtitle": "{language} 연습을 도와줄 AI 튜터야.\n대화를 시작해보자!",
+  "aiMayBeWrongNote": "AI가 만든 답변이라 틀릴 수 있어요.",
+  "chatAiBadge": "AI",
+  "chatAiBadgeSemantics": "{name}은(는) AI예요",
   "chatApiKeyRequiredTitle": "API 키가 필요해요",
   "chatApiKeyRequiredBody": "대화를 시작하려면 AI API 키가 필요해요.\n설정에서 추가해 주세요.",
   "chatApiKeyGoToSettings": "설정으로 이동",
@@ -66,7 +69,7 @@
   "onboardCtaLetsGo": "시작하기",
   "onboardCtaStartChatting": "대화 시작",
 
-  "onboardWelcomeSubtitle": "친근한 언어 튜터예요.\n실제 대화로 연습해요.",
+  "onboardWelcomeSubtitle": "친근한 AI 언어 튜터예요.\n실제 대화로 연습해요.",
 
   "onboardLanguageBubble": "먼저 — 언어 설정을 해볼까요?",
   "onboardLanguageHeadline1": "",

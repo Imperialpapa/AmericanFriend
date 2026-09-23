@@ -9,6 +9,7 @@ import 'package:eng_friend/core/theme/app_radii.dart';
 import 'package:eng_friend/core/theme/app_shadows.dart';
 import 'package:eng_friend/core/theme/app_spacing.dart';
 import 'package:eng_friend/core/theme/app_typography.dart';
+import 'package:eng_friend/core/widgets/ai_disclosure_note.dart';
 import 'package:eng_friend/core/widgets/alex_avatar.dart';
 import 'package:eng_friend/core/widgets/banner_ad_widget.dart';
 import 'package:eng_friend/di/service_providers.dart';
@@ -275,6 +276,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               height: 1.5,
             ),
           ),
+          const SizedBox(height: KFSpacing.x4),
+          const AiDisclosureNote(),
         ],
       ),
     );

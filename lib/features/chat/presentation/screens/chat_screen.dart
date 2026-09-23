@@ -9,6 +9,7 @@ import 'package:eng_friend/core/theme/app_colors.dart';
 import 'package:eng_friend/core/theme/app_radii.dart';
 import 'package:eng_friend/core/theme/app_spacing.dart';
 import 'package:eng_friend/core/theme/app_typography.dart';
+import 'package:eng_friend/core/widgets/ai_disclosure_note.dart';
 import 'package:eng_friend/core/widgets/alex_avatar.dart';
 import 'package:eng_friend/core/widgets/app_notice_banner.dart';
 import 'package:eng_friend/core/widgets/banner_ad_widget.dart';
@@ -381,6 +382,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             textAlign: TextAlign.center,
             style: KFTypography.body(color: palette.ink2).copyWith(height: 1.5),
           ),
+          const SizedBox(height: KFSpacing.x3),
+          const AiDisclosureNote(),
           if (!hasApiKey) ...[
             const SizedBox(height: KFSpacing.x6),
             Container(

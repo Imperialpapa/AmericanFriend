@@ -51,7 +51,18 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String chatWelcomeSubtitle(String language) {
-    return 'I\'m here to help you practice $language.\nLet\'s start a conversation!';
+    return 'I\'m an AI tutor here to help you practice $language.\nLet\'s start a conversation!';
+  }
+
+  @override
+  String get aiMayBeWrongNote => 'Replies are AI-generated and can be wrong.';
+
+  @override
+  String get chatAiBadge => 'AI';
+
+  @override
+  String chatAiBadgeSemantics(String name) {
+    return '$name is an AI';
   }
 
   @override
@@ -207,7 +218,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get onboardWelcomeSubtitle =>
-      'Your friendly language tutor.\nLet\'s practice through real chats.';
+      'Your friendly AI language tutor.\nLet\'s practice through real chats.';
 
   @override
   String get onboardLanguageBubble => 'First — what\'s your language setup?';

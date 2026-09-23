@@ -18,9 +18,15 @@
   "@chatWelcomeTitle": {
     "placeholders": { "name": { "type": "String" } }
   },
-  "chatWelcomeSubtitle": "I'm here to help you practice {language}.\nLet's start a conversation!",
+  "chatWelcomeSubtitle": "I'm an AI tutor here to help you practice {language}.\nLet's start a conversation!",
   "@chatWelcomeSubtitle": {
     "placeholders": { "language": { "type": "String" } }
+  },
+  "aiMayBeWrongNote": "Replies are AI-generated and can be wrong.",
+  "chatAiBadge": "AI",
+  "chatAiBadgeSemantics": "{name} is an AI",
+  "@chatAiBadgeSemantics": {
+    "placeholders": { "name": { "type": "String" } }
   },
   "chatApiKeyRequiredTitle": "API Key Required",
   "chatApiKeyRequiredBody": "To start chatting, you need an AI API key.\nSet one up in Settings.",
@@ -115,7 +121,7 @@
   "onboardCtaLetsGo": "Let's go",
   "onboardCtaStartChatting": "Start chatting",
 
-  "onboardWelcomeSubtitle": "Your friendly language tutor.\nLet's practice through real chats.",
+  "onboardWelcomeSubtitle": "Your friendly AI language tutor.\nLet's practice through real chats.",
 
   "onboardLanguageBubble": "First — what's your language setup?",
   "onboardLanguageHeadline1": "Set your\n",

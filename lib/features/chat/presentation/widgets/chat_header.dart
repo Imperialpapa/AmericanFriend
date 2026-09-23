@@ -5,6 +5,7 @@ import 'package:eng_friend/core/theme/app_colors.dart';
 import 'package:eng_friend/core/theme/app_spacing.dart';
 import 'package:eng_friend/core/theme/app_typography.dart';
 import 'package:eng_friend/core/widgets/alex_avatar.dart';
+import 'package:eng_friend/core/widgets/kf_pill.dart';
 import 'package:eng_friend/core/widgets/kf_streak_chip.dart';
 import 'package:eng_friend/features/level/presentation/providers/level_provider.dart';
 import 'package:eng_friend/features/mission/presentation/providers/mission_provider.dart';
@@ -73,14 +74,32 @@ class ChatHeader extends ConsumerWidget implements PreferredSizeWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Text(
-                            AppConstants.aiCharacterName,
-                            style: KFTypography.body(color: palette.ink)
-                                .copyWith(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: -0.2,
-                            ),
+                          Row(
+                            children: [
+                              Text(
+                                AppConstants.aiCharacterName,
+                                style: KFTypography.body(color: palette.ink)
+                                    .copyWith(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: -0.2,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              // AI 기본법 제31조·EU AI Act 제50조: 상대가 AI임을 알린다(tobe P-03).
+                              Semantics(
+                                label: l.chatAiBadgeSemantics(
+                                    AppConstants.aiCharacterName),
+                                excludeSemantics: true,
+                                child: KFPill(
+                                  label: l.chatAiBadge,
+                                  background: palette.sageWash,
+                                  foreground: palette.sageDeep,
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 6, vertical: 1),
+                                ),
+                              ),
+                            ],
                           ),
                           const SizedBox(height: 1),
                           Text(

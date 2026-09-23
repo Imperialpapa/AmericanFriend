@@ -179,8 +179,26 @@ abstract class AppLocalizations {
   /// No description provided for @chatWelcomeSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'I\'m here to help you practice {language}.\nLet\'s start a conversation!'**
+  /// **'I\'m an AI tutor here to help you practice {language}.\nLet\'s start a conversation!'**
   String chatWelcomeSubtitle(String language);
+
+  /// No description provided for @aiMayBeWrongNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Replies are AI-generated and can be wrong.'**
+  String get aiMayBeWrongNote;
+
+  /// No description provided for @chatAiBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'AI'**
+  String get chatAiBadge;
+
+  /// No description provided for @chatAiBadgeSemantics.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} is an AI'**
+  String chatAiBadgeSemantics(String name);
 
   /// No description provided for @chatApiKeyRequiredTitle.
   ///
@@ -419,7 +437,7 @@ abstract class AppLocalizations {
   /// No description provided for @onboardWelcomeSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Your friendly language tutor.\nLet\'s practice through real chats.'**
+  /// **'Your friendly AI language tutor.\nLet\'s practice through real chats.'**
   String get onboardWelcomeSubtitle;
 
   /// No description provided for @onboardLanguageBubble.

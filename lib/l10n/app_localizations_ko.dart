@@ -51,7 +51,18 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String chatWelcomeSubtitle(String language) {
-    return '$language 연습을 도와줄게.\n대화를 시작해보자!';
+    return '$language 연습을 도와줄 AI 튜터야.\n대화를 시작해보자!';
+  }
+
+  @override
+  String get aiMayBeWrongNote => 'AI가 만든 답변이라 틀릴 수 있어요.';
+
+  @override
+  String get chatAiBadge => 'AI';
+
+  @override
+  String chatAiBadgeSemantics(String name) {
+    return '$name은(는) AI예요';
   }
 
   @override
@@ -191,7 +202,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get onboardCtaStartChatting => '대화 시작';
 
   @override
-  String get onboardWelcomeSubtitle => '친근한 언어 튜터예요.\n실제 대화로 연습해요.';
+  String get onboardWelcomeSubtitle => '친근한 AI 언어 튜터예요.\n실제 대화로 연습해요.';
 
   @override
   String get onboardLanguageBubble => '먼저 — 언어 설정을 해볼까요?';
