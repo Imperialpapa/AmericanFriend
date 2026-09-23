@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:eng_friend/features/chat/domain/entities/message.dart' show Message, MessageRole;
 import 'package:eng_friend/services/ai/prompts/system_prompt.dart';
@@ -135,6 +136,15 @@ class ChatNotifier extends StateNotifier<ChatState> {
       return;
     }
 
+    // 이전 답변이 아직 스트리밍 중이면 먼저 끊는다(A-07). 안 끊으면 부분 응답이
+    // 사라지고, 이전 턴의 TTS가 새 답변 위로 계속 재생된다.
+    // interrupt()를 그대로 부르지 않는 건 isAiTyping이 잠깐 false가 되면
+    // 제안 칩이 '사용자 차례'로 보고 불필요한 AI 호출을 하기 때문이다.
+    Message? interrupted;
+    if (state.isAiTyping) {
+      interrupted = await _stopActiveTurn();
+    }
+
     // 대화 ID가 없으면 새로 생성
     if (state.conversationId == null) {
       await startNewConversation();
@@ -153,26 +163,32 @@ class ChatNotifier extends StateNotifier<ChatState> {
     );
 
     state = state.copyWith(
-      messages: [...state.messages, userMessage],
+      messages: [
+        ...state.messages,
+        ?interrupted,
+        userMessage,
+      ],
       isAiTyping: true,
       currentAiResponse: '',
       error: null,
     );
 
-    // DB에 저장
-    await _db.insertMessage(MessagesCompanion.insert(
+    // DB에 저장. 여기서 던지면 파이프라인이 시작되지 않아 '...'이 영원히 돈다.
+    final userRow = MessagesCompanion.insert(
       id: msgId,
       conversationId: state.conversationId!,
       content: text,
       role: 'user',
       timestamp: now,
-    ));
+    );
+    await _logDbFailure(() => _db.insertMessage(userRow));
 
     // 첫 메시지면 대화 제목 업데이트
     if (state.messages.length == 1) {
       final title =
           text.length > 30 ? '${text.substring(0, 30)}...' : text;
-      await _db.updateConversationTitle(state.conversationId!, title);
+      await _logDbFailure(
+          () => _db.updateConversationTitle(state.conversationId!, title));
     }
 
     // 파이프라인 실행 (매번 최신 설정 반영)
@@ -237,13 +253,14 @@ class ChatNotifier extends StateNotifier<ChatState> {
 
         // DB에 저장
         if (state.conversationId != null) {
-          _db.insertMessage(MessagesCompanion.insert(
+          final row = MessagesCompanion.insert(
             id: aiMsgId,
             conversationId: state.conversationId!,
             content: fullResponse,
             role: 'assistant',
             timestamp: now,
-          ));
+          );
+          unawaited(_logDbFailure(() => _db.insertMessage(row)));
         }
 
       case PipelineError(:final failure):
@@ -271,39 +288,62 @@ class ChatNotifier extends StateNotifier<ChatState> {
 
   /// 사용자 끼어들기
   Future<void> interrupt() async {
+    final partial = await _stopActiveTurn();
+    state = state.copyWith(
+      messages: partial == null ? null : [...state.messages, partial],
+      isAiTyping: false,
+      currentAiResponse: '',
+    );
+  }
+
+  /// 진행 중인 AI 턴을 끊고(스트림 구독 취소 + TTS 정지), 그때까지 받은 부분
+  /// 응답을 assistant 메시지로 확정해 DB에 남긴다. 상태 반영은 호출자 몫이다.
+  /// 부분 응답이 비어 있으면 null — 빈 assistant 행을 남기지 않는다(D-05).
+  Future<Message?> _stopActiveTurn() async {
     _pipelineSubscription?.cancel();
-    await _getPipeline().interrupt();
+    _pipelineSubscription = null;
+    // 구독을 끊었으니 더 바뀌지 않는다. state를 비우기 전에 잡아 두어야
+    // 화면과 DB에 같은 내용이 들어간다(예전엔 비운 뒤에 읽어 DB에 빈 문자열이 갔다).
+    final partial = state.currentAiResponse;
 
-    if (state.currentAiResponse.isNotEmpty) {
-      final aiMsgId =
-          '${DateTime.now().millisecondsSinceEpoch}_ai';
-      final now = DateTime.now();
+    try {
+      await _getPipeline().interrupt();
+    } catch (e) {
+      // TTS 정지 실패로 끼어들기·새 전송이 막히면 안 된다.
+      debugPrint('[Chat] pipeline interrupt failed: $e');
+    }
 
-      final aiMessage = Message(
+    if (partial.trim().isEmpty) return null;
+
+    final aiMsgId = '${DateTime.now().millisecondsSinceEpoch}_ai';
+    final now = DateTime.now();
+    final conversationId = state.conversationId;
+    if (conversationId != null) {
+      final row = MessagesCompanion.insert(
         id: aiMsgId,
-        content: state.currentAiResponse,
-        role: MessageRole.assistant,
+        conversationId: conversationId,
+        content: partial,
+        role: 'assistant',
         timestamp: now,
-        conversationId: state.conversationId,
       );
+      unawaited(_logDbFailure(() => _db.insertMessage(row)));
+    }
+    return Message(
+      id: aiMsgId,
+      content: partial,
+      role: MessageRole.assistant,
+      timestamp: now,
+      conversationId: conversationId,
+    );
+  }
 
-      state = state.copyWith(
-        messages: [...state.messages, aiMessage],
-        isAiTyping: false,
-        currentAiResponse: '',
-      );
-
-      if (state.conversationId != null) {
-        _db.insertMessage(MessagesCompanion.insert(
-          id: aiMsgId,
-          conversationId: state.conversationId!,
-          content: state.currentAiResponse,
-          role: 'assistant',
-          timestamp: now,
-        ));
-      }
-    } else {
-      state = state.copyWith(isAiTyping: false);
+  /// 대화 기록 저장은 화면 흐름의 부수효과다. 실패를 그대로 던지면 기다리지 않는
+  /// 호출에선 처리되지 않은 예외가 되고, 기다리는 호출에선 전송이 중간에 멈춘다.
+  Future<void> _logDbFailure(Future<void> Function() write) async {
+    try {
+      await write();
+    } catch (e) {
+      debugPrint('[Chat] DB write failed: $e');
     }
   }
 
