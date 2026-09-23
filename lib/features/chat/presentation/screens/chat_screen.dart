@@ -308,8 +308,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         }
 
         // Streaming AI response
+        // 스트리밍 말풍선과 완료 말풍선은 같은 index에 그려진다. key가 없으면 State가
+        // 재사용되어 완료 말풍선의 initialDrawerOpen이 무시됐다(교정 드로어가 안 열림).
         if (index == chatState.messages.length && hasStreaming) {
           return MessageBubble(
+            key: const ValueKey('streaming'),
             content: chatState.currentAiResponse.isEmpty
                 ? '...'
                 : chatState.currentAiResponse,
@@ -327,6 +330,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             index == chatState.messages.length - 1;
 
         return MessageBubble(
+          key: ValueKey(message.id),
           content: message.content,
           isUser: isUser,
           initialDrawerOpen: isLastAi,

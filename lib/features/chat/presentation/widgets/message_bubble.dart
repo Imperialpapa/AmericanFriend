@@ -50,6 +50,16 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
     _drawerOpen = widget.initialDrawerOpen;
   }
 
+  @override
+  void didUpdateWidget(covariant MessageBubble oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // State가 재사용된 채로 '가장 최근 AI 답변'이 된 경우에도 교정을 탭 없이 보여 준다.
+    // (반대 방향 true→false는 사용자가 열어 둔 드로어를 닫지 않도록 무시)
+    if (!oldWidget.initialDrawerOpen && widget.initialDrawerOpen) {
+      _drawerOpen = true;
+    }
+  }
+
   // --- Helpers ---
   static final _correctionPattern = RegExp(r'^💡\s*.+$', multiLine: true);
   static final _naturalnessTipPattern = RegExp(r'^💬\s*.+$', multiLine: true);
