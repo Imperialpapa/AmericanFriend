@@ -86,3 +86,25 @@ export async function sha256Hex(text: string): Promise<string> {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
   return Array.from(new Uint8Array(buf), (b) => b.toString(16).padStart(2, '0')).join('');
 }
+
+/** 길이가 같을 때 비교 시간이 내용과 무관한 문자열 비교(비밀값 대조용). */
+export function safeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
+/**
+ * 비밀 env. 32자 미만이면 없는 것으로 본다 — 'monitor-1' 같은 추측 가능한
+ * 값이 한도 면제·모니터 권한을 여는 것을 막는다.
+ */
+export function secretEnv(name: string): string | undefined {
+  const v = process.env[name]?.trim();
+  if (!v) return undefined;
+  if (v.length < 32) {
+    console.log(`[config] ${name} ignored: shorter than 32 chars`);
+    return undefined;
+  }
+  return v;
+}

@@ -1,4 +1,4 @@
-import { json, corsPreflight } from '../../lib/common';
+import { json, corsPreflight, safeEqual, secretEnv } from '../../lib/common';
 
 export const config = { runtime: 'edge' };
 
@@ -20,6 +20,8 @@ export const config = { runtime: 'edge' };
  *
  * 무료 티어 실동작 확인(probe)은 기본 비활성이다. 앱이 켜질 때마다 실제 completion을
  * 호출하면 업스트림 쿼터를 갉아먹기 때문. 모니터링에서만 ?probe=1 로 호출할 것.
+ * probe는 `x-monitor-token: $MONITOR_TOKEN` 헤더가 있어야 하고 `{ok, code}`만 준다 —
+ * 업스트림 오류 원문은 공개 응답에 싣지 않는다(tobe S-04).
  */
 
 type Localized = { ko?: string; en?: string };
@@ -32,8 +34,10 @@ type Notice = {
   actionUrl?: string;
 };
 
+type ProbeResult = { ok: boolean; code: string };
+
 // Edge 인스턴스가 재사용되는 동안만 유지되는 best-effort 캐시.
-let probeCache: { ok: boolean; error?: string; at: number } | null = null;
+let probeCache: (ProbeResult & { at: number }) | null = null;
 const PROBE_TTL_MS = 5 * 60 * 1000;
 
 function parseJsonEnv<T>(raw: string | undefined, fallback: T): T {
@@ -47,10 +51,10 @@ function parseJsonEnv<T>(raw: string | undefined, fallback: T): T {
 }
 
 /** 실제 completion 1회로 무료 티어가 살아있는지 확인. */
-async function probeUpstream(): Promise<{ ok: boolean; error?: string }> {
+async function probeUpstream(): Promise<ProbeResult> {
   const now = Date.now();
   if (probeCache && now - probeCache.at < PROBE_TTL_MS) {
-    return { ok: probeCache.ok, error: probeCache.error };
+    return { ok: probeCache.ok, code: probeCache.code };
   }
 
   const provider = (process.env.UPSTREAM_PROVIDER ?? 'gemini').toLowerCase();
@@ -58,14 +62,14 @@ async function probeUpstream(): Promise<{ ok: boolean; error?: string }> {
     process.env.UPSTREAM_MODEL ??
     (provider === 'gemini' ? 'gemini-2.5-flash' : 'openai/gpt-oss-120b');
 
-  let result: { ok: boolean; error?: string };
+  let result: ProbeResult;
   try {
     if (provider === 'groq' || provider === 'openrouter') {
       const key =
         provider === 'groq'
           ? process.env.GROQ_API_KEY
           : process.env.OPENROUTER_API_KEY;
-      if (!key) throw new Error(`${provider} key not set`);
+      if (!key) return cacheProbe({ ok: false, code: 'missing_key' }, now);
       const url =
         provider === 'groq'
           ? 'https://api.groq.com/openai/v1/chat/completions'
@@ -82,12 +86,10 @@ async function probeUpstream(): Promise<{ ok: boolean; error?: string }> {
           messages: [{ role: 'user', content: 'ping' }],
         }),
       });
-      result = res.ok
-        ? { ok: true }
-        : { ok: false, error: `${res.status} ${(await res.text()).slice(0, 200)}` };
+      result = probeResult(res);
     } else {
       const key = process.env.GEMINI_API_KEY;
-      if (!key) throw new Error('GEMINI_API_KEY not set');
+      if (!key) return cacheProbe({ ok: false, code: 'missing_key' }, now);
       const res = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
         {
@@ -99,15 +101,24 @@ async function probeUpstream(): Promise<{ ok: boolean; error?: string }> {
           }),
         }
       );
-      result = res.ok
-        ? { ok: true }
-        : { ok: false, error: `${res.status} ${(await res.text()).slice(0, 200)}` };
+      result = probeResult(res);
     }
   } catch (e) {
-    result = { ok: false, error: String(e).slice(0, 200) };
+    console.log('[probe] error:', String(e).slice(0, 200));
+    result = { ok: false, code: 'network_error' };
   }
 
-  probeCache = { ...result, at: now };
+  return cacheProbe(result, now);
+}
+
+function probeResult(res: Response): ProbeResult {
+  if (res.ok) return { ok: true, code: 'ok' };
+  console.log(`[probe] upstream status=${res.status}`);
+  return { ok: false, code: `upstream_${res.status}` };
+}
+
+function cacheProbe(result: ProbeResult, at: number): ProbeResult {
+  probeCache = { ...result, at };
   return result;
 }
 
@@ -118,7 +129,17 @@ export default async function handler(req: Request): Promise<Response> {
   }
 
   const url = new URL(req.url);
-  const wantProbe = url.searchParams.get('probe') === '1';
+  if (url.searchParams.get('probe') === '1') {
+    const token = secretEnv('MONITOR_TOKEN');
+    const given = req.headers.get('x-monitor-token') ?? '';
+    if (token === undefined || !safeEqual(given, token)) {
+      return json({ error: { code: 'unauthorized' } }, 401, { 'Cache-Control': 'no-store' });
+    }
+    const probe = await probeUpstream();
+    return json({ ok: probe.ok, code: probe.code }, probe.ok ? 200 : 503, {
+      'Cache-Control': 'no-store',
+    });
+  }
 
   const notice = parseJsonEnv<Notice | null>(process.env.STATUS_NOTICE_JSON, null);
   const modelMigrations = parseJsonEnv<Record<string, string>>(
@@ -134,10 +155,6 @@ export default async function handler(req: Request): Promise<Response> {
     modelMigrations,
     upstreamModel: process.env.UPSTREAM_MODEL ?? null,
   };
-
-  if (wantProbe) {
-    body.freeTier = await probeUpstream();
-  }
 
   // 공지는 자주 바뀔 수 있으므로 짧게만 캐시.
   return json(body, 200, { 'Cache-Control': 'public, max-age=60' });

@@ -6,6 +6,8 @@ import {
   clientIp,
   envInt,
   ipBucket,
+  safeEqual,
+  secretEnv,
   sha256Hex,
 } from '../../../lib/common';
 import {
@@ -45,6 +47,92 @@ export default async function handler(req: Request): Promise<Response> {
   console.log(
     `[req] stream=${body.stream} msgs=${body.messages.length} trimmed=${parsed.trimmed}`
   );
+
+  const admitted = await admit(req, deviceId);
+  if (admitted instanceof Response) return admitted;
+  // 업스트림이 첫 바이트 전에 실패하면 이 요청의 차감을 모두 되돌린다(tobe S-06).
+  const refundCharged = () =>
+    admitted.redis ? refund(admitted.redis, admitted.charged) : Promise.resolve();
+
+  const rlHeaders: Record<string, string> = { ...admitted.headers, ...CORS_HEADERS };
+
+  const provider = (process.env.UPSTREAM_PROVIDER ?? 'gemini').toLowerCase();
+  // Groq deprecated llama-3.3-70b-versatile and llama-3.1-8b-instant on 2026-06-17;
+  // calling them now returns 404 model_not_found. Groq's own recommended
+  // replacement is openai/gpt-oss-120b.
+  const model =
+    process.env.UPSTREAM_MODEL ??
+    (provider === 'gemini' ? 'gemini-2.5-flash' : 'openai/gpt-oss-120b');
+
+  try {
+    let result;
+    if (provider === 'gemini') {
+      const key = process.env.GEMINI_API_KEY;
+      if (!key) throw new Error('GEMINI_API_KEY not set');
+      result = await callGemini(body, key, model, rlHeaders);
+    } else if (provider === 'groq') {
+      const key = process.env.GROQ_API_KEY;
+      if (!key) throw new Error('GROQ_API_KEY not set');
+      result = await callOpenAiCompat(
+        body,
+        {
+          url: 'https://api.groq.com/openai/v1/chat/completions',
+          apiKey: key,
+          modelChain: model,
+          label: 'groq',
+          maxTokensField: 'max_completion_tokens',
+        },
+        rlHeaders
+      );
+    } else if (provider === 'openrouter') {
+      const key = process.env.OPENROUTER_API_KEY;
+      if (!key) throw new Error('OPENROUTER_API_KEY not set');
+      result = await callOpenAiCompat(
+        body,
+        {
+          url: 'https://openrouter.ai/api/v1/chat/completions',
+          apiKey: key,
+          modelChain: model,
+          label: 'openrouter',
+          extraOutboundHeaders: {
+            'HTTP-Referer': 'https://eng-friend-proxy.vercel.app',
+            'X-Title': 'Eng Friend Free Tier',
+          },
+        },
+        rlHeaders
+      );
+    } else {
+      await refundCharged();
+      return json({ error: { code: 'bad_provider', message: `Unknown provider: ${provider}` } }, 500);
+    }
+    if (!result.response.ok) await refundCharged();
+    return result.response;
+  } catch (e: any) {
+    console.log('[upstream] error:', e?.message);
+    await refundCharged();
+    return json(
+      { error: { code: 'upstream_error', message: e?.message ?? 'Upstream failed' } },
+      502
+    );
+  }
+}
+
+interface Admission {
+  /** null이면 차감하지 않은 요청(모니터) — 환불할 것도 없다. */
+  redis: UpstashEnv | null;
+  charged: string[];
+  headers: Record<string, string>;
+}
+
+/** 한도 판정. 통과하면 Admission, 거절이면 그대로 돌려줄 Response. */
+async function admit(req: Request, deviceId: string): Promise<Admission | Response> {
+  // 모니터(GitHub Actions)는 30분마다 실경로를 호출하므로 한도에서 뺀다(tobe S-04).
+  // 이 값을 아는 사람은 한도 없이 쓸 수 있다 — 짧은 값은 secretEnv가 무시한다.
+  const monitorId = secretEnv('MONITOR_DEVICE_ID');
+  if (monitorId !== undefined && safeEqual(deviceId, monitorId)) {
+    console.log('[req] monitor');
+    return { redis: null, charged: [], headers: {} };
+  }
 
   const limits = {
     device: parseInt(process.env.FREE_DAILY_LIMIT ?? '20', 10) || 20,
@@ -116,73 +204,13 @@ export default async function handler(req: Request): Promise<Response> {
     );
   }
 
-  // 업스트림이 첫 바이트 전에 실패하면 이 요청의 차감을 모두 되돌린다(tobe S-06).
-  const charged = admission.charged;
-
-  const rlHeaders: Record<string, string> = {
-    'X-RateLimit-Limit': String(rl.limit),
-    'X-RateLimit-Remaining': String(rl.remaining),
-    'X-RateLimit-Reset': rl.resetAt,
-    ...CORS_HEADERS,
+  return {
+    redis,
+    charged: admission.charged,
+    headers: {
+      'X-RateLimit-Limit': String(rl.limit),
+      'X-RateLimit-Remaining': String(rl.remaining),
+      'X-RateLimit-Reset': rl.resetAt,
+    },
   };
-
-  const provider = (process.env.UPSTREAM_PROVIDER ?? 'gemini').toLowerCase();
-  // Groq deprecated llama-3.3-70b-versatile and llama-3.1-8b-instant on 2026-06-17;
-  // calling them now returns 404 model_not_found. Groq's own recommended
-  // replacement is openai/gpt-oss-120b.
-  const model =
-    process.env.UPSTREAM_MODEL ??
-    (provider === 'gemini' ? 'gemini-2.5-flash' : 'openai/gpt-oss-120b');
-
-  try {
-    let result;
-    if (provider === 'gemini') {
-      const key = process.env.GEMINI_API_KEY;
-      if (!key) throw new Error('GEMINI_API_KEY not set');
-      result = await callGemini(body, key, model, rlHeaders);
-    } else if (provider === 'groq') {
-      const key = process.env.GROQ_API_KEY;
-      if (!key) throw new Error('GROQ_API_KEY not set');
-      result = await callOpenAiCompat(
-        body,
-        {
-          url: 'https://api.groq.com/openai/v1/chat/completions',
-          apiKey: key,
-          modelChain: model,
-          label: 'groq',
-          maxTokensField: 'max_completion_tokens',
-        },
-        rlHeaders
-      );
-    } else if (provider === 'openrouter') {
-      const key = process.env.OPENROUTER_API_KEY;
-      if (!key) throw new Error('OPENROUTER_API_KEY not set');
-      result = await callOpenAiCompat(
-        body,
-        {
-          url: 'https://openrouter.ai/api/v1/chat/completions',
-          apiKey: key,
-          modelChain: model,
-          label: 'openrouter',
-          extraOutboundHeaders: {
-            'HTTP-Referer': 'https://eng-friend-proxy.vercel.app',
-            'X-Title': 'Eng Friend Free Tier',
-          },
-        },
-        rlHeaders
-      );
-    } else {
-      await refund(redis, charged);
-      return json({ error: { code: 'bad_provider', message: `Unknown provider: ${provider}` } }, 500);
-    }
-    if (!result.response.ok) await refund(redis, charged);
-    return result.response;
-  } catch (e: any) {
-    console.log('[upstream] error:', e?.message);
-    await refund(redis, charged);
-    return json(
-      { error: { code: 'upstream_error', message: e?.message ?? 'Upstream failed' } },
-      502
-    );
-  }
 }
