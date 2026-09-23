@@ -2,6 +2,7 @@ import { corsPreflight, json, requireDeviceId, CORS_HEADERS } from '../../../lib
 import { checkAndIncrement, upstashEnv } from '../../../lib/ratelimit';
 import { callGemini } from '../../../lib/gemini';
 import { callOpenAiCompat } from '../../../lib/openai_compat';
+import { parseChatRequest } from '../../../lib/chat_request';
 
 export const config = { runtime: 'edge' };
 
@@ -14,6 +15,21 @@ export default async function handler(req: Request): Promise<Response> {
   const idOrErr = requireDeviceId(req);
   if (idOrErr instanceof Response) return idOrErr;
   const deviceId = idOrErr;
+
+  // 검증·재구성은 INCR보다 먼저 — 잘못된 요청이 쿼터를 깎지 않게(tobe S-05).
+  let raw: unknown;
+  try {
+    raw = await req.json();
+  } catch {
+    return json({ error: { code: 'bad_json', message: 'Invalid JSON body' } }, 400);
+  }
+  const parsed = parseChatRequest(raw);
+  if (!parsed.ok) return parsed.response;
+  const body = parsed.value;
+
+  console.log(
+    `[req] stream=${body.stream} msgs=${body.messages.length} trimmed=${parsed.trimmed}`
+  );
 
   const limit = parseInt(process.env.FREE_DAILY_LIMIT ?? '20', 10) || 20;
 
@@ -48,18 +64,6 @@ export default async function handler(req: Request): Promise<Response> {
     );
   }
 
-  let body: any;
-  try {
-    body = await req.json();
-  } catch {
-    return json({ error: { code: 'bad_json', message: 'Invalid JSON body' } }, 400);
-  }
-  if (!Array.isArray(body?.messages) || body.messages.length === 0) {
-    return json({ error: { code: 'bad_request', message: 'messages[] required' } }, 400);
-  }
-
-  console.log(`[req] stream=${!!body.stream} msgs=${body.messages.length}`);
-
   const rlHeaders: Record<string, string> = {
     'X-RateLimit-Limit': String(rl.limit),
     'X-RateLimit-Remaining': String(rl.remaining),
@@ -91,6 +95,7 @@ export default async function handler(req: Request): Promise<Response> {
           apiKey: key,
           modelChain: model,
           label: 'groq',
+          maxTokensField: 'max_completion_tokens',
         },
         rlHeaders
       );

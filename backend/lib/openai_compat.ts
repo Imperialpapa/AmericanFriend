@@ -3,6 +3,8 @@
  * Groq, OpenRouter 등 모두 같은 스키마이므로 재사용.
  */
 
+import type { ChatRequest } from './chat_request';
+
 export interface CallResult {
   response: Response;
   usedModel: string;
@@ -14,10 +16,12 @@ export interface OpenAiCompatConfig {
   modelChain: string; // 쉼표 구분: "model1,model2,model3"
   extraOutboundHeaders?: Record<string, string>;
   label: string; // 로그 구분 (e.g. 'groq', 'openrouter')
+  /** 출력 상한 필드명. Groq는 max_tokens를 deprecated 처리했다. 기본 max_tokens. */
+  maxTokensField?: 'max_tokens' | 'max_completion_tokens';
 }
 
 export async function callOpenAiCompat(
-  body: any,
+  body: ChatRequest,
   cfg: OpenAiCompatConfig,
   extraResponseHeaders: Record<string, string>
 ): Promise<CallResult> {
@@ -71,23 +75,32 @@ export async function callOpenAiCompat(
  *   format=hidden   reasoning   0자 /  78 tokens / 0.166s  (감추기만 하고 계산은 함)
  *
  * `reasoning_effort: "none"`은 지원되지 않는다(에러).
+ *
+ * 클라이언트 값은 받지 않는다 — 추론 길이가 곧 업스트림 비용이다(tobe S-05).
  */
-function applyReasoningDefaults(body: any, model: string): any {
-  if (!/gpt-oss/i.test(model)) return body;
-  // 클라이언트가 명시했으면 존중한다.
-  if (body.reasoning_effort != null) return body;
-  return {
-    ...body,
-    reasoning_effort: process.env.UPSTREAM_REASONING_EFFORT ?? 'low',
+function buildUpstreamBody(
+  body: ChatRequest,
+  cfg: OpenAiCompatConfig,
+  model: string
+): Record<string, unknown> {
+  const out: Record<string, unknown> = {
+    model,
+    messages: body.messages,
+    stream: body.stream,
+    [cfg.maxTokensField ?? 'max_tokens']: body.maxTokens,
   };
+  if (/gpt-oss/i.test(model)) {
+    out.reasoning_effort = process.env.UPSTREAM_REASONING_EFFORT ?? 'low';
+  }
+  return out;
 }
 
 async function fetchUpstream(
-  body: any,
+  body: ChatRequest,
   cfg: OpenAiCompatConfig,
   model: string
 ): Promise<Response> {
-  const upstreamBody = applyReasoningDefaults({ ...body, model }, model);
+  const upstreamBody = buildUpstreamBody(body, cfg, model);
   return fetch(cfg.url, {
     method: 'POST',
     headers: {
