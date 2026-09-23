@@ -258,6 +258,11 @@ class AppDatabase extends _$AppDatabase {
 
   Future<void> deleteVocabulary(int itemId) =>
       (delete(vocabularyItems)..where((t) => t.id.equals(itemId))).go();
+
+  /// 삭제 실행 취소 — 같은 id와 복습 간격·정답 횟수를 그대로 되살린다.
+  /// (새로 add하면 Spaced Repetition 진행이 처음부터 다시 시작된다)
+  Future<void> restoreVocabularyItem(VocabularyItem item) =>
+      into(vocabularyItems).insert(item, mode: InsertMode.insertOrReplace);
 }
 
 LazyDatabase _openConnection() {

@@ -42,6 +42,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get commonDone => 'Done';
 
   @override
+  String get commonUndo => 'Undo';
+
+  @override
   String chatWelcomeTitle(String name) {
     return 'Hey! I\'m $name';
   }
@@ -547,6 +550,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get vocabReviewGotIt => 'Got it';
+
+  @override
+  String vocabDeleted(String expression) {
+    return 'Deleted \"$expression\"';
+  }
 
   @override
   String get reportTitle => 'Weekly Report';

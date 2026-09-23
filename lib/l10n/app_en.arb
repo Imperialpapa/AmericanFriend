@@ -12,6 +12,7 @@
   "commonSettings": "Settings",
   "commonClose": "Close",
   "commonDone": "Done",
+  "commonUndo": "Undo",
 
   "chatWelcomeTitle": "Hey! I'm {name}",
   "@chatWelcomeTitle": {
@@ -256,6 +257,8 @@
   "vocabReviewTapReveal": "Tap to reveal",
   "vocabReviewAgain": "Again",
   "vocabReviewGotIt": "Got it",
+  "vocabDeleted": "Deleted \"{expression}\"",
+  "@vocabDeleted": { "placeholders": { "expression": { "type": "String" } } },
 
   "reportTitle": "Weekly Report",
   "reportSectionDaily": "Daily Activity",

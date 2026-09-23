@@ -42,6 +42,9 @@ class AppLocalizationsKo extends AppLocalizations {
   String get commonDone => '완료';
 
   @override
+  String get commonUndo => '실행 취소';
+
+  @override
   String chatWelcomeTitle(String name) {
     return '안녕! 난 $name이야';
   }
@@ -525,6 +528,11 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get vocabReviewGotIt => '알았어요';
+
+  @override
+  String vocabDeleted(String expression) {
+    return '\'$expression\' 삭제됨';
+  }
 
   @override
   String get reportTitle => '주간 리포트';

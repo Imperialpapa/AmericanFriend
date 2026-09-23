@@ -33,23 +33,9 @@ class VocabularyScreen extends ConsumerWidget {
             : TabBarView(
                 children: [
                   _WordList(items: vocabState.allItems),
-                  vocabState.dueItems.isEmpty
-                      ? Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(Icons.check_circle,
-                                  size: 48, color: Colors.green),
-                              const SizedBox(height: 8),
-                              Text(l.vocabCaughtUp),
-                              Text(
-                                l.vocabCaughtUpSub,
-                                style: const TextStyle(color: Colors.grey),
-                              ),
-                            ],
-                          ),
-                        )
-                      : _ReviewCards(items: vocabState.dueItems),
+                  // 빈 상태 분기는 _ReviewCards 안에 있다. 세션 도중 due 목록이 비어도
+                  // '다시'로 큐 뒤에 돌려놓은 카드는 끝까지 보여야 하기 때문.
+                  _ReviewCards(items: vocabState.dueItems),
                 ],
               ),
       ),
@@ -140,7 +126,18 @@ class _WordList extends ConsumerWidget {
             child: const Icon(Icons.delete, color: Colors.white),
           ),
           onDismissed: (_) {
-            ref.read(vocabularyProvider.notifier).deleteWord(item.id);
+            final notifier = ref.read(vocabularyProvider.notifier);
+            final l = AppLocalizations.of(context);
+            notifier.deleteWord(item.id);
+            ScaffoldMessenger.of(context)
+              ..hideCurrentSnackBar()
+              ..showSnackBar(SnackBar(
+                content: Text(l.vocabDeleted(item.expression)),
+                action: SnackBarAction(
+                  label: l.commonUndo,
+                  onPressed: () => notifier.restoreWord(item),
+                ),
+              ));
           },
           child: Card(
             child: ListTile(
@@ -187,13 +184,62 @@ class _ReviewCards extends ConsumerStatefulWidget {
 }
 
 class _ReviewCardsState extends ConsumerState<_ReviewCards> {
-  int _currentIndex = 0;
+  /// 세션 시작 시점의 due 목록 스냅샷. review()가 due 목록을 줄여도 큐는 그대로라서
+  /// 인덱스가 어긋나지 않는다 (예전엔 A → C → E로 한 장씩 건너뜀, BUG #11).
+  late List<VocabularyItem> _queue;
+
+  /// 이 세션 큐에 한 번이라도 들어간 id — 새로 due가 된 단어만 골라내는 데 쓴다.
+  final Set<int> _seenIds = {};
+  int _index = 0;
   bool _showMeaning = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _queue = List.of(widget.items);
+    _seenIds.addAll(_queue.map((i) => i.id));
+  }
+
+  @override
+  void didUpdateWidget(covariant _ReviewCards oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // + 버튼으로 새 단어가 due가 되면: 복습 중이면 큐 뒤에 붙이고, 끝났거나 비어 있었으면
+    // 새 세션으로 시작한다. 이미 본 단어는 review() 반영 전 목록이 와도 다시 넣지 않는다.
+    final fresh = [
+      for (final i in widget.items)
+        if (!_seenIds.contains(i.id)) i,
+    ];
+    if (fresh.isEmpty) return;
+    _seenIds.addAll(fresh.map((i) => i.id));
+    if (_index >= _queue.length) {
+      _queue = fresh;
+      _index = 0;
+      _showMeaning = false;
+    } else {
+      _queue.addAll(fresh);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
-    if (_currentIndex >= widget.items.length) {
+    if (_queue.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.check_circle, size: 48, color: Colors.green),
+            const SizedBox(height: 8),
+            Text(l.vocabCaughtUp),
+            Text(
+              l.vocabCaughtUpSub,
+              style: const TextStyle(color: Colors.grey),
+            ),
+          ],
+        ),
+      );
+    }
+    if (_index >= _queue.length) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -207,7 +253,7 @@ class _ReviewCardsState extends ConsumerState<_ReviewCards> {
       );
     }
 
-    final item = widget.items[_currentIndex];
+    final item = _queue[_index];
 
     return Padding(
       padding: const EdgeInsets.all(24),
@@ -215,11 +261,11 @@ class _ReviewCardsState extends ConsumerState<_ReviewCards> {
         children: [
           // 진행률
           LinearProgressIndicator(
-            value: _currentIndex / widget.items.length,
+            value: _index / _queue.length,
             borderRadius: BorderRadius.circular(4),
           ),
           Text(
-            '${_currentIndex + 1} / ${widget.items.length}',
+            '${_index + 1} / ${_queue.length}',
             style: const TextStyle(fontSize: 12, color: Colors.grey),
           ),
 
@@ -273,7 +319,7 @@ class _ReviewCardsState extends ConsumerState<_ReviewCards> {
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
               FilledButton.icon(
-                onPressed: () => _answer(item.id, correct: false),
+                onPressed: () => _answer(item, correct: false),
                 icon: const Icon(Icons.close),
                 label: Text(l.vocabReviewAgain),
                 style: FilledButton.styleFrom(
@@ -282,7 +328,7 @@ class _ReviewCardsState extends ConsumerState<_ReviewCards> {
                 ),
               ),
               FilledButton.icon(
-                onPressed: () => _answer(item.id, correct: true),
+                onPressed: () => _answer(item, correct: true),
                 icon: const Icon(Icons.check),
                 label: Text(l.vocabReviewGotIt),
                 style: FilledButton.styleFrom(
@@ -299,10 +345,12 @@ class _ReviewCardsState extends ConsumerState<_ReviewCards> {
     );
   }
 
-  void _answer(int itemId, {required bool correct}) {
-    ref.read(vocabularyProvider.notifier).review(itemId, correct: correct);
+  void _answer(VocabularyItem item, {required bool correct}) {
+    ref.read(vocabularyProvider.notifier).review(item.id, correct: correct);
     setState(() {
-      _currentIndex++;
+      // '다시'는 이번 세션 끝에 한 번 더 — 하루 뒤로 미루기만 하면 틀린 단어를 다시 못 본다.
+      if (!correct) _queue.add(item);
+      _index++;
       _showMeaning = false;
     });
   }

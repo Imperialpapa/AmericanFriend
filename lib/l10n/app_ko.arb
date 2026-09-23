@@ -12,6 +12,7 @@
   "commonSettings": "설정",
   "commonClose": "닫기",
   "commonDone": "완료",
+  "commonUndo": "실행 취소",
 
   "chatWelcomeTitle": "안녕! 난 {name}이야",
   "chatWelcomeSubtitle": "{language} 연습을 도와줄게.\n대화를 시작해보자!",
@@ -184,6 +185,7 @@
   "vocabReviewTapReveal": "탭하여 보기",
   "vocabReviewAgain": "다시",
   "vocabReviewGotIt": "알았어요",
+  "vocabDeleted": "'{expression}' 삭제됨",
 
   "reportTitle": "주간 리포트",
   "reportSectionDaily": "일일 활동",

@@ -164,6 +164,12 @@ abstract class AppLocalizations {
   /// **'Done'**
   String get commonDone;
 
+  /// No description provided for @commonUndo.
+  ///
+  /// In en, this message translates to:
+  /// **'Undo'**
+  String get commonUndo;
+
   /// No description provided for @chatWelcomeTitle.
   ///
   /// In en, this message translates to:
@@ -1051,6 +1057,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Got it'**
   String get vocabReviewGotIt;
+
+  /// No description provided for @vocabDeleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleted \"{expression}\"'**
+  String vocabDeleted(String expression);
 
   /// No description provided for @reportTitle.
   ///

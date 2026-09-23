@@ -58,7 +58,19 @@ class VocabularyNotifier extends StateNotifier<VocabularyState> {
   }
 
   Future<void> deleteWord(int itemId) async {
+    // Dismissible은 onDismissed 직후 목록에서 빠져 있어야 한다. DB 왕복을 기다리는
+    // 사이에 리빌드되면 "dismissed Dismissible is still part of the tree"가 난다.
+    state = state.copyWith(
+      allItems: state.allItems.where((i) => i.id != itemId).toList(),
+      dueItems: state.dueItems.where((i) => i.id != itemId).toList(),
+    );
     await _db.deleteVocabulary(itemId);
+    await refresh();
+  }
+
+  /// 스와이프 삭제 실행 취소
+  Future<void> restoreWord(VocabularyItem item) async {
+    await _db.restoreVocabularyItem(item);
     await refresh();
   }
 }
