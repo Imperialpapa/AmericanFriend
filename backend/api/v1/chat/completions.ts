@@ -97,7 +97,13 @@ export default async function handler(req: Request): Promise<Response> {
         rlHeaders
       );
     }
-    if (!result.response.ok) await refundFailed(result.response.status);
+    if (!result.response.ok) {
+      await refundFailed(result.response.status);
+      // 체인 끝까지 업스트림 한도(분당·일일 토큰 등)에 걸렸다. 429를 그대로 넘기면 앱이
+      // '오늘 무료 N회 소진'으로 읽고 키 등록을 띄운다 — Groq 429도 code가
+      // rate_limit_exceeded이고, 스트리밍 요청은 앱이 오류 본문을 읽지 못해 구분할 수 없다.
+      if (result.response.status === 429) return upstreamBusy(result.response);
+    }
     return result.response;
   } catch (e: any) {
     console.log('[upstream] error:', e?.message);
@@ -174,6 +180,26 @@ function freeTierBusy(): Response {
 }
 
 /**
+ * 업스트림 제공자의 한도에 걸렸을 때. 사용자 한도(429 rate_limit_exceeded)와 구분해
+ * 503으로 준다 — 앱은 503을 '무료 티어 일시 장애'로 안내한다. Retry-After는 업스트림 값을 넘긴다.
+ */
+function upstreamBusy(upstream: Response): Response {
+  const retryAfter = upstream.headers.get('retry-after');
+  upstream.body?.cancel().catch(() => {});
+  console.log(`[upstream] rate limited, retry-after=${retryAfter ?? '-'}`);
+  return json(
+    {
+      error: {
+        code: 'upstream_busy',
+        message: 'The free tier is busy right now. Try again shortly or add your own API key.',
+      },
+    },
+    503,
+    retryAfter ? { 'Retry-After': retryAfter } : {}
+  );
+}
+
+/**
  * 모니터(GitHub Actions)는 30분마다 실경로를 호출하므로 카운터는 올리지 않는다(tobe S-04).
  * 그래도 Upstash는 실사용자처럼 거친다 — 리미터 장애·env 누락·전역 소진으로 실사용자가
  * 전원 막혔는데 모니터만 통과하면 BUG #9처럼 아무도 모른다. 30분에 GET 1개.
@@ -196,7 +222,9 @@ async function admit(req: Request, deviceId: string): Promise<Admission | Respon
   const limits = {
     device: parseInt(process.env.FREE_DAILY_LIMIT ?? '20', 10) || 20,
     ip: envInt('FREE_IP_DAILY_LIMIT', 150),
-    // Groq Free는 조직 전체 1K RPD(openai/gpt-oss-120b)다. 모니터·재시도 몫을 남겨 900.
+    // Groq Free는 모델마다 1K RPD다(조직 전체 기준). 모니터·재시도 몫을 남겨 900.
+    // UPSTREAM_MODEL에 모델 N개를 체인하면 env로 N배 가까이 올릴 수 있다 — 모델별 한도가
+    // 실제로 따로인지 x-ratelimit 응답 헤더로 먼저 확인할 것. 실질 병목은 TPD(200K)다.
     global: envInt('FREE_GLOBAL_DAILY_LIMIT', 900),
   };
 

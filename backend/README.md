@@ -62,9 +62,9 @@ Vercel 프로젝트 → **Settings → Environment Variables**에서 추가:
 
 | Key | Value | Notes |
 |---|---|---|
-| `UPSTREAM_PROVIDER` | `gemini` | 필수. 없으면 500 `misconfigured` |
-| `UPSTREAM_MODEL` | `gemini-2.5-flash` | 필수. 없으면 500 `misconfigured` |
-| `GEMINI_API_KEY` | (1번에서 발급한 키) | |
+| `UPSTREAM_PROVIDER` | `groq` | 필수. 없으면 500 `misconfigured` |
+| `UPSTREAM_MODEL` | `openai/gpt-oss-120b,qwen/qwen3.8-27b,openai/gpt-oss-20b` | 필수. 쉼표 체인 — 앞 모델이 429·403·5xx·404면 다음 모델. 아래 "Upstream 제공자 변경" |
+| `GROQ_API_KEY` | (Groq 콘솔에서 발급) | `GEMINI_API_KEY`·`OPENROUTER_API_KEY`는 그 제공자를 쓸 때만 |
 | `UPSTASH_REDIS_REST_URL` | (1번에서 복사) | |
 | `UPSTASH_REDIS_REST_TOKEN` | (1번에서 복사) | |
 | `FREE_DAILY_LIMIT` | `20` | 기기당 일 한도 |
@@ -105,26 +105,39 @@ defaultValue: 'https://<your-app>.vercel.app',
 
 ## Upstream 제공자 변경
 
-### Gemini (기본)
-```
-UPSTREAM_PROVIDER = gemini
-UPSTREAM_MODEL = gemini-2.5-flash
-GEMINI_API_KEY = ...
-```
-
-### Groq (OpenAI 호환)
+### Groq (현재, 권장 — 2026-10-27 확인)
 ```
 UPSTREAM_PROVIDER = groq
-UPSTREAM_MODEL = llama-3.3-70b-versatile
+UPSTREAM_MODEL = openai/gpt-oss-120b,qwen/qwen3.8-27b,openai/gpt-oss-20b
 GROQ_API_KEY = ...
 ```
+- Groq Free 한도는 **모델마다** 30 RPM / 1K RPD / 8K TPM / 200K TPD(조직 전체 기준)라, 체인하면
+  한 모델이 한도에 걸려도 다음 모델이 받는다. 모델별 한도가 실제로 따로인지는 응답의
+  `x-ratelimit-*` 헤더로 확인한 뒤 `FREE_GLOBAL_DAILY_LIMIT`를 올린다.
+- `qwen/qwen3.8-27b`는 Preview(예고 없이 내려갈 수 있음). 내려가면 404 → 체인이 다음 모델로 넘긴다.
+  마지막은 안정 모델(gpt-oss-20b)로 둔다. reasoning은 gpt-oss만 `low`로 보내고 qwen은 기본(OFF).
+- 체인 끝까지 429면 앱에는 503 `upstream_busy`로 준다(사용자 한도 429와 구분).
+- 폐기된 ID(호출 시 404): `llama-3.3-70b-versatile`, `llama-3.1-8b-instant`, `qwen3-32b`, `llama-4-scout`,
+  `qwen3.6-27b`, `compound`, `kimi-k2-0905`.
 
-### OpenRouter (다중 무료 모델 체인)
+### Gemini — 유료 키만
+```
+UPSTREAM_PROVIDER = gemini
+UPSTREAM_MODEL = gemini-3.5-flash-lite
+GEMINI_API_KEY = ...
+```
+무료 티어 키는 쓰지 않는다. Gemini API 약관상 EEA·스위스·영국 사용자에게 제공하는 앱은 유료
+서비스만 쓸 수 있고, 무료 티어 데이터는 제품 개선에 쓰인다. 18세 미만 대상 앱도 금지다(tobe S-17).
+
+### OpenRouter — 유료 모델만
 ```
 UPSTREAM_PROVIDER = openrouter
-UPSTREAM_MODEL = meta-llama/llama-3.3-70b-instruct:free,google/gemma-3-27b-it:free
+UPSTREAM_MODEL = <유료 모델 ID 체인>
 OPENROUTER_API_KEY = ...
 ```
+`:free` 모델은 프록시에 쓰지 않는다. 일 50회(크레딧 $10 구매 시 1,000회)이고, 일부는 운영 사용 금지
+(NVIDIA 체험 약관)나 프롬프트 학습 조건이 붙는다. DeepSeek 무료판(`deepseek/deepseek-v4-flash:free`)도
+마찬가지이며, DeepSeek 공식 API는 무료 티어가 없고 데이터를 중국 서버에서 처리한다.
 
 ## 로그 모니터링
 
@@ -137,7 +150,9 @@ npx vercel logs --follow
 
 - **Vercel Hobby**: 10만 호출/월, 100GB-hours/월 — 수천 DAU까지 무료
 - **Upstash Free**: 월 50만 commands. 파이프라인 안의 명령도 하나씩 센다
-- **Groq Free**(현재 업스트림, 2026-09-23 확인): `openai/gpt-oss-120b` 한도가 **조직 전체** 30 RPM / 1K RPD / 8K TPM / 200K TPD
+- **Groq Free**(현재 업스트림, 2026-10-27 확인): 모델마다 **조직 전체** 30 RPM / 1K RPD / 8K TPM / 200K TPD.
+  실질 병목은 TPD다 — 요청 1건이 프롬프트+히스토리+답변 합쳐 1.5K 토큰이면 모델당 하루 약 130건이다.
+  넘어서면 유료(Developer) 전환: gpt-oss-120b 기준 약 $0.32 / 1K 요청(1.5K in·150 out 가정)
 - **Total**: 소규모 런칭엔 **완전 무료**
 
 ### Groq Free 요청 예산
@@ -151,7 +166,8 @@ npx vercel logs --follow
 | 업스트림 재시도(1순위 모델 429·403·5xx 시 1회 더) | 장애 시에만 |
 | **합계** | **1K RPD 미만** |
 
-기기 한도 20이면 하루 45대가 한도를 다 쓰면 전역 상한에 닿는다. 상한은 Groq 플랜을 올리기 전에는 올리지 않는다.
+기기 한도 20이면 하루 45대가 한도를 다 쓰면 전역 상한에 닿는다. 상한은 모델 체인의 모델별 한도가
+따로임을 `x-ratelimit-*` 헤더로 확인하거나 Groq 플랜을 올리기 전에는 올리지 않는다. 그 전에 TPD가 먼저 찰 수 있다.
 
 ### Upstash 명령 예산
 
@@ -169,6 +185,7 @@ npx vercel logs --follow
 Upstash 콘솔 Usage에서 월 사용량을 확인하고, 사용량 알림을 설정할 수 있으면 70%로 둔다.
 
 업스트림이 4xx(모델 셧다운 404, 413, 429 등)로 실패한 요청은 IP·전역 한도를 쓴다 — 매번 실패하는 요청으로 한도를 우회하지 못하게.
+업스트림 429는 앱에 503 `upstream_busy`로 바꿔 준다. 그대로 넘기면 앱이 사용자 일일 한도 소진으로 읽는다.
 모델 셧다운을 고친 뒤 같은 UTC 날짜에 503 `free_tier_busy`가 나면 Upstash 콘솔 CLI에서 `GET rlg:<YYYY-MM-DD>`로 확인하고 `DEL rlg:<YYYY-MM-DD>` 뒤 재배포한다(인스턴스 메모리의 거절 캐시도 비워야 풀린다).
 
 ## Phase 2 확장 포인트
