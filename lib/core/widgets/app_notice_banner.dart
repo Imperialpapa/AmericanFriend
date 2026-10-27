@@ -37,6 +37,8 @@ class _AppNoticeBannerState extends ConsumerState<AppNoticeBanner> {
     final lang = Localizations.localeOf(context).languageCode;
 
     // 업데이트 안내가 공지보다 우선. 앱이 아예 못 쓰는 상태일 수 있으므로 닫을 수 없다.
+    // 버튼은 공지 링크가 아니라 항상 스토어로 간다 — 공지에 다른 링크가 걸려 있으면
+    // '업데이트'를 눌러도 업데이트할 수 없었다(tobe S-08).
     if (status.isUpdateRequired(AppConstants.appVersion)) {
       return _Bar(
         palette: palette,
@@ -46,7 +48,7 @@ class _AppNoticeBannerState extends ConsumerState<AppNoticeBanner> {
         title: l.noticeUpdateTitle,
         body: l.noticeUpdateBody,
         actionLabel: l.noticeUpdateAction,
-        onAction: () => _open(status.notice?.actionUrl ?? _playStoreUrl),
+        onAction: () => _open(_playStoreUrl),
         onDismiss: null,
       );
     }

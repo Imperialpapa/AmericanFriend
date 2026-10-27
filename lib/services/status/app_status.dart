@@ -4,7 +4,23 @@
 /// 앱 배포 없이는 사용자에게 알릴 수도 고칠 수도 없었다. 이 구조가 그 통로다.
 library;
 
+import 'package:eng_friend/core/config/proxy_config.dart';
+
 enum NoticeSeverity { info, warning, critical }
+
+/// 공지 링크로 열어도 되는 URL인가(tobe S-08).
+/// status는 Vercel 환경변수 하나로 모든 설치본에 퍼진다. 오타나 탈취로 http·javascript:·
+/// intent: 링크나 낯선 도메인이 들어와도 열리지 않게 https + 허용 호스트만 통과시킨다.
+/// 새 도메인으로 링크를 걸려면 그 호스트를 넣은 앱이 먼저 출시돼야 한다.
+bool isAllowedNoticeLink(String url) {
+  final uri = Uri.tryParse(url.trim());
+  if (uri == null || uri.scheme != 'https' || uri.userInfo.isNotEmpty) {
+    return false;
+  }
+  final host = uri.host.toLowerCase();
+  return host == 'play.google.com' ||
+      host == Uri.parse(ProxyConfig.freeTierBaseUrl).host.toLowerCase();
+}
 
 class AppNotice {
   final String id;
@@ -42,7 +58,10 @@ class AppNotice {
       },
       title: _stringMap(raw['title']),
       body: _stringMap(raw['body']),
-      actionUrl: raw['actionUrl'] is String ? raw['actionUrl'] as String : null,
+      actionUrl: switch (raw['actionUrl']) {
+        final String url when isAllowedNoticeLink(url) => url.trim(),
+        _ => null,
+      },
     );
   }
 
@@ -72,8 +91,13 @@ class AppStatus {
     this.modelMigrations = const {},
   });
 
+  // 타입이 틀린 필드는 버린다. 던지면 fetch가 이미 저장한 캐시까지 매번 파싱에
+  // 실패해서, 서버를 고칠 때까지 공지·마이그레이션이 통째로 멈춘다.
   factory AppStatus.fromJson(Map<String, dynamic> j) => AppStatus(
-        minSupportedVersion: j['minSupportedVersion'] as String?,
+        minSupportedVersion: switch (j['minSupportedVersion']) {
+          final String v => v,
+          _ => null,
+        },
         notice: AppNotice.fromJson(j['notice']),
         modelMigrations: AppNotice._stringMap(j['modelMigrations']),
       );
