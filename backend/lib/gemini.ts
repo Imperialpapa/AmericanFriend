@@ -18,13 +18,14 @@ export async function callGemini(
 ): Promise<CallResult> {
   const stream = !!body.stream;
   const gemBody = openAiToGemini(body.messages);
+  // 키는 쿼리(?key=)가 아니라 헤더로 — URL은 런타임 오류·로그에 찍힐 수 있다.
   const endpoint = stream
-    ? `${GEMINI_BASE}/models/${model}:streamGenerateContent?alt=sse&key=${apiKey}`
-    : `${GEMINI_BASE}/models/${model}:generateContent?key=${apiKey}`;
+    ? `${GEMINI_BASE}/models/${model}:streamGenerateContent?alt=sse`
+    : `${GEMINI_BASE}/models/${model}:generateContent`;
 
   const upstream = await fetch(endpoint, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
     body: JSON.stringify(gemBody),
   });
 
@@ -69,6 +70,8 @@ function openAiToGemini(messages: Array<{ role: string; content: string }>): any
   const contents: any[] = [];
   let systemInstruction: any = undefined;
   for (const msg of messages) {
+    // 빈 text part는 거부될 수 있고 대화에 의미도 없다(tobe A-05).
+    if (typeof msg.content !== 'string' || msg.content.trim() === '') continue;
     if (msg.role === 'system') {
       const text = msg.content;
       if (systemInstruction) systemInstruction.parts[0].text += '\n\n' + text;
