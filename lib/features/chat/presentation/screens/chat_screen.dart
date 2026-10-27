@@ -13,6 +13,7 @@ import 'package:eng_friend/core/widgets/ai_disclosure_note.dart';
 import 'package:eng_friend/core/widgets/alex_avatar.dart';
 import 'package:eng_friend/core/widgets/app_notice_banner.dart';
 import 'package:eng_friend/core/widgets/banner_ad_widget.dart';
+import 'package:eng_friend/di/service_providers.dart';
 import 'package:eng_friend/features/chat/domain/entities/message.dart';
 import 'package:eng_friend/features/chat/presentation/providers/activity_recorder_provider.dart';
 import 'package:eng_friend/features/chat/presentation/providers/chat_provider.dart';
@@ -50,8 +51,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await ref.read(voiceProvider.notifier).initialize();
       if (!mounted) return;
-      // 사용자가 이전에 핸즈프리를 켜뒀으면 채팅 진입과 동시에 루프 시작
-      if (ref.read(settingsProvider).handsFreeEnabled) {
+      // 사용자가 이전에 핸즈프리를 켜뒀으면 채팅 진입과 동시에 루프 시작.
+      // 원격 스위치는 아직 조회 중이면 true다 — 꺼져 있으면 아래 listen이 멈춘다.
+      if (ref.read(settingsProvider).handsFreeEnabled &&
+          ref.read(handsFreeAllowedProvider)) {
         await ref.read(voiceProvider.notifier).startHandsFree();
       }
     });
@@ -143,8 +146,18 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       final notifier = ref.read(voiceProvider.notifier);
       final active = ref.read(voiceProvider).handsFreeActive;
       // 입력바 토글이 이미 상태를 바꾼 뒤 설정을 저장하는 경로와 중복 실행되지 않도록
-      if (next && !active) notifier.startHandsFree();
+      if (next && !active && ref.read(handsFreeAllowedProvider)) {
+        notifier.startHandsFree();
+      }
       if (!next && active) notifier.stopHandsFree();
+    });
+
+    // 서버가 핸즈프리를 끄면(tobe Q-05) 돌고 있던 루프도 멈춘다. 사용자 선호는 그대로
+    // 두어, 스위치가 다시 켜지면 다음 실행부터 원래대로 시작한다.
+    ref.listen(handsFreeAllowedProvider, (prev, next) {
+      if (!next && ref.read(voiceProvider).handsFreeActive) {
+        ref.read(voiceProvider.notifier).stopHandsFree();
+      }
     });
 
     // 핸즈프리 오류/자동종료 안내

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:eng_friend/core/theme/app_colors.dart';
 import 'package:eng_friend/core/theme/app_shadows.dart';
 import 'package:eng_friend/core/theme/app_typography.dart';
+import 'package:eng_friend/di/service_providers.dart';
 import 'package:eng_friend/features/settings/presentation/providers/settings_provider.dart';
 import 'package:eng_friend/features/topic/presentation/widgets/topic_bottom_sheet.dart';
 import 'package:eng_friend/features/voice/domain/entities/voice_state.dart';
@@ -51,6 +52,7 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar> {
     final palette = KFPalette.of(context);
     final l = AppLocalizations.of(context);
     final voiceState = ref.watch(voiceProvider);
+    final handsFreeAllowed = ref.watch(handsFreeAllowedProvider);
     final targetLang = ref.watch(settingsProvider.select((s) => s.targetLanguage));
     final isListening = voiceState.status == VoiceStatus.listening;
 
@@ -113,45 +115,48 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar> {
               ),
               const SizedBox(width: 6),
 
-              // Hands-free toggle — 켜면 마이크 버튼 없이 대화가 순환한다
-              Material(
-                color: voiceState.handsFreeActive
-                    ? palette.sageWash
-                    : palette.beige,
-                shape: const CircleBorder(),
-                child: InkWell(
-                  customBorder: const CircleBorder(),
-                  onTap: () async {
-                    final notifier = ref.read(voiceProvider.notifier);
-                    await notifier.toggleHandsFree();
-                    // 다음 실행에도 기억되도록 선호를 저장
-                    if (!context.mounted) return;
-                    await ref
-                        .read(settingsProvider.notifier)
-                        .setHandsFreeEnabled(
-                            ref.read(voiceProvider).handsFreeActive);
-                  },
-                  child: Tooltip(
-                    message: voiceState.handsFreeActive
-                        ? l.handsFreeTurnOff
-                        : l.handsFreeTurnOn,
-                    child: SizedBox(
-                      width: 36,
-                      height: 36,
-                      child: Icon(
-                        voiceState.handsFreeActive
-                            ? Icons.record_voice_over
-                            : Icons.record_voice_over_outlined,
-                        size: 18,
-                        color: voiceState.handsFreeActive
-                            ? palette.sageDeep
-                            : palette.ink2,
+              // Hands-free toggle — 켜면 마이크 버튼 없이 대화가 순환한다.
+              // 서버 원격 스위치가 끄면 숨긴다(tobe Q-05).
+              if (handsFreeAllowed) ...[
+                Material(
+                  color: voiceState.handsFreeActive
+                      ? palette.sageWash
+                      : palette.beige,
+                  shape: const CircleBorder(),
+                  child: InkWell(
+                    customBorder: const CircleBorder(),
+                    onTap: () async {
+                      final notifier = ref.read(voiceProvider.notifier);
+                      await notifier.toggleHandsFree();
+                      // 다음 실행에도 기억되도록 선호를 저장
+                      if (!context.mounted) return;
+                      await ref
+                          .read(settingsProvider.notifier)
+                          .setHandsFreeEnabled(
+                              ref.read(voiceProvider).handsFreeActive);
+                    },
+                    child: Tooltip(
+                      message: voiceState.handsFreeActive
+                          ? l.handsFreeTurnOff
+                          : l.handsFreeTurnOn,
+                      child: SizedBox(
+                        width: 36,
+                        height: 36,
+                        child: Icon(
+                          voiceState.handsFreeActive
+                              ? Icons.record_voice_over
+                              : Icons.record_voice_over_outlined,
+                          size: 18,
+                          color: voiceState.handsFreeActive
+                              ? palette.sageDeep
+                              : palette.ink2,
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 6),
+                const SizedBox(width: 6),
+              ],
 
               // Text field — beige rounded
               Expanded(

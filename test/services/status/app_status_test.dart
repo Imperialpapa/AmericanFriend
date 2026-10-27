@@ -93,10 +93,33 @@ void main() {
         'minSupportedVersion': 251,
         'notice': 'oops',
         'modelMigrations': {'a': 'b', 'c': 3},
+        'flags': 'oops',
       });
       expect(status.minSupportedVersion, isNull);
       expect(status.notice, isNull);
       expect(status.modelMigrations, {'a': 'b'});
+      expect(status.flags, isEmpty);
+    });
+  });
+
+  group('원격 스위치(flags)', () {
+    test('불리언 값만 받는다 — 문자열 "false"는 버려 앱 기본값을 쓴다', () {
+      final status = AppStatus.fromJson({
+        'flags': {
+          RemoteFlags.handsFree: false,
+          'typo_flag': 'false',
+          'count': 0,
+        },
+      });
+      expect(status.flags, {RemoteFlags.handsFree: false});
+    });
+
+    test('서버에 없는 키는 fallback', () {
+      const status = AppStatus(flags: {RemoteFlags.handsFree: false});
+      expect(status.isEnabled(RemoteFlags.handsFree, fallback: true), isFalse);
+      expect(status.isEnabled('other', fallback: true), isTrue);
+      expect(const AppStatus().isEnabled(RemoteFlags.handsFree, fallback: true),
+          isTrue);
     });
   });
 }

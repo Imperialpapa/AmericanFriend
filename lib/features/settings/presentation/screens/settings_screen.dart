@@ -117,6 +117,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     settings: settings,
                     notifier: notifier,
                     palette: palette,
+                    handsFreeAllowed: ref.watch(handsFreeAllowedProvider),
                   ),
                   _SectionTitle(l.settingsSectionApp, palette: palette),
                   _AppGroup(
@@ -1414,10 +1415,14 @@ class _VoiceGroup extends StatelessWidget {
   final SettingsNotifier notifier;
   final KFPalette palette;
 
+  /// 서버 원격 스위치가 핸즈프리를 껐으면 false — 항목을 숨긴다(tobe Q-05).
+  final bool handsFreeAllowed;
+
   const _VoiceGroup({
     required this.settings,
     required this.notifier,
     required this.palette,
+    required this.handsFreeAllowed,
   });
 
   @override
@@ -1426,14 +1431,15 @@ class _VoiceGroup extends StatelessWidget {
     return _Group(
       palette: palette,
       children: [
-        _SwitchRow(
-          icon: Icons.hearing_outlined,
-          title: l.settingsHandsFree,
-          subtitle: l.settingsHandsFreeSub,
-          value: settings.handsFreeEnabled,
-          onChanged: notifier.setHandsFreeEnabled,
-          palette: palette,
-        ),
+        if (handsFreeAllowed)
+          _SwitchRow(
+            icon: Icons.hearing_outlined,
+            title: l.settingsHandsFree,
+            subtitle: l.settingsHandsFreeSub,
+            value: settings.handsFreeEnabled,
+            onChanged: notifier.setHandsFreeEnabled,
+            palette: palette,
+          ),
         _SwitchRow(
           icon: Icons.volume_up_outlined,
           title: l.settingsReadTargetAloud(settings.targetLanguage.displayName),

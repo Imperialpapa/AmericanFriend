@@ -17,6 +17,8 @@ export const config = { runtime: 'edge' };
  *   MODEL_MIGRATIONS_JSON   죽은 model ID → 살아있는 ID 매핑.
  *                           앱이 이걸 받아 저장된 설정을 스스로 교정한다.
  *                           제공자가 모델을 내려도 앱 릴리스 없이 복구된다.
+ *   STATUS_FLAGS_JSON       기능 원격 스위치(tobe Q-05). 예) {"handsfree_enabled": false}
+ *                           불리언 값만 내려간다. 키가 없으면 앱 기본값을 쓴다.
  *
  * 무료 티어 실동작 확인(probe)은 기본 비활성이다. 앱이 켜질 때마다 실제 completion을
  * 호출하면 업스트림 쿼터를 갉아먹기 때문. 모니터링에서만 ?probe=1 로 호출할 것.
@@ -39,6 +41,16 @@ type ProbeResult = { ok: boolean; code: string };
 // Edge 인스턴스가 재사용되는 동안만 유지되는 best-effort 캐시.
 let probeCache: (ProbeResult & { at: number }) | null = null;
 const PROBE_TTL_MS = 5 * 60 * 1000;
+
+/** 불리언 값만 남긴다 — "false"(문자열) 같은 오타는 버려져 앱 기본값이 쓰인다. */
+function booleanFlags(raw: unknown): Record<string, boolean> {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return {};
+  const out: Record<string, boolean> = {};
+  for (const [k, v] of Object.entries(raw)) {
+    if (typeof v === 'boolean') out[k] = v;
+  }
+  return out;
+}
 
 function parseJsonEnv<T>(raw: string | undefined, fallback: T): T {
   if (!raw) return fallback;
@@ -157,6 +169,7 @@ export default async function handler(req: Request): Promise<Response> {
     minSupportedVersion: process.env.MIN_SUPPORTED_VERSION ?? null,
     notice,
     modelMigrations,
+    flags: booleanFlags(parseJsonEnv<unknown>(process.env.STATUS_FLAGS_JSON, {})),
     upstreamModel: process.env.UPSTREAM_MODEL ?? null,
   };
 

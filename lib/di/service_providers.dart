@@ -102,6 +102,13 @@ final appStatusProvider = FutureProvider<AppStatus?>((ref) async {
   return ref.watch(appStatusServiceProvider).fetch();
 });
 
+/// 핸즈프리를 쓸 수 있는가 — 서버 원격 스위치([RemoteFlags.handsFree]).
+/// 상태를 아직 모르거나(조회 중·실패·캐시 없음) 서버에 값이 없으면 쓸 수 있다.
+final handsFreeAllowedProvider = Provider<bool>((ref) {
+  final status = ref.watch(appStatusProvider).value;
+  return status?.isEnabled(RemoteFlags.handsFree, fallback: true) ?? true;
+});
+
 /// AI 응답 신고 — 제공자(BYOK 포함)와 무관하게 무료 티어 서버로 보낸다(tobe P-01).
 final reportServiceProvider = Provider<ReportService>((ref) {
   return ReportService(

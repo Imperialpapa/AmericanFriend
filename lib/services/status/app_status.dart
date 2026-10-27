@@ -8,6 +8,14 @@ import 'package:eng_friend/core/config/proxy_config.dart';
 
 enum NoticeSeverity { info, warning, critical }
 
+/// 서버 STATUS_FLAGS_JSON으로 앱 출시 없이 끌 수 있는 기능(tobe Q-05).
+/// 서버에 키가 없거나 서버에 닿지 못하면 앱 기본값을 쓴다.
+abstract class RemoteFlags {
+  /// 핸즈프리. 9/23 기준 '인식 0건' P0(tobe V-01)가 미해결인 채 v2.5.1에 포함했다.
+  /// 실사용에서 재현되면 false로 내려 입력창 버튼·설정 항목·자동 시작을 막는다.
+  static const handsFree = 'handsfree_enabled';
+}
+
 /// 공지 링크로 열어도 되는 URL인가(tobe S-08).
 /// status는 Vercel 환경변수 하나로 모든 설치본에 퍼진다. 오타나 탈취로 http·javascript:·
 /// intent: 링크나 낯선 도메인이 들어와도 열리지 않게 https + 허용 호스트만 통과시킨다.
@@ -85,11 +93,19 @@ class AppStatus {
   /// 제공자가 모델을 내려도 앱 릴리스 없이 복구되는 핵심 장치.
   final Map<String, String> modelMigrations;
 
+  /// 기능 원격 스위치([RemoteFlags]). 불리언이 아닌 값은 버린다.
+  final Map<String, bool> flags;
+
   const AppStatus({
     this.minSupportedVersion,
     this.notice,
     this.modelMigrations = const {},
+    this.flags = const {},
   });
+
+  /// 서버가 [flag]를 정했으면 그 값, 아니면 [fallback](앱 기본값).
+  bool isEnabled(String flag, {required bool fallback}) =>
+      flags[flag] ?? fallback;
 
   // 타입이 틀린 필드는 버린다. 던지면 fetch가 이미 저장한 캐시까지 매번 파싱에
   // 실패해서, 서버를 고칠 때까지 공지·마이그레이션이 통째로 멈춘다.
@@ -100,7 +116,17 @@ class AppStatus {
         },
         notice: AppNotice.fromJson(j['notice']),
         modelMigrations: AppNotice._stringMap(j['modelMigrations']),
+        flags: _boolMap(j['flags']),
       );
+
+  // "false"(문자열) 같은 오타는 버려서 앱 기본값이 쓰이게 한다.
+  static Map<String, bool> _boolMap(Object? raw) {
+    if (raw is! Map) return const {};
+    return {
+      for (final e in raw.entries)
+        if (e.key is String && e.value is bool) e.key as String: e.value as bool,
+    };
+  }
 
   /// [current]가 [minSupportedVersion]보다 낮은가.
   /// "2.5.0" 형태를 숫자 단위로 비교한다. 파싱 실패 시 false(=안내 안 함).
