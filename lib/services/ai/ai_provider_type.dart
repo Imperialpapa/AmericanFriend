@@ -45,6 +45,16 @@ const Map<String, dynamic> _geminiMinimalThinking = {
   },
 };
 
+/// 3.8 Flash는 minimal을 지원하지 않아 오류가 난다. 가장 낮은 단계가 low다.
+const Map<String, dynamic> _geminiLowThinking = {
+  'generationConfig': {
+    'thinkingConfig': {'thinkingLevel': 'low'},
+  },
+};
+
+/// GPT-6 계열은 추론 모델이고 기본 effort가 medium이다. none으로 끈다(minimal은 없다).
+const Map<String, dynamic> _openAiNoReasoning = {'reasoning_effort': 'none'};
+
 enum AiProviderType {
   freeTier,
   claude,
@@ -63,70 +73,84 @@ extension AiProviderModels on AiProviderType {
               description: 'No API key needed',
             ),
           ],
-        // 2.0-flash는 2026-06-01 셧다운, 2.5 계열은 기존 사용자 한정이라 신규 키로는
-        // 실패할 수 있다. 3.x는 thinking이 기본 ON이고 maxOutputTokens에 thought
-        // 토큰이 포함되므로 minimal로 낮춘다.
+        // 2026-10 라인업. 3.5 Flash-Lite($0.30/$2.50)가 가성비 기본값, 3.8 Flash($0.75/$3.75,
+        // 2027-01-01부터 $1.50/$7.50)가 고품질. 3.6 Flash는 이전 세대인데 값이 3.8과 같아 뺐다.
+        // 2.0-flash는 2026-06-01 셧다운, 2.5 계열은 기존 사용자 한정. 3.x는 thinking이 기본
+        // ON이고 maxOutputTokens에 thought 토큰이 포함되므로 지원하는 가장 낮은 단계로 낮춘다.
         AiProviderType.gemini => const [
             AiModelInfo(
-              id: 'gemini-3.6-flash',
-              displayName: 'Gemini 3.6 Flash',
-              description: 'Fast & balanced',
+              id: 'gemini-3.5-flash-lite',
+              displayName: 'Gemini 3.5 Flash-Lite',
+              description: 'Fast & affordable',
               requestExtras: _geminiMinimalThinking,
             ),
             AiModelInfo(
               id: 'gemini-3.8-flash',
               displayName: 'Gemini 3.8 Flash',
               description: 'Higher quality',
-              requestExtras: _geminiMinimalThinking,
-            ),
-            AiModelInfo(
-              id: 'gemini-3.5-flash-lite',
-              displayName: 'Gemini 3.5 Flash-Lite',
-              description: 'Fastest & lightest',
-              requestExtras: _geminiMinimalThinking,
+              requestExtras: _geminiLowThinking,
             ),
           ],
-        // claude-sonnet-4-20250514는 2026-06-15, claude-3-5-sonnet-20241022는 이미 은퇴.
-        // Sonnet 5는 adaptive thinking이 기본 ON이라 끄지 않으면 max_tokens를 thinking이
-        // 먹는다. Haiku 4.5는 기본 OFF라 thinking 필드를 보내지 않는다.
-        // temperature/top_p/top_k는 보내지 말 것(최신 모델은 기본값 외 값에 400).
+        // 2026-10 라인업. Haiku 5.5($0.10/$0.50 per 1M, Haiku 4.5의 1/10)가 가성비 기본값,
+        // Sonnet 5.5(Sonnet 5와 같은 $2/$10)가 고품질. 둘 다 thinking이 기본 ON이라 끄지
+        // 않으면 max_tokens를 thinking이 먹고 음성 첫 응답이 늦어진다. 끄는 방법이 다르다:
+        // - Haiku 5.5: {type: disabled}. effort가 high 이하일 때만 허용(기본 medium).
+        // - Sonnet 5.5: {type: disabled}는 400. 가장 낮은 설정이 {type: between_tools}이고
+        //   도구를 쓰지 않으니 thinking이 없다. thinking 안에 다른 필드를 넣으면 400.
+        // 둘 다 temperature/top_p/top_k(기본값 외)와 assistant prefill이 400이다.
         AiProviderType.claude => const [
             AiModelInfo(
-              id: 'claude-sonnet-5',
-              displayName: 'Claude Sonnet 5',
-              description: 'Best balance of speed & quality',
+              id: 'claude-haiku-5-5',
+              displayName: 'Claude Haiku 5.5',
+              description: 'Fast & affordable',
               requestExtras: {
                 'thinking': {'type': 'disabled'},
               },
             ),
             AiModelInfo(
-              id: 'claude-haiku-4-5-20251001',
-              displayName: 'Claude Haiku 4.5',
-              description: 'Fast & affordable',
+              id: 'claude-sonnet-5-5',
+              displayName: 'Claude Sonnet 5.5',
+              description: 'Higher quality',
+              requestExtras: {
+                'thinking': {'type': 'between_tools'},
+              },
             ),
           ],
-        // gpt-4.1-nano는 2026-10-23 셧다운. gpt-5.x는 max_completion_tokens·reasoning
-        // 처리가 필요해 여기서는 넣지 않는다.
+        // 2026-10 라인업. gpt-4.1-nano는 2026-10-23 셧다운, gpt-4o·gpt-4o-mini는 2026-10-14
+        // deprecated(2027-01-14 셧다운). OpenAI가 지정한 대체 gpt-6-luna($0.10/$0.50)가
+        // 가성비 기본값, gpt-6.1-terra($1/$5, 2026-10-26 출시)가 고품질. 둘 다 Chat
+        // Completions·스트리밍 지원. max_tokens(deprecated)와 temperature(effort none일 때만
+        // 허용)는 보내지 않는다.
         AiProviderType.openai => const [
             AiModelInfo(
-              id: 'gpt-4o',
-              displayName: 'GPT-4o',
-              description: 'Most capable',
+              id: 'gpt-6-luna',
+              displayName: 'GPT-6 Luna',
+              description: 'Fast & affordable',
+              requestExtras: _openAiNoReasoning,
             ),
             AiModelInfo(
-              id: 'gpt-4o-mini',
-              displayName: 'GPT-4o Mini',
-              description: 'Fast & affordable',
+              id: 'gpt-6.1-terra',
+              displayName: 'GPT-6.1 Terra',
+              description: 'Higher quality',
+              requestExtras: _openAiNoReasoning,
             ),
           ],
         // 2026-06-17 Groq가 llama-3.3-70b-versatile / llama-3.1-8b-instant를 폐기.
         // gemma2-9b-it도 현행 카탈로그에서 사라짐. 셋 다 호출하면 model_not_found(404).
         // Groq 공식 권장 대체 모델이 openai/gpt-oss-120b.
+        // qwen3.8-27b(2026-10 추가)는 Preview라 예고 없이 내려갈 수 있어 기본값으로 두지
+        // 않는다 — 내려가면 서버 MODEL_MIGRATIONS_JSON으로 gpt-oss-120b에 옮긴다.
+        // reasoning이 기본 OFF라 reasoning_effort를 보내지 않는다(GroqService).
         AiProviderType.groq => const [
             AiModelInfo(
               id: 'openai/gpt-oss-120b',
               displayName: 'GPT-OSS 120B',
-              description: 'Best quality, free',
+              description: 'Reliable, free',
+            ),
+            AiModelInfo(
+              id: 'qwen/qwen3.8-27b',
+              displayName: 'Qwen 3.8 27B',
+              description: 'Newest, free (preview)',
             ),
             AiModelInfo(
               id: 'openai/gpt-oss-20b',

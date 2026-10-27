@@ -244,10 +244,10 @@ class AppLocalizationsKo extends AppLocalizations {
   String get onboardApiHelp => '신용카드 필요 없어요. 1분이면 돼요.';
 
   @override
-  String get onboardApiGeminiDesc => 'Gemini · 1일 1,500회 무료';
+  String get onboardApiGeminiDesc => 'Gemini · Google 계정으로 무료 키';
 
   @override
-  String get onboardApiGroqDesc => 'Groq (Llama 3.3) · 1일 14,400회, 초고속';
+  String get onboardApiGroqDesc => 'Groq · 무료 키, 초고속 응답';
 
   @override
   String get onboardApiStep1Title => '키 발급 페이지 열기';

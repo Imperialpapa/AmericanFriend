@@ -263,11 +263,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get onboardApiHelp => 'No credit card. Takes about a minute.';
 
   @override
-  String get onboardApiGeminiDesc => 'Gemini · 1,500 requests/day free';
+  String get onboardApiGeminiDesc => 'Gemini · free key with a Google account';
 
   @override
-  String get onboardApiGroqDesc =>
-      'Groq (Llama 3.3) · 14,400 requests/day, ultra fast';
+  String get onboardApiGroqDesc => 'Groq · free key, ultra fast';
 
   @override
   String get onboardApiStep1Title => 'Open the key page';

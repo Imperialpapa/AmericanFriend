@@ -6,15 +6,24 @@ import 'package:eng_friend/services/ai/ai_provider_type.dart';
 /// 카탈로그에서 ID를 뺄 때는 반드시 여기에 대체를 추가할 것 — 빠지면 그 ID를 고른
 /// 사용자가 알림 없이 카탈로그 첫 항목으로 폴백한다(gpt-4.1-nano → 고가 gpt-4o).
 const Map<String, String> localModelMigrations = {
-  // Claude: sonnet-4는 2026-06-15, 3.5 sonnet은 2025-10-28 은퇴
-  'claude-sonnet-4-20250514': 'claude-sonnet-5',
-  'claude-3-5-sonnet-20241022': 'claude-sonnet-5',
-  // Gemini: 2.0-flash는 2026-06-01 셧다운, 2.5 계열은 기존 사용자 한정
-  'gemini-2.0-flash': 'gemini-3.6-flash',
-  'gemini-2.5-flash': 'gemini-3.6-flash',
+  // Claude: sonnet-4는 2026-06-15, 3.5 sonnet은 2025-10-28 은퇴.
+  // 2026-10 교체: 같은 라인의 새 모델로 보낸다(Sonnet을 고른 사용자는 Sonnet에 남는다).
+  'claude-sonnet-4-20250514': 'claude-sonnet-5-5',
+  'claude-3-5-sonnet-20241022': 'claude-sonnet-5-5',
+  'claude-sonnet-5': 'claude-sonnet-5-5',
+  'claude-haiku-4-5-20251001': 'claude-haiku-5-5',
+  // Gemini: 2.0-flash는 2026-06-01 셧다운, 2.5 계열은 기존 사용자 한정,
+  // 3.6 Flash는 2026-10 카탈로그에서 뺐다(이전 세대). Flash·Pro 계열은 3.8 Flash로.
+  'gemini-2.0-flash': 'gemini-3.8-flash',
+  'gemini-2.5-flash': 'gemini-3.8-flash',
   'gemini-2.5-pro': 'gemini-3.8-flash',
-  // OpenAI: 2026-10-23 셧다운. 저가 모델을 고른 사용자는 저가 모델로 보낸다.
-  'gpt-4.1-nano': 'gpt-4o-mini',
+  'gemini-3.6-flash': 'gemini-3.8-flash',
+  // OpenAI: 4.1-nano는 2026-10-23 셧다운, 4o·4o-mini는 2027-01-14 셧다운.
+  // 저가 모델을 고른 사용자는 저가 모델로, 4o(최고 품질)를 고른 사용자는 고품질로 보낸다.
+  // 어느 쪽이든 예전보다 싸다(4o $2.50/$10 → terra $1/$5).
+  'gpt-4.1-nano': 'gpt-6-luna',
+  'gpt-4o-mini': 'gpt-6-luna',
+  'gpt-4o': 'gpt-6.1-terra',
 };
 
 /// [provider]에 저장된 모델 [stored]를 무엇으로 바꿔 저장해야 하는지. 바꿀 게 없으면 null.

@@ -4,6 +4,7 @@ import 'package:eng_friend/features/chat/domain/entities/message.dart';
 import 'package:eng_friend/features/chat/domain/entities/pronunciation_result.dart';
 import 'package:eng_friend/features/chat/domain/entities/suggestion.dart';
 import 'package:eng_friend/features/level/domain/entities/level_assessment.dart';
+import 'package:eng_friend/services/ai/ai_provider_type.dart';
 import 'package:eng_friend/services/ai/ai_json.dart';
 import 'package:eng_friend/services/ai/ai_service.dart';
 import 'package:eng_friend/services/ai/prompts/level_prompts.dart';
@@ -29,6 +30,11 @@ class OpenAiService implements AiService {
           },
         ));
 
+  /// 모델별 추가 필드(GPT-5.x의 reasoning_effort 등, 카탈로그 참고)를 합친 요청 본문.
+  /// 추론 모델은 기본값이면 답변 전에 속으로 생각해 음성 첫 응답이 늦어진다.
+  Map<String, dynamic> _body(Map<String, dynamic> body) =>
+      withRequestExtras(body, AiProviderType.openai.requestExtrasFor(model));
+
   String _handleError(DioException e) {
     final statusCode = e.response?.statusCode;
     if (statusCode == 401) {
@@ -50,7 +56,7 @@ class OpenAiService implements AiService {
     required int userLevel,
   }) async {
     try {
-      final response = await _dio.post('/chat/completions', data: {
+      final response = await _dio.post('/chat/completions', data: _body({
         'model': model,
         'messages': [
           {'role': 'system', 'content': systemPrompt},
@@ -59,7 +65,7 @@ class OpenAiService implements AiService {
                 'content': m.content,
               }),
         ],
-      });
+      }));
 
       final choices = response.data['choices'] as List;
       return choices.first['message']['content'] as String;
@@ -78,7 +84,7 @@ class OpenAiService implements AiService {
     try {
       response = await _dio.post(
         '/chat/completions',
-        data: {
+        data: _body({
           'model': model,
           'stream': true,
           'messages': [
@@ -88,7 +94,7 @@ class OpenAiService implements AiService {
                   'content': m.content,
                 }),
           ],
-        },
+        }),
         options: Options(responseType: ResponseType.stream),
       );
     } on DioException catch (e) {
@@ -135,13 +141,13 @@ class OpenAiService implements AiService {
 
     // post도 try 안에 — 밖에 있으면 네트워크 오류가 호출자로 던져진다.
     try {
-      final response = await _dio.post('/chat/completions', data: {
+      final response = await _dio.post('/chat/completions', data: _body({
         'model': model,
         'messages': [
           {'role': 'system', 'content': LevelPrompt.build(nativeLanguage: nativeLanguage, targetLanguage: targetLanguage)},
           {'role': 'user', 'content': userMessages},
         ],
-      });
+      }));
       final choices = response.data['choices'] as List;
       return parseLevelAssessment(choices.first['message']['content'] as String);
     } catch (_) {
@@ -154,12 +160,12 @@ class OpenAiService implements AiService {
     required String prompt,
   }) async {
     try {
-      final response = await _dio.post('/chat/completions', data: {
+      final response = await _dio.post('/chat/completions', data: _body({
         'model': model,
         'messages': [
           {'role': 'user', 'content': prompt},
         ],
-      });
+      }));
       final choices = response.data['choices'] as List;
       return PronunciationResult.fromJson(
           extractJson(choices.first['message']['content'] as String));
@@ -190,10 +196,10 @@ class OpenAiService implements AiService {
     });
 
     try {
-      final response = await _dio.post('/chat/completions', data: {
+      final response = await _dio.post('/chat/completions', data: _body({
         'model': model,
         'messages': messages,
-      });
+      }));
       final choices = response.data['choices'] as List;
       return parseSuggestions(choices.first['message']['content'] as String);
     } catch (_) {

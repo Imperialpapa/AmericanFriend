@@ -521,13 +521,13 @@ abstract class AppLocalizations {
   /// No description provided for @onboardApiGeminiDesc.
   ///
   /// In en, this message translates to:
-  /// **'Gemini · 1,500 requests/day free'**
+  /// **'Gemini · free key with a Google account'**
   String get onboardApiGeminiDesc;
 
   /// No description provided for @onboardApiGroqDesc.
   ///
   /// In en, this message translates to:
-  /// **'Groq (Llama 3.3) · 14,400 requests/day, ultra fast'**
+  /// **'Groq · free key, ultra fast'**
   String get onboardApiGroqDesc;
 
   /// No description provided for @onboardApiStep1Title.
