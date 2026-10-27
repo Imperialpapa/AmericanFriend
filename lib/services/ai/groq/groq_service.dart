@@ -20,18 +20,23 @@ class GroqService implements AiService {
 
   // 기본값은 ai_provider_type.dart의 Groq 첫 항목과 일치시킬 것.
   // llama-3.3-70b-versatile은 2026-06-17 폐기되어 호출 시 404.
-  GroqService({required this.apiKey, this.model = 'openai/gpt-oss-120b'})
-    : _dio = Dio(
-        BaseOptions(
-          baseUrl: _baseUrl,
-          connectTimeout: const Duration(seconds: 30),
-          receiveTimeout: const Duration(seconds: 60),
-          headers: {
-            'Authorization': 'Bearer $apiKey',
-            'Content-Type': 'application/json',
-          },
-        ),
-      );
+  GroqService({
+    required this.apiKey,
+    this.model = 'openai/gpt-oss-120b',
+    Dio? dio,
+  }) : _dio =
+           dio ??
+           Dio(
+             BaseOptions(
+               baseUrl: _baseUrl,
+               connectTimeout: const Duration(seconds: 30),
+               receiveTimeout: const Duration(seconds: 60),
+               headers: {
+                 'Authorization': 'Bearer $apiKey',
+                 'Content-Type': 'application/json',
+               },
+             ),
+           );
 
   /// gpt-oss 계열은 추론 모델이라 기본값이면 답변 전에 수백 토큰을 속으로 생각한다.
   /// 음성 대화에서는 사용자가 말을 마친 뒤의 침묵으로 나타난다.
@@ -112,8 +117,10 @@ class GroqService implements AiService {
 
     // 멀티바이트 문자가 청크 경계에 걸리면 utf8.decode가 FormatException을 던져
     // 스트림이 통째로 죽는다(한글·일본어는 3바이트라 흔하다).
-    final stream = (response.data.stream as Stream<List<int>>).transform(
-      utf8.decoder,
+    // .transform(utf8.decoder)는 안 된다 — Dio 본문은 Stream<Uint8List>라 런타임 타입
+    // 검사에서 모든 응답이 TypeError로 끝난다(BUG #13).
+    final stream = utf8.decoder.bind(
+      response.data.stream as Stream<List<int>>,
     );
     String buffer = '';
 

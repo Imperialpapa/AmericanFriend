@@ -19,16 +19,17 @@ class OpenAiService implements AiService {
   static const _baseUrl = 'https://api.openai.com/v1';
 
   // 기본 모델 인자를 두지 않는다 — 카탈로그(ai_provider_type.dart)와 어긋나면 죽은 ID가 남는다.
-  OpenAiService({required this.apiKey, required this.model})
-      : _dio = Dio(BaseOptions(
-          baseUrl: _baseUrl,
-          connectTimeout: const Duration(seconds: 30),
-          receiveTimeout: const Duration(seconds: 60),
-          headers: {
-            'Authorization': 'Bearer $apiKey',
-            'Content-Type': 'application/json',
-          },
-        ));
+  OpenAiService({required this.apiKey, required this.model, Dio? dio})
+      : _dio = dio ??
+            Dio(BaseOptions(
+              baseUrl: _baseUrl,
+              connectTimeout: const Duration(seconds: 30),
+              receiveTimeout: const Duration(seconds: 60),
+              headers: {
+                'Authorization': 'Bearer $apiKey',
+                'Content-Type': 'application/json',
+              },
+            ));
 
   /// 모델별 추가 필드(GPT-5.x의 reasoning_effort 등, 카탈로그 참고)를 합친 요청 본문.
   /// 추론 모델은 기본값이면 답변 전에 속으로 생각해 음성 첫 응답이 늦어진다.
@@ -103,8 +104,10 @@ class OpenAiService implements AiService {
 
     // 멀티바이트 문자가 청크 경계에 걸리면 utf8.decode가 FormatException을 던져
     // 스트림이 통째로 죽는다(한글·일본어는 3바이트라 흔하다).
+    // .transform(utf8.decoder)는 안 된다 — Dio 본문은 Stream<Uint8List>라 런타임 타입
+    // 검사에서 모든 응답이 TypeError로 끝난다(BUG #13).
     final stream =
-        (response.data.stream as Stream<List<int>>).transform(utf8.decoder);
+        utf8.decoder.bind(response.data.stream as Stream<List<int>>);
     String buffer = '';
 
     await for (final chunk in stream) {

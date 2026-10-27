@@ -57,17 +57,18 @@ class FreeTierAiService implements AiService {
   final String deviceId;
   final Dio _dio;
 
-  FreeTierAiService({required this.baseUrl, required this.deviceId})
-      : _dio = Dio(BaseOptions(
-          baseUrl: baseUrl,
-          connectTimeout: const Duration(seconds: 30),
-          receiveTimeout: const Duration(seconds: 60),
-          headers: {
-            'x-device-id': deviceId,
-            'Content-Type': 'application/json',
-            'User-Agent': 'KoreanFriend/${AppConstants.appVersion}',
-          },
-        ));
+  FreeTierAiService({required this.baseUrl, required this.deviceId, Dio? dio})
+      : _dio = dio ??
+            Dio(BaseOptions(
+              baseUrl: baseUrl,
+              connectTimeout: const Duration(seconds: 30),
+              receiveTimeout: const Duration(seconds: 60),
+              headers: {
+                'x-device-id': deviceId,
+                'Content-Type': 'application/json',
+                'User-Agent': 'KoreanFriend/${AppConstants.appVersion}',
+              },
+            ));
 
   FreeTierRateLimitException? _rateLimitFrom(DioException e) {
     final statusCode = e.response?.statusCode;
@@ -161,8 +162,10 @@ class FreeTierAiService implements AiService {
     // 멀티바이트 문자가 청크 경계에 걸리면 utf8.decode가 FormatException을 던져
     // 스트림이 통째로 죽는다(한글·일본어는 3바이트라 흔하다).
     // 스트리밍 디코더는 경계를 넘어 이어붙여 준다.
+    // .transform(utf8.decoder)는 안 된다 — Dio 본문은 Stream<Uint8List>라 런타임 타입
+    // 검사에서 모든 응답이 TypeError로 끝난다(BUG #13).
     final stream =
-        (response.data.stream as Stream<List<int>>).transform(utf8.decoder);
+        utf8.decoder.bind(response.data.stream as Stream<List<int>>);
     String buffer = '';
 
     await for (final chunk in stream) {
