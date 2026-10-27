@@ -32,28 +32,37 @@ class ClaudeService implements AiService {
           },
         ));
 
-  /// 모델별 추가 필드(Sonnet 5의 thinking disabled 등)를 합친 요청 본문.
+  /// 모델별 추가 필드(thinking 끄기 등, 카탈로그 참고)를 합친 요청 본문.
   Map<String, dynamic> _body(Map<String, dynamic> body) =>
       withRequestExtras(body, AiProviderType.claude.requestExtrasFor(model));
 
   /// thinking을 쓰는 모델은 text 앞에 thinking 블록이 올 수 있어 첫 블록을
   /// text로 가정하면 깨진다. type=='text' 블록만 이어 붙인다.
   /// text 블록이 하나도 없으면 예전(content.first['text'])처럼 던진다.
+  /// 안전 분류기가 거절했으면(HTTP 200 + stop_reason refusal, Haiku 5.5·Sonnet 5.5부터)
+  /// Gemini 안전 차단과 같은 [AiResponseBlockedException]으로 올린다.
   @visibleForTesting
   static String textOf(dynamic data) {
     final texts = [
       for (final block in data['content'] as List)
         if (block is Map && block['type'] == 'text') block['text'] as String,
     ];
-    if (texts.isEmpty) throw StateError('Claude response has no text block');
+    if (texts.isEmpty) {
+      if (data['stop_reason'] == 'refusal') {
+        throw const AiResponseBlockedException('refusal');
+      }
+      throw StateError('Claude response has no text block');
+    }
     return texts.join();
   }
 
   /// SSE data 한 줄에서 사용자에게 보일 텍스트를 꺼낸다. 없으면 null.
   /// error 이벤트(overloaded_error 등)는 던진다 — 예전엔 삼켜서 빈 답변이
   /// 정상 완료로 저장됐고, 그 빈 메시지 때문에 이후 모든 요청이 400이 났다(A-05).
+  /// 거절(stop_reason refusal)도 텍스트가 아직 없으면 던진다. 이미 텍스트를
+  /// 보냈다면([hasText]) 그 답변을 살리려고 로그만 남긴다.
   @visibleForTesting
-  static String? textFromSseData(String data) {
+  static String? textFromSseData(String data, {bool hasText = false}) {
     final Object? json;
     try {
       json = jsonDecode(data);
@@ -77,8 +86,12 @@ class ClaudeService implements AiService {
             .trim());
       case 'message_delta':
         final delta = json['delta'];
-        if (delta is Map && delta['stop_reason'] == 'max_tokens') {
+        final stopReason = delta is Map ? delta['stop_reason'] : null;
+        if (stopReason == 'max_tokens') {
           debugPrint('[Claude] response truncated (max_tokens)');
+        } else if (stopReason == 'refusal') {
+          if (!hasText) throw const AiResponseBlockedException('refusal');
+          debugPrint('[Claude] response cut by refusal');
         }
     }
     return null;
@@ -158,6 +171,7 @@ class ClaudeService implements AiService {
     final stream =
         (response.data.stream as Stream<List<int>>).transform(utf8.decoder);
     String buffer = '';
+    var hasText = false;
 
     await for (final chunk in stream) {
       buffer += chunk;
@@ -169,8 +183,10 @@ class ClaudeService implements AiService {
         final data = line.substring(6);
         if (data == '[DONE]') return;
 
-        final text = textFromSseData(data);
-        if (text != null) yield text;
+        final text = textFromSseData(data, hasText: hasText);
+        if (text == null) continue;
+        if (text.isNotEmpty) hasText = true;
+        yield text;
       }
     }
   }

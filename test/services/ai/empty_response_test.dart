@@ -176,6 +176,42 @@ void main() {
               '{"type":"message_delta","delta":{"stop_reason":"max_tokens"}}'),
           isNull);
     });
+
+    const refusal =
+        '{"type":"message_delta","delta":{"stop_reason":"refusal"},"stop_details":{"type":"refusal","category":"general_harms"}}';
+
+    test('텍스트 없이 거절(refusal)로 끝나면 차단 예외를 던진다', () {
+      expect(() => ClaudeService.textFromSseData(refusal),
+          throwsA(isA<AiResponseBlockedException>()));
+    });
+
+    test('이미 텍스트를 보냈다면 거절에도 답변을 살린다', () {
+      expect(ClaudeService.textFromSseData(refusal, hasText: true), isNull);
+    });
+  });
+
+  group('ClaudeService.textOf 거절', () {
+    test('text 블록 없이 stop_reason refusal이면 차단 예외', () {
+      expect(
+        () => ClaudeService.textOf({
+          'content': const [],
+          'stop_reason': 'refusal',
+        }),
+        throwsA(isA<AiResponseBlockedException>()),
+      );
+    });
+
+    test('text가 있으면 거절이어도 텍스트를 돌려준다', () {
+      expect(
+        ClaudeService.textOf({
+          'content': const [
+            {'type': 'text', 'text': 'Partial'},
+          ],
+          'stop_reason': 'refusal',
+        }),
+        'Partial',
+      );
+    });
   });
 
   group('GeminiService.textFromSseData', () {
