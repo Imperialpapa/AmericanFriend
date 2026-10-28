@@ -66,3 +66,16 @@ ss_*.png
 
 # Android module build output
 /android/build/
+
+# Internal docs — kept on disk only, never pushed. Repo is PUBLIC.
+# History before the first public push (2026-10-28) was rewritten without them.
+/tobe.md
+/docs/BUG_HISTORY.md
+/docs/todo.md
+/docs/LEARNING_EFFECTIVENESS_ANALYSIS_*
+/docs/PLAN_*.md
+/docs/SETTINGS_AUDIT_*
+/docs/done_*.md
+/docs/DESIGN_*.md
+/docs/TEST_PLAN_*
+/scripts/build_test_plan_ppt.py
