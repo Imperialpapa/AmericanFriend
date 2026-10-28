@@ -11,7 +11,7 @@ enum NoticeSeverity { info, warning, critical }
 /// 서버 STATUS_FLAGS_JSON으로 앱 출시 없이 끌 수 있는 기능(tobe Q-05).
 /// 서버에 키가 없거나 서버에 닿지 못하면 앱 기본값을 쓴다.
 abstract class RemoteFlags {
-  /// 핸즈프리. 9/23 기준 '인식 0건' P0(tobe V-01)가 미해결인 채 v2.5.1에 포함했다.
+  /// 핸즈프리. 9/23 기준 '인식 0건' P0(tobe V-01)가 미해결인 채 5.0.0(작업명 v2.5.1)에 포함했다.
   /// 실사용에서 재현되면 false로 내려 입력창 버튼·설정 항목·자동 시작을 막는다.
   static const handsFree = 'handsfree_enabled';
 }
