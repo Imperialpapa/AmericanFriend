@@ -42,13 +42,27 @@ class AppLocalizationsKo extends AppLocalizations {
   String get commonDone => '완료';
 
   @override
+  String get commonUndo => '실행 취소';
+
+  @override
   String chatWelcomeTitle(String name) {
     return '안녕! 난 $name이야';
   }
 
   @override
   String chatWelcomeSubtitle(String language) {
-    return '$language 연습을 도와줄게.\n대화를 시작해보자!';
+    return '$language 연습을 도와줄 AI 튜터야.\n대화를 시작해보자!';
+  }
+
+  @override
+  String get aiMayBeWrongNote => 'AI가 만든 답변이라 틀릴 수 있어요.';
+
+  @override
+  String get chatAiBadge => 'AI';
+
+  @override
+  String chatAiBadgeSemantics(String name) {
+    return '$name은(는) AI예요';
   }
 
   @override
@@ -114,6 +128,36 @@ class AppLocalizationsKo extends AppLocalizations {
   String get chatUserMenuSave => '단어장에 저장';
 
   @override
+  String get chatReportAction => '응답 신고';
+
+  @override
+  String get chatReportSheetTitle => '이 응답을 신고할까요?';
+
+  @override
+  String get chatReportSheetBody => '이 답변과 바로 앞의 내 메시지가 검토를 위해 개발자에게 전송돼요.';
+
+  @override
+  String get chatReportReasonHarmful => '유해하거나 부적절해요';
+
+  @override
+  String get chatReportReasonIncorrect => '틀리거나 오해를 부르는 내용이에요';
+
+  @override
+  String get chatReportReasonOther => '기타';
+
+  @override
+  String get chatReportSent => '신고가 접수됐어요. 알려 줘서 고마워요!';
+
+  @override
+  String get chatReportQueued => '지금은 보낼 수 없어서 다음에 앱을 열 때 다시 보낼게요.';
+
+  @override
+  String get chatReportFailed => '신고를 보내지 못했어요. 설정의 \'피드백 보내기\'로 알려 주세요.';
+
+  @override
+  String get chatReportedLabel => '신고됨';
+
+  @override
   String chatStreakGoalReached(int days) {
     return '오늘 목표 달성! 연속 $days일째';
   }
@@ -158,7 +202,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get onboardCtaStartChatting => '대화 시작';
 
   @override
-  String get onboardWelcomeSubtitle => '친근한 언어 튜터예요.\n실제 대화로 연습해요.';
+  String get onboardWelcomeSubtitle => '친근한 AI 언어 튜터예요.\n실제 대화로 연습해요.';
 
   @override
   String get onboardLanguageBubble => '먼저 — 언어 설정을 해볼까요?';
@@ -200,10 +244,10 @@ class AppLocalizationsKo extends AppLocalizations {
   String get onboardApiHelp => '신용카드 필요 없어요. 1분이면 돼요.';
 
   @override
-  String get onboardApiGeminiDesc => 'Gemini · 1일 1,500회 무료';
+  String get onboardApiGeminiDesc => 'Gemini · Google 계정으로 무료 키';
 
   @override
-  String get onboardApiGroqDesc => 'Groq (Llama 3.3) · 1일 14,400회, 초고속';
+  String get onboardApiGroqDesc => 'Groq · 무료 키, 초고속 응답';
 
   @override
   String get onboardApiStep1Title => '키 발급 페이지 열기';
@@ -335,6 +379,21 @@ class AppLocalizationsKo extends AppLocalizations {
   String get settingsPickerModel => '모델';
 
   @override
+  String get settingsProviderDescFree => 'API 키 없이 사용 · 하루 사용량 제한';
+
+  @override
+  String get settingsProviderDescGemini => '무료 사용량 제공';
+
+  @override
+  String get settingsProviderDescGroq => '무료 사용량 제공 · 초고속';
+
+  @override
+  String get settingsProviderDescClaude => '유료 · 최고 품질';
+
+  @override
+  String get settingsProviderDescOpenai => '유료 · 범용';
+
+  @override
   String settingsShowTargetText(String language) {
     return '$language 텍스트 표시';
   }
@@ -351,13 +410,13 @@ class AppLocalizationsKo extends AppLocalizations {
   String get settingsShowNativeTranslationSub => '괄호 안 인라인 힌트';
 
   @override
-  String get settingsSuggestionTiming => '제안 시점';
+  String get settingsSuggestionTiming => '제안 대기 시간';
+
+  @override
+  String get settingsSuggestionTimingSub => 'AI 응답 후 제안이 나오기까지 (0초 = 즉시)';
 
   @override
   String get settingsSuggestionImmediate => '즉시';
-
-  @override
-  String get settingsSuggestionDelayed => '지연';
 
   @override
   String settingsReadTargetAloud(String language) {
@@ -389,19 +448,10 @@ class AppLocalizationsKo extends AppLocalizations {
   String get settingsSpeedFast => '빠름';
 
   @override
-  String get settingsMicPause => '마이크 멈춤 허용';
+  String get settingsMicPause => '답변 대기 시간';
 
   @override
-  String get settingsMicPauseSub => '말 도중에 멈출 수 있는 시간';
-
-  @override
-  String get settingsMicPauseQuick => '빠름 3초';
-
-  @override
-  String get settingsMicPauseNormal => '보통 5초';
-
-  @override
-  String get settingsMicPausePatient => '여유 8초';
+  String get settingsMicPauseSub => '말 도중 잠깐 멈춰도 AI가 가로채지 않고 기다리는 시간';
 
   @override
   String get settingsAutoSendVoice => '음성 자동 전송';
@@ -424,6 +474,27 @@ class AppLocalizationsKo extends AppLocalizations {
   String get settingsReminderTime => '알림 시간';
 
   @override
+  String get settingsReminderPermissionDenied =>
+      '이 앱의 알림이 꺼져 있어요. 설정에서 알림을 허용하면 리마인더를 받을 수 있어요.';
+
+  @override
+  String get settingsReminderFailed => '리마인더를 설정하지 못했어요. 다시 시도해 주세요.';
+
+  @override
+  String get reminderNotificationTitle => '연습할 시간이에요!';
+
+  @override
+  String reminderNotificationBody(String name) {
+    return '오늘은 아직 $name와 대화하지 않았어요. 연속 기록을 이어가 볼까요?';
+  }
+
+  @override
+  String get reminderChannelName => '매일 알림';
+
+  @override
+  String get reminderChannelDescription => '매일 언어 연습을 알려 드려요';
+
+  @override
   String get settingsSendFeedback => '피드백 보내기';
 
   @override
@@ -431,6 +502,21 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get settingsFeedbackEmailFailed => '이메일 앱을 열 수 없어요';
+
+  @override
+  String get settingsPrivacyPolicy => '개인정보처리방침';
+
+  @override
+  String get settingsOpenSourceLicenses => '오픈소스 라이선스';
+
+  @override
+  String get privacyPolicyOpenInBrowser => '브라우저에서 열기';
+
+  @override
+  String get privacyPolicyLoadFailed => '처리방침을 불러오지 못했어요.';
+
+  @override
+  String get onboardPrivacyNotice => '대화 내용은 답변을 만들기 위해 AI 제공자에게 전송돼요.';
 
   @override
   String get levelDesc1 => '1문장, 기초 단어';
@@ -519,6 +605,11 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get vocabReviewGotIt => '알았어요';
+
+  @override
+  String vocabDeleted(String expression) {
+    return '\'$expression\' 삭제됨';
+  }
 
   @override
   String get reportTitle => '주간 리포트';
@@ -641,7 +732,87 @@ class AppLocalizationsKo extends AppLocalizations {
   String get pronScoreNeedsWork => '더 연습이 필요해요';
 
   @override
-  String pronError(String message) {
-    return '오류: $message';
-  }
+  String get pronEvalFailed => '발음을 평가하지 못했어요. 다시 시도해 주세요.';
+
+  @override
+  String get pronRetryEvaluation => '다시 평가';
+
+  @override
+  String get handsFreeLabel => '핸즈프리';
+
+  @override
+  String get handsFreeTurnOn => '핸즈프리 켜기 — 마이크 버튼 없이 대화';
+
+  @override
+  String get handsFreeTurnOff => '핸즈프리 끄기';
+
+  @override
+  String get handsFreeListening => '듣고 있어요 — 그냥 말하세요';
+
+  @override
+  String get handsFreeThinking => '생각 중…';
+
+  @override
+  String get handsFreeSpeaking => '말하는 중…';
+
+  @override
+  String get handsFreePaused => '일시중지됨';
+
+  @override
+  String get handsFreeStop => '중지';
+
+  @override
+  String get handsFreeStoppedIdle => '말소리가 없어 핸즈프리를 껐어요';
+
+  @override
+  String get handsFreeSttUnavailable => '음성 인식을 사용할 수 없어요. 마이크 권한을 확인해 주세요.';
+
+  @override
+  String get handsFreeOpenSettings => '설정 열기';
+
+  @override
+  String get handsFreeStoppedQuota =>
+      '오늘의 무료 사용량을 다 썼어요 — 핸즈프리를 껐습니다. 설정에서 본인 API 키를 등록하면 계속 사용할 수 있어요.';
+
+  @override
+  String get settingsHandsFree => '핸즈프리 대화';
+
+  @override
+  String get settingsHandsFreeSub => '마이크가 저절로 열리고 답변이 끝나면 다시 열려요 — 마이크 버튼 불필요';
+
+  @override
+  String get noticeUpdateTitle => '업데이트가 필요해요';
+
+  @override
+  String get noticeUpdateBody =>
+      '현재 버전이 오래되어 일부 기능이 동작하지 않을 수 있어요. 업데이트 후 계속 이용해 주세요.';
+
+  @override
+  String get noticeUpdateAction => '지금 업데이트';
+
+  @override
+  String get noticeDetails => '자세히 보기';
+
+  @override
+  String get chatErrorFreeTierDown =>
+      '지금은 무료 대화를 이용할 수 없어요. 설정에서 본인 API 키를 등록하면 바로 이어서 대화할 수 있어요.';
+
+  @override
+  String get chatErrorQuota =>
+      '오늘의 무료 대화를 다 사용했어요. 설정에서 본인 API 키를 등록하면 계속 이용할 수 있어요.';
+
+  @override
+  String get chatErrorNetwork => '서버에 연결할 수 없어요. 인터넷 연결을 확인해 주세요.';
+
+  @override
+  String get chatErrorNoKey => 'API 키가 필요해요. 설정에서 등록하거나 무료 티어로 바꿔 주세요.';
+
+  @override
+  String get chatErrorUnknown => '문제가 생겼어요. 잠시 후 다시 시도해 주세요.';
+
+  @override
+  String get chatErrorEmptyResponse => 'AI가 답변을 보내지 않았어요. 다시 보내거나 다르게 말해 보세요.';
+
+  @override
+  String get handsFreeStoppedError => 'AI가 응답하지 못해 핸즈프리를 껐어요.';
 }

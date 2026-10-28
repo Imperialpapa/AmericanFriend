@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:eng_friend/core/theme/app_colors.dart';
@@ -8,8 +10,25 @@ import 'package:eng_friend/di/service_providers.dart';
 import 'package:eng_friend/features/chat/presentation/providers/suggestion_provider.dart';
 import 'package:eng_friend/features/chat/domain/entities/suggestion.dart';
 import 'package:eng_friend/features/settings/presentation/providers/settings_provider.dart';
+import 'package:eng_friend/features/voice/presentation/providers/voice_provider.dart';
 import 'package:eng_friend/l10n/app_localizations.dart';
 import 'package:eng_friend/services/pipeline/tts_queue.dart';
+
+/// 제시문 pill의 아이콘/버튼은 텍스트만큼 크게 키우면 과해지므로 배율을 제한.
+/// 축소(scale < 1) 시에도 24dp 탭 타깃은 유지.
+double _chromeScale(double fontScale) => fontScale.clamp(1.0, 1.6);
+
+/// 가로 스크롤 리스트는 높이가 고정이어야 해서, 폰트 스케일에 맞춰 직접 계산.
+/// scale 1.0에서 기존 값(36)과 동일.
+double _pillHeight(double fontScale) {
+  final textHeight = _kPillFontSize * fontScale * 1.35; // KFTypography.meta line-height
+  final buttonSize = _kSpeakButtonSize * _chromeScale(fontScale);
+  return math.max(textHeight, buttonSize) + 12; // 상하 padding 8 + 여유 4
+}
+
+const double _kPillFontSize = 12;
+const double _kHintFontSize = 11;
+const double _kSpeakButtonSize = 24;
 
 /// Horizontal pill scroll — "Try saying..."
 class SuggestionChips extends ConsumerWidget {
@@ -20,6 +39,8 @@ class SuggestionChips extends ConsumerWidget {
     final palette = KFPalette.of(context);
     final suggestionState = ref.watch(suggestionProvider);
     final showNative = ref.watch(settingsProvider.select((s) => s.showNativeHint));
+    // 채팅 본문과 동일한 핀치 스케일을 제시문에도 적용
+    final fontScale = ref.watch(settingsProvider.select((s) => s.chatFontScale));
 
     if (suggestionState.suggestions.isEmpty && !suggestionState.isLoading) {
       return const SizedBox.shrink();
@@ -37,6 +58,7 @@ class SuggestionChips extends ConsumerWidget {
             child: Text(
               AppLocalizations.of(context).chatSuggestionTitle,
               style: KFTypography.tiny(color: palette.ink3).copyWith(
+                fontSize: 11 * fontScale,
                 letterSpacing: 0.4,
               ),
             ),
@@ -55,7 +77,7 @@ class SuggestionChips extends ConsumerWidget {
             )
           else
             SizedBox(
-              height: 36,
+              height: _pillHeight(fontScale),
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 itemCount: suggestionState.suggestions.length,
@@ -67,6 +89,7 @@ class SuggestionChips extends ConsumerWidget {
                     suggestion: suggestion,
                     showNative: showNative,
                     isFirst: index == 0,
+                    fontScale: fontScale,
                   );
                 },
               ),
@@ -81,11 +104,13 @@ class _SuggestionPill extends ConsumerStatefulWidget {
   final Suggestion suggestion;
   final bool showNative;
   final bool isFirst;
+  final double fontScale;
 
   const _SuggestionPill({
     required this.suggestion,
     required this.showNative,
     required this.isFirst,
+    required this.fontScale,
   });
 
   @override
@@ -97,11 +122,17 @@ class _SuggestionPillState extends ConsumerState<_SuggestionPill> {
 
   Future<void> _speak() async {
     final ttsQueue = ref.read(ttsQueueProvider);
+    final voice = ref.read(voiceProvider.notifier);
     if (_isSpeaking) {
       await ttsQueue.interrupt();
       if (mounted) setState(() => _isSpeaking = false);
+      await voice.resumeHandsFree();
       return;
     }
+    // 핸즈프리로 마이크가 열려 있으면 스피커에서 나온 이 소리를 그대로 받아쓴다.
+    // 재생 동안 멈춰둔다 (핸즈프리가 꺼져 있으면 no-op).
+    await voice.suspendHandsFree();
+    if (!mounted) return;
     setState(() => _isSpeaking = true);
     final sub = ttsQueue.stateStream.listen((state) {
       if (state == TtsQueueState.idle && mounted) {
@@ -113,6 +144,7 @@ class _SuggestionPillState extends ConsumerState<_SuggestionPill> {
       if (state == TtsQueueState.idle) break;
     }
     sub.cancel();
+    await voice.resumeHandsFree();
   }
 
   @override
@@ -120,6 +152,9 @@ class _SuggestionPillState extends ConsumerState<_SuggestionPill> {
     final palette = KFPalette.of(context);
     final hasNative = widget.showNative &&
         (widget.suggestion.koreanHint?.isNotEmpty ?? false);
+    final scale = widget.fontScale;
+    final chrome = _chromeScale(scale);
+    final buttonSize = _kSpeakButtonSize * chrome;
 
     return Material(
       color: Colors.transparent,
@@ -139,13 +174,13 @@ class _SuggestionPillState extends ConsumerState<_SuggestionPill> {
             mainAxisSize: MainAxisSize.min,
             children: [
               if (widget.isFirst) ...[
-                Icon(Icons.auto_awesome, size: 11, color: palette.mustard),
+                Icon(Icons.auto_awesome, size: 11 * chrome, color: palette.mustard),
                 const SizedBox(width: 5),
               ],
               Text(
                 widget.suggestion.text,
                 style: KFTypography.meta(color: palette.ink2).copyWith(
-                  fontSize: 12,
+                  fontSize: _kPillFontSize * scale,
                   fontWeight: FontWeight.w500,
                   letterSpacing: -0.1,
                 ),
@@ -154,14 +189,14 @@ class _SuggestionPillState extends ConsumerState<_SuggestionPill> {
                 const SizedBox(width: 6),
                 Container(
                   width: 1,
-                  height: 11,
+                  height: 11 * scale,
                   color: palette.hairline,
                 ),
                 const SizedBox(width: 6),
                 Text(
                   widget.suggestion.koreanHint!,
                   style: KFTypography.meta(color: palette.ink3).copyWith(
-                    fontSize: 11,
+                    fontSize: _kHintFontSize * scale,
                   ),
                 ),
               ],
@@ -170,8 +205,8 @@ class _SuggestionPillState extends ConsumerState<_SuggestionPill> {
                 onTap: _speak,
                 customBorder: const CircleBorder(),
                 child: Container(
-                  width: 24,
-                  height: 24,
+                  width: buttonSize,
+                  height: buttonSize,
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
                     color: _isSpeaking ? palette.sageWash : Colors.transparent,
@@ -179,7 +214,7 @@ class _SuggestionPillState extends ConsumerState<_SuggestionPill> {
                   ),
                   child: Icon(
                     _isSpeaking ? Icons.stop_rounded : Icons.volume_up_rounded,
-                    size: 14,
+                    size: 14 * chrome,
                     color: _isSpeaking ? palette.sageDeep : palette.ink3,
                   ),
                 ),

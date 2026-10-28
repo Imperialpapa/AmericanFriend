@@ -1,10 +1,12 @@
 name: eng_friend
 description: "한국말 잘하는 미국인 친구 - AI 영어 학습 앱"
 publish_to: 'none'
-version: 2.3.0+23
+version: 5.0.0+26
 
 environment:
   sdk: ^3.11.3
+  # 올릴 때는 의도적으로, 실기기 스모크 테스트와 함께 (tobe.md R-08)
+  flutter: '>=3.41.5 <3.42.0'
 
 dependencies:
   flutter:
@@ -26,7 +28,8 @@ dependencies:
   dio: ^5.7.0
 
   # Voice
-  speech_to_text: ^7.0.0
+  # 7.4.0부터 Android에 pauseFor를 실제로 넘겨 세션 종료 타이밍이 바뀐다. 실험 브랜치에서 검증 전까지 7.3.x 고정 (tobe.md V-12)
+  speech_to_text: '>=7.3.0 <7.4.0'
   flutter_tts: ^4.2.0
   record: ^6.0.0
 
@@ -54,6 +57,12 @@ dependencies:
   url_launcher: ^6.3.1
   lottie: ^3.3.2
   dotlottie_loader: ^0.0.5
+  audio_session: ^0.2.4
+  # 13+ 로 올리지 말 것: permission_handler_android 14는 android/build.gradle.kts에서
+  # 최상위 kotlin { compilerOptions {} } DSL을 쓰는데, 이 프로젝트 빌드에서
+  # 해당 확장이 해석되지 않아 "Unresolved reference: compilerOptions"로 빌드가 깨진다.
+  # 12.x의 android 모듈은 groovy build.gradle이라 안전. 쓰는 건 openAppSettings() 하나.
+  permission_handler: ^12.0.0
 
 dev_dependencies:
   flutter_test:
@@ -82,6 +91,7 @@ flutter:
     - assets/images/
     - assets/sounds/
     - assets/lottie/
+    - assets/legal/
 
   # Pretendard Variable: 다운로드 후 아래 주석 해제 (assets/fonts/README.md 참조)
   # fonts:

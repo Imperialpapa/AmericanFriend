@@ -42,13 +42,27 @@ class AppLocalizationsEn extends AppLocalizations {
   String get commonDone => 'Done';
 
   @override
+  String get commonUndo => 'Undo';
+
+  @override
   String chatWelcomeTitle(String name) {
     return 'Hey! I\'m $name';
   }
 
   @override
   String chatWelcomeSubtitle(String language) {
-    return 'I\'m here to help you practice $language.\nLet\'s start a conversation!';
+    return 'I\'m an AI tutor here to help you practice $language.\nLet\'s start a conversation!';
+  }
+
+  @override
+  String get aiMayBeWrongNote => 'Replies are AI-generated and can be wrong.';
+
+  @override
+  String get chatAiBadge => 'AI';
+
+  @override
+  String chatAiBadgeSemantics(String name) {
+    return '$name is an AI';
   }
 
   @override
@@ -114,6 +128,39 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatUserMenuSave => 'Save to vocabulary';
 
   @override
+  String get chatReportAction => 'Report response';
+
+  @override
+  String get chatReportSheetTitle => 'Report this response?';
+
+  @override
+  String get chatReportSheetBody =>
+      'This reply and your message right before it will be sent to the developer for review.';
+
+  @override
+  String get chatReportReasonHarmful => 'Harmful or inappropriate';
+
+  @override
+  String get chatReportReasonIncorrect => 'Incorrect or misleading';
+
+  @override
+  String get chatReportReasonOther => 'Something else';
+
+  @override
+  String get chatReportSent => 'Thanks — your report was sent.';
+
+  @override
+  String get chatReportQueued =>
+      'Couldn\'t send it right now. We\'ll retry the next time you open the app.';
+
+  @override
+  String get chatReportFailed =>
+      'Couldn\'t send the report. Please let us know via Send feedback in Settings.';
+
+  @override
+  String get chatReportedLabel => 'Reported';
+
+  @override
   String chatStreakGoalReached(int days) {
     String _temp0 = intl.Intl.pluralLogic(
       days,
@@ -171,7 +218,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get onboardWelcomeSubtitle =>
-      'Your friendly language tutor.\nLet\'s practice through real chats.';
+      'Your friendly AI language tutor.\nLet\'s practice through real chats.';
 
   @override
   String get onboardLanguageBubble => 'First — what\'s your language setup?';
@@ -216,11 +263,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get onboardApiHelp => 'No credit card. Takes about a minute.';
 
   @override
-  String get onboardApiGeminiDesc => 'Gemini · 1,500 requests/day free';
+  String get onboardApiGeminiDesc => 'Gemini · free key with a Google account';
 
   @override
-  String get onboardApiGroqDesc =>
-      'Groq (Llama 3.3) · 14,400 requests/day, ultra fast';
+  String get onboardApiGroqDesc => 'Groq · free key, ultra fast';
 
   @override
   String get onboardApiStep1Title => 'Open the key page';
@@ -353,6 +399,21 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsPickerModel => 'Model';
 
   @override
+  String get settingsProviderDescFree => 'No API key required · daily limit';
+
+  @override
+  String get settingsProviderDescGemini => 'Free tier available';
+
+  @override
+  String get settingsProviderDescGroq => 'Free tier · ultra fast';
+
+  @override
+  String get settingsProviderDescClaude => 'Paid · highest quality';
+
+  @override
+  String get settingsProviderDescOpenai => 'Paid · versatile';
+
+  @override
   String settingsShowTargetText(String language) {
     return 'Show $language text';
   }
@@ -369,13 +430,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsShowNativeTranslationSub => 'Inline hints in parentheses';
 
   @override
-  String get settingsSuggestionTiming => 'Suggestion timing';
+  String get settingsSuggestionTiming => 'Time before hints';
+
+  @override
+  String get settingsSuggestionTimingSub =>
+      'Wait before reply suggestions appear (0 = immediate)';
 
   @override
   String get settingsSuggestionImmediate => 'Immediate';
-
-  @override
-  String get settingsSuggestionDelayed => 'Delayed';
 
   @override
   String settingsReadTargetAloud(String language) {
@@ -407,19 +469,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsSpeedFast => 'Fast';
 
   @override
-  String get settingsMicPause => 'Mic pause tolerance';
+  String get settingsMicPause => 'Time to respond';
 
   @override
-  String get settingsMicPauseSub => 'How long you can pause mid-sentence';
-
-  @override
-  String get settingsMicPauseQuick => 'Quick 3s';
-
-  @override
-  String get settingsMicPauseNormal => 'Normal 5s';
-
-  @override
-  String get settingsMicPausePatient => 'Patient 8s';
+  String get settingsMicPauseSub =>
+      'How long the AI waits while you pause mid-sentence';
 
   @override
   String get settingsAutoSendVoice => 'Auto-send voice';
@@ -443,6 +497,29 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsReminderTime => 'Reminder time';
 
   @override
+  String get settingsReminderPermissionDenied =>
+      'Notifications are blocked for this app. Allow them in Settings to get reminders.';
+
+  @override
+  String get settingsReminderFailed =>
+      'Couldn\'t set the reminder. Please try again.';
+
+  @override
+  String get reminderNotificationTitle => 'Time to practice!';
+
+  @override
+  String reminderNotificationBody(String name) {
+    return 'You haven\'t talked to $name today. Keep your streak going!';
+  }
+
+  @override
+  String get reminderChannelName => 'Daily reminder';
+
+  @override
+  String get reminderChannelDescription =>
+      'A daily nudge to practice your language';
+
+  @override
   String get settingsSendFeedback => 'Send feedback';
 
   @override
@@ -450,6 +527,22 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsFeedbackEmailFailed => 'Could not open email app';
+
+  @override
+  String get settingsPrivacyPolicy => 'Privacy policy';
+
+  @override
+  String get settingsOpenSourceLicenses => 'Open-source licenses';
+
+  @override
+  String get privacyPolicyOpenInBrowser => 'Open in browser';
+
+  @override
+  String get privacyPolicyLoadFailed => 'Couldn\'t load the privacy policy.';
+
+  @override
+  String get onboardPrivacyNotice =>
+      'Your messages are sent to an AI provider to generate replies.';
 
   @override
   String get levelDesc1 => '1 sentence, basic words';
@@ -539,6 +632,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get vocabReviewGotIt => 'Got it';
+
+  @override
+  String vocabDeleted(String expression) {
+    return 'Deleted \"$expression\"';
+  }
 
   @override
   String get reportTitle => 'Weekly Report';
@@ -662,7 +760,97 @@ class AppLocalizationsEn extends AppLocalizations {
   String get pronScoreNeedsWork => 'Needs work';
 
   @override
-  String pronError(String message) {
-    return 'Error: $message';
-  }
+  String get pronEvalFailed =>
+      'Couldn\'t check your pronunciation. Please try again.';
+
+  @override
+  String get pronRetryEvaluation => 'Retry';
+
+  @override
+  String get handsFreeLabel => 'Hands-free';
+
+  @override
+  String get handsFreeTurnOn =>
+      'Turn on hands-free — talk without the mic button';
+
+  @override
+  String get handsFreeTurnOff => 'Turn off hands-free';
+
+  @override
+  String get handsFreeListening => 'Listening — just speak';
+
+  @override
+  String get handsFreeThinking => 'Thinking…';
+
+  @override
+  String get handsFreeSpeaking => 'Speaking…';
+
+  @override
+  String get handsFreePaused => 'Paused';
+
+  @override
+  String get handsFreeStop => 'Stop';
+
+  @override
+  String get handsFreeStoppedIdle =>
+      'Hands-free turned off — no speech detected';
+
+  @override
+  String get handsFreeSttUnavailable =>
+      'Speech recognition is unavailable. Check the microphone permission.';
+
+  @override
+  String get handsFreeOpenSettings => 'Open settings';
+
+  @override
+  String get handsFreeStoppedQuota =>
+      'Daily free limit reached — hands-free turned off. Add your own API key in Settings to keep going.';
+
+  @override
+  String get settingsHandsFree => 'Hands-free conversation';
+
+  @override
+  String get settingsHandsFreeSub =>
+      'The mic opens by itself and reopens after each reply — no mic button';
+
+  @override
+  String get noticeUpdateTitle => 'Update required';
+
+  @override
+  String get noticeUpdateBody =>
+      'This version is out of date and some features may not work. Please update to continue.';
+
+  @override
+  String get noticeUpdateAction => 'Update now';
+
+  @override
+  String get noticeDetails => 'Learn more';
+
+  @override
+  String get chatErrorFreeTierDown =>
+      'Free chat isn\'t available right now. Add your own API key in Settings to keep talking.';
+
+  @override
+  String get chatErrorQuota =>
+      'You\'ve used up today\'s free messages. Add your own API key in Settings to keep going.';
+
+  @override
+  String get chatErrorNetwork =>
+      'Can\'t reach the server. Please check your internet connection.';
+
+  @override
+  String get chatErrorNoKey =>
+      'An API key is needed. Add one in Settings, or switch to the free tier.';
+
+  @override
+  String get chatErrorUnknown =>
+      'Something went wrong. Please try again in a moment.';
+
+  @override
+  String get chatErrorEmptyResponse =>
+      'The AI didn\'t send a reply. Try sending it again, or say it a different way.';
+
+  @override
+  String get handsFreeStoppedError =>
+      'Hands-free turned off because the AI couldn\'t respond.';
 }

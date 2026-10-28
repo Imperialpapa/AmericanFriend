@@ -1,0 +1,116 @@
+# 무료 티어 실경로 감시(tobe S-04, BUG_HISTORY #9).
+# 2026-08 업스트림 모델 셧다운으로 이틀간 전 사용자가 대화하지 못했는데 아무도 몰랐다.
+# 앱과 같은 경로(/api/v1/chat/completions, stream)로 30분마다 한 번 호출해
+# 20초 안에 delta.content가 오는지 본다. 실패하면 "Free tier down" 이슈(메일 알림)를 연다.
+#
+# 필요한 저장소 secret:
+#   FREE_TIER_URL      프록시 주소(끝 슬래시 없이)
+#   MONITOR_DEVICE_ID  Vercel env MONITOR_DEVICE_ID와 같은 값. 카운터는 올리지 않지만
+#                      Upstash 장애(500)·전역 한도 소진(503)은 실사용자와 같이 실패한다
+#
+# 공개 저장소라 Actions 로그가 공개된다 — URL·헤더·응답 원문을 찍지 않는다.
+name: Free tier monitor
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: free-tier-monitor
+  cancel-in-progress: false
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Probe chat completions (stream)
+        id: probe
+        env:
+          FREE_TIER_URL: ${{ secrets.FREE_TIER_URL }}
+          MONITOR_DEVICE_ID: ${{ secrets.MONITOR_DEVICE_ID }}
+        run: |
+          if [ -z "$FREE_TIER_URL" ] || [ -z "$MONITOR_DEVICE_ID" ]; then
+            echo "::error::Repository secrets FREE_TIER_URL / MONITOR_DEVICE_ID are not set"
+            echo "result=unconfigured" >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+
+          body='{"stream":true,"messages":[{"role":"user","content":"Reply with the single word OK."}]}'
+          result=fail
+          detail=""
+          # 일시적 흔들림으로 이슈를 열지 않도록 30초 간격 2회 시도.
+          for attempt in 1 2; do
+            out=$(mktemp)
+            # stderr는 버린다: curl 오류 문구에 호스트명이 들어간다.
+            code=$(curl -sS -N --max-time 20 -o "$out" -w '%{http_code}' \
+              -X POST "${FREE_TIER_URL%/}/api/v1/chat/completions" \
+              -H 'content-type: application/json' \
+              -H "x-device-id: ${MONITOR_DEVICE_ID}" \
+              --data "$body" 2>/dev/null) || true
+            content=$(sed -n 's/^data: //p' "$out" \
+              | jq -rR 'fromjson? | .choices[0].delta.content // empty' 2>/dev/null \
+              | tr -d '\n' | head -c 200)
+            rm -f "$out"
+            if [ -n "$content" ]; then
+              result=pass
+              echo "attempt $attempt: HTTP $code, content received"
+              break
+            fi
+            detail="HTTP ${code:-000}, no delta.content within 20s"
+            echo "attempt $attempt: $detail"
+            if [ "$attempt" = 1 ]; then sleep 30; fi
+          done
+
+          echo "result=$result" >> "$GITHUB_OUTPUT"
+          echo "detail=$detail" >> "$GITHUB_OUTPUT"
+
+      - name: Open issue on failure
+        if: steps.probe.outputs.result == 'fail'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          DETAIL: ${{ steps.probe.outputs.detail }}
+        run: |
+          open=$(gh issue list --state open --limit 100 --json title \
+            --jq '[.[] | select(.title == "Free tier down")] | length')
+          if [ "$open" = "0" ]; then
+            printf '%s\n' \
+              "무료 티어 모니터가 30초 간격 2회 연속 실패했습니다." \
+              "" \
+              "- 결과: ${DETAIL}" \
+              "- 시각(UTC): $(date -u '+%Y-%m-%d %H:%M')" \
+              "- 실행 로그: ${RUN_URL}" \
+              "" \
+              "HTTP 코드별 확인(Vercel 로그와 함께):" \
+              "- 500: [config] misconfigured(UPSTREAM_* env) 또는 [rate-limit] error(Upstash 장애·env 누락·월 명령 한도 소진)" \
+              "- 503: 로그에 [rate-limit] global limit hit면 FREE_GLOBAL_DAILY_LIMIT 소진(0이면 의도한 차단), 아니면 업스트림 5xx" \
+              "- 4xx·502: 업스트림 모델 셧다운 공지(UPSTREAM_MODEL)·키·조직 한도(429)" \
+              "- 000·200: 20초 안에 delta.content 없음(업스트림 지연·스트림 형식)" \
+              "" \
+              "복구되면 모니터가 이 이슈를 자동으로 닫습니다." > issue.md
+            gh issue create --title "Free tier down" --body-file issue.md > /dev/null
+            echo "Opened 'Free tier down' issue"
+          else
+            echo "'Free tier down' issue already open"
+          fi
+          exit 1
+
+      - name: Close issue on recovery
+        if: steps.probe.outputs.result == 'pass'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          for n in $(gh issue list --state open --limit 100 --json number,title \
+            --jq '.[] | select(.title == "Free tier down") | .number'); do
+            gh issue close "$n" --comment "Recovered: the free tier answered normally (${RUN_URL})." > /dev/null
+            echo "Closed issue #$n"
+          done

@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:speech_to_text/speech_to_text.dart';
+import 'package:eng_friend/core/error/redact_secrets.dart';
 import 'package:eng_friend/di/service_providers.dart';
+import 'package:eng_friend/features/chat/domain/entities/pronunciation_result.dart';
 import 'package:eng_friend/features/settings/presentation/providers/settings_provider.dart';
+import 'package:eng_friend/features/voice/presentation/providers/voice_provider.dart';
 import 'package:eng_friend/l10n/app_localizations.dart';
 import 'package:eng_friend/services/ai/prompts/pronunciation_prompt.dart';
 
@@ -25,12 +28,22 @@ class _PronunciationBottomSheetState
   _PracticePhase _phase = _PracticePhase.ready;
   String _spokenText = '';
   String _partialText = '';
-  Map<String, dynamic>? _result;
-  String? _error;
+  PronunciationResult? _result;
+
+  /// 평가 호출이 실패했다. 원문 오류는 보여주지 않는다 — 예전엔 실패가
+  /// 빨간 0점과 Dio 예외 문자열로 렌더돼 발음이 엉망인 줄 알았다(A-06).
+  bool _evalFailed = false;
+
+  /// dispose에서 ref를 쓰지 않도록 initState에서 잡아둔다.
+  VoiceNotifier? _voiceNotifier;
 
   @override
   void initState() {
     super.initState();
+    // 이 시트는 자체 SpeechToText 인스턴스를 쓴다(위 _stt). 핸즈프리가 돌고 있으면
+    // 마이크를 두 곳에서 잡게 되므로 시트가 열려 있는 동안 멈춰둔다.
+    _voiceNotifier = ref.read(voiceProvider.notifier);
+    _voiceNotifier?.suspendHandsFree();
     _initStt();
   }
 
@@ -48,7 +61,7 @@ class _PronunciationBottomSheetState
       _phase = _PracticePhase.listening;
       _spokenText = '';
       _partialText = '';
-      _error = null;
+      _evalFailed = false;
     });
 
     final settings = ref.read(settingsProvider);
@@ -74,7 +87,10 @@ class _PronunciationBottomSheetState
   }
 
   Future<void> _evaluate() async {
-    setState(() => _phase = _PracticePhase.evaluating);
+    setState(() {
+      _phase = _PracticePhase.evaluating;
+      _evalFailed = false;
+    });
 
     final settings = ref.read(settingsProvider);
     final aiService = ref.read(aiServiceProvider);
@@ -95,9 +111,10 @@ class _PronunciationBottomSheetState
         });
       }
     } catch (e) {
+      debugPrint('[Pronunciation] evaluation failed: ${redactSecrets('$e')}');
       if (mounted) {
         setState(() {
-          _error = e.toString();
+          _evalFailed = true;
           _phase = _PracticePhase.result;
         });
       }
@@ -215,11 +232,21 @@ class _PronunciationBottomSheetState
                 ],
 
                 if (_phase == _PracticePhase.result) ...[
-                  if (_error != null)
-                    Text(l.pronError(_error!),
-                        style: const TextStyle(color: Colors.redAccent))
-                  else if (_result != null) ...[
-                    _buildResultView(),
+                  if (_evalFailed) ...[
+                    Text(
+                      l.pronEvalFailed,
+                      style: const TextStyle(color: Colors.redAccent),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 12),
+                    // 같은 발화로 평가만 다시 — 다시 읽지 않아도 된다.
+                    OutlinedButton.icon(
+                      onPressed: _evaluate,
+                      icon: const Icon(Icons.replay),
+                      label: Text(l.pronRetryEvaluation),
+                    ),
+                  ] else if (_result != null) ...[
+                    _buildResultView(_result!),
                   ],
                   const SizedBox(height: 16),
                   FilledButton.icon(
@@ -229,7 +256,7 @@ class _PronunciationBottomSheetState
                         _spokenText = '';
                         _partialText = '';
                         _result = null;
-                        _error = null;
+                        _evalFailed = false;
                       });
                     },
                     icon: const Icon(Icons.refresh),
@@ -263,10 +290,10 @@ class _PronunciationBottomSheetState
     );
   }
 
-  Widget _buildResultView() {
-    final score = (_result!['score'] as num?)?.toInt() ?? 0;
-    final overall = _result!['overall'] as String? ?? '';
-    final feedback = (_result!['feedback'] as List?) ?? [];
+  Widget _buildResultView(PronunciationResult result) {
+    final score = result.score;
+    final overall = result.overall;
+    final feedback = result.feedback;
 
     return Column(
       children: [
@@ -324,9 +351,9 @@ class _PronunciationBottomSheetState
           ),
           const SizedBox(height: 4),
           ...feedback.map((item) {
-            final word = item['word'] ?? '';
-            final issue = item['issue'] ?? '';
-            final tip = item['tip'] ?? '';
+            final word = item.word;
+            final issue = item.issue;
+            final tip = item.tip;
             return Container(
               width: double.infinity,
               margin: const EdgeInsets.only(bottom: 6),
@@ -365,6 +392,7 @@ class _PronunciationBottomSheetState
   @override
   void dispose() {
     _stt.stop();
+    _voiceNotifier?.resumeHandsFree();
     super.dispose();
   }
 }

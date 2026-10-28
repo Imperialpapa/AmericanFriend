@@ -164,6 +164,12 @@ abstract class AppLocalizations {
   /// **'Done'**
   String get commonDone;
 
+  /// No description provided for @commonUndo.
+  ///
+  /// In en, this message translates to:
+  /// **'Undo'**
+  String get commonUndo;
+
   /// No description provided for @chatWelcomeTitle.
   ///
   /// In en, this message translates to:
@@ -173,8 +179,26 @@ abstract class AppLocalizations {
   /// No description provided for @chatWelcomeSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'I\'m here to help you practice {language}.\nLet\'s start a conversation!'**
+  /// **'I\'m an AI tutor here to help you practice {language}.\nLet\'s start a conversation!'**
   String chatWelcomeSubtitle(String language);
+
+  /// No description provided for @aiMayBeWrongNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Replies are AI-generated and can be wrong.'**
+  String get aiMayBeWrongNote;
+
+  /// No description provided for @chatAiBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'AI'**
+  String get chatAiBadge;
+
+  /// No description provided for @chatAiBadgeSemantics.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} is an AI'**
+  String chatAiBadgeSemantics(String name);
 
   /// No description provided for @chatApiKeyRequiredTitle.
   ///
@@ -290,6 +314,66 @@ abstract class AppLocalizations {
   /// **'Save to vocabulary'**
   String get chatUserMenuSave;
 
+  /// No description provided for @chatReportAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Report response'**
+  String get chatReportAction;
+
+  /// No description provided for @chatReportSheetTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Report this response?'**
+  String get chatReportSheetTitle;
+
+  /// No description provided for @chatReportSheetBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This reply and your message right before it will be sent to the developer for review.'**
+  String get chatReportSheetBody;
+
+  /// No description provided for @chatReportReasonHarmful.
+  ///
+  /// In en, this message translates to:
+  /// **'Harmful or inappropriate'**
+  String get chatReportReasonHarmful;
+
+  /// No description provided for @chatReportReasonIncorrect.
+  ///
+  /// In en, this message translates to:
+  /// **'Incorrect or misleading'**
+  String get chatReportReasonIncorrect;
+
+  /// No description provided for @chatReportReasonOther.
+  ///
+  /// In en, this message translates to:
+  /// **'Something else'**
+  String get chatReportReasonOther;
+
+  /// No description provided for @chatReportSent.
+  ///
+  /// In en, this message translates to:
+  /// **'Thanks — your report was sent.'**
+  String get chatReportSent;
+
+  /// No description provided for @chatReportQueued.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t send it right now. We\'ll retry the next time you open the app.'**
+  String get chatReportQueued;
+
+  /// No description provided for @chatReportFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t send the report. Please let us know via Send feedback in Settings.'**
+  String get chatReportFailed;
+
+  /// No description provided for @chatReportedLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Reported'**
+  String get chatReportedLabel;
+
   /// No description provided for @chatStreakGoalReached.
   ///
   /// In en, this message translates to:
@@ -353,7 +437,7 @@ abstract class AppLocalizations {
   /// No description provided for @onboardWelcomeSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Your friendly language tutor.\nLet\'s practice through real chats.'**
+  /// **'Your friendly AI language tutor.\nLet\'s practice through real chats.'**
   String get onboardWelcomeSubtitle;
 
   /// No description provided for @onboardLanguageBubble.
@@ -437,13 +521,13 @@ abstract class AppLocalizations {
   /// No description provided for @onboardApiGeminiDesc.
   ///
   /// In en, this message translates to:
-  /// **'Gemini · 1,500 requests/day free'**
+  /// **'Gemini · free key with a Google account'**
   String get onboardApiGeminiDesc;
 
   /// No description provided for @onboardApiGroqDesc.
   ///
   /// In en, this message translates to:
-  /// **'Groq (Llama 3.3) · 14,400 requests/day, ultra fast'**
+  /// **'Groq · free key, ultra fast'**
   String get onboardApiGroqDesc;
 
   /// No description provided for @onboardApiStep1Title.
@@ -692,6 +776,36 @@ abstract class AppLocalizations {
   /// **'Model'**
   String get settingsPickerModel;
 
+  /// No description provided for @settingsProviderDescFree.
+  ///
+  /// In en, this message translates to:
+  /// **'No API key required · daily limit'**
+  String get settingsProviderDescFree;
+
+  /// No description provided for @settingsProviderDescGemini.
+  ///
+  /// In en, this message translates to:
+  /// **'Free tier available'**
+  String get settingsProviderDescGemini;
+
+  /// No description provided for @settingsProviderDescGroq.
+  ///
+  /// In en, this message translates to:
+  /// **'Free tier · ultra fast'**
+  String get settingsProviderDescGroq;
+
+  /// No description provided for @settingsProviderDescClaude.
+  ///
+  /// In en, this message translates to:
+  /// **'Paid · highest quality'**
+  String get settingsProviderDescClaude;
+
+  /// No description provided for @settingsProviderDescOpenai.
+  ///
+  /// In en, this message translates to:
+  /// **'Paid · versatile'**
+  String get settingsProviderDescOpenai;
+
   /// No description provided for @settingsShowTargetText.
   ///
   /// In en, this message translates to:
@@ -719,20 +833,20 @@ abstract class AppLocalizations {
   /// No description provided for @settingsSuggestionTiming.
   ///
   /// In en, this message translates to:
-  /// **'Suggestion timing'**
+  /// **'Time before hints'**
   String get settingsSuggestionTiming;
+
+  /// No description provided for @settingsSuggestionTimingSub.
+  ///
+  /// In en, this message translates to:
+  /// **'Wait before reply suggestions appear (0 = immediate)'**
+  String get settingsSuggestionTimingSub;
 
   /// No description provided for @settingsSuggestionImmediate.
   ///
   /// In en, this message translates to:
   /// **'Immediate'**
   String get settingsSuggestionImmediate;
-
-  /// No description provided for @settingsSuggestionDelayed.
-  ///
-  /// In en, this message translates to:
-  /// **'Delayed'**
-  String get settingsSuggestionDelayed;
 
   /// No description provided for @settingsReadTargetAloud.
   ///
@@ -791,32 +905,14 @@ abstract class AppLocalizations {
   /// No description provided for @settingsMicPause.
   ///
   /// In en, this message translates to:
-  /// **'Mic pause tolerance'**
+  /// **'Time to respond'**
   String get settingsMicPause;
 
   /// No description provided for @settingsMicPauseSub.
   ///
   /// In en, this message translates to:
-  /// **'How long you can pause mid-sentence'**
+  /// **'How long the AI waits while you pause mid-sentence'**
   String get settingsMicPauseSub;
-
-  /// No description provided for @settingsMicPauseQuick.
-  ///
-  /// In en, this message translates to:
-  /// **'Quick 3s'**
-  String get settingsMicPauseQuick;
-
-  /// No description provided for @settingsMicPauseNormal.
-  ///
-  /// In en, this message translates to:
-  /// **'Normal 5s'**
-  String get settingsMicPauseNormal;
-
-  /// No description provided for @settingsMicPausePatient.
-  ///
-  /// In en, this message translates to:
-  /// **'Patient 8s'**
-  String get settingsMicPausePatient;
 
   /// No description provided for @settingsAutoSendVoice.
   ///
@@ -854,6 +950,42 @@ abstract class AppLocalizations {
   /// **'Reminder time'**
   String get settingsReminderTime;
 
+  /// No description provided for @settingsReminderPermissionDenied.
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications are blocked for this app. Allow them in Settings to get reminders.'**
+  String get settingsReminderPermissionDenied;
+
+  /// No description provided for @settingsReminderFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t set the reminder. Please try again.'**
+  String get settingsReminderFailed;
+
+  /// No description provided for @reminderNotificationTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Time to practice!'**
+  String get reminderNotificationTitle;
+
+  /// No description provided for @reminderNotificationBody.
+  ///
+  /// In en, this message translates to:
+  /// **'You haven\'t talked to {name} today. Keep your streak going!'**
+  String reminderNotificationBody(String name);
+
+  /// No description provided for @reminderChannelName.
+  ///
+  /// In en, this message translates to:
+  /// **'Daily reminder'**
+  String get reminderChannelName;
+
+  /// No description provided for @reminderChannelDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'A daily nudge to practice your language'**
+  String get reminderChannelDescription;
+
   /// No description provided for @settingsSendFeedback.
   ///
   /// In en, this message translates to:
@@ -871,6 +1003,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Could not open email app'**
   String get settingsFeedbackEmailFailed;
+
+  /// No description provided for @settingsPrivacyPolicy.
+  ///
+  /// In en, this message translates to:
+  /// **'Privacy policy'**
+  String get settingsPrivacyPolicy;
+
+  /// No description provided for @settingsOpenSourceLicenses.
+  ///
+  /// In en, this message translates to:
+  /// **'Open-source licenses'**
+  String get settingsOpenSourceLicenses;
+
+  /// No description provided for @privacyPolicyOpenInBrowser.
+  ///
+  /// In en, this message translates to:
+  /// **'Open in browser'**
+  String get privacyPolicyOpenInBrowser;
+
+  /// No description provided for @privacyPolicyLoadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t load the privacy policy.'**
+  String get privacyPolicyLoadFailed;
+
+  /// No description provided for @onboardPrivacyNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'Your messages are sent to an AI provider to generate replies.'**
+  String get onboardPrivacyNotice;
 
   /// No description provided for @levelDesc1.
   ///
@@ -1039,6 +1201,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Got it'**
   String get vocabReviewGotIt;
+
+  /// No description provided for @vocabDeleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleted \"{expression}\"'**
+  String vocabDeleted(String expression);
 
   /// No description provided for @reportTitle.
   ///
@@ -1268,11 +1436,167 @@ abstract class AppLocalizations {
   /// **'Needs work'**
   String get pronScoreNeedsWork;
 
-  /// No description provided for @pronError.
+  /// No description provided for @pronEvalFailed.
   ///
   /// In en, this message translates to:
-  /// **'Error: {message}'**
-  String pronError(String message);
+  /// **'Couldn\'t check your pronunciation. Please try again.'**
+  String get pronEvalFailed;
+
+  /// No description provided for @pronRetryEvaluation.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry'**
+  String get pronRetryEvaluation;
+
+  /// No description provided for @handsFreeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Hands-free'**
+  String get handsFreeLabel;
+
+  /// No description provided for @handsFreeTurnOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn on hands-free — talk without the mic button'**
+  String get handsFreeTurnOn;
+
+  /// No description provided for @handsFreeTurnOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn off hands-free'**
+  String get handsFreeTurnOff;
+
+  /// No description provided for @handsFreeListening.
+  ///
+  /// In en, this message translates to:
+  /// **'Listening — just speak'**
+  String get handsFreeListening;
+
+  /// No description provided for @handsFreeThinking.
+  ///
+  /// In en, this message translates to:
+  /// **'Thinking…'**
+  String get handsFreeThinking;
+
+  /// No description provided for @handsFreeSpeaking.
+  ///
+  /// In en, this message translates to:
+  /// **'Speaking…'**
+  String get handsFreeSpeaking;
+
+  /// No description provided for @handsFreePaused.
+  ///
+  /// In en, this message translates to:
+  /// **'Paused'**
+  String get handsFreePaused;
+
+  /// No description provided for @handsFreeStop.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop'**
+  String get handsFreeStop;
+
+  /// No description provided for @handsFreeStoppedIdle.
+  ///
+  /// In en, this message translates to:
+  /// **'Hands-free turned off — no speech detected'**
+  String get handsFreeStoppedIdle;
+
+  /// No description provided for @handsFreeSttUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Speech recognition is unavailable. Check the microphone permission.'**
+  String get handsFreeSttUnavailable;
+
+  /// No description provided for @handsFreeOpenSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Open settings'**
+  String get handsFreeOpenSettings;
+
+  /// No description provided for @handsFreeStoppedQuota.
+  ///
+  /// In en, this message translates to:
+  /// **'Daily free limit reached — hands-free turned off. Add your own API key in Settings to keep going.'**
+  String get handsFreeStoppedQuota;
+
+  /// No description provided for @settingsHandsFree.
+  ///
+  /// In en, this message translates to:
+  /// **'Hands-free conversation'**
+  String get settingsHandsFree;
+
+  /// No description provided for @settingsHandsFreeSub.
+  ///
+  /// In en, this message translates to:
+  /// **'The mic opens by itself and reopens after each reply — no mic button'**
+  String get settingsHandsFreeSub;
+
+  /// No description provided for @noticeUpdateTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Update required'**
+  String get noticeUpdateTitle;
+
+  /// No description provided for @noticeUpdateBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This version is out of date and some features may not work. Please update to continue.'**
+  String get noticeUpdateBody;
+
+  /// No description provided for @noticeUpdateAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Update now'**
+  String get noticeUpdateAction;
+
+  /// No description provided for @noticeDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'Learn more'**
+  String get noticeDetails;
+
+  /// No description provided for @chatErrorFreeTierDown.
+  ///
+  /// In en, this message translates to:
+  /// **'Free chat isn\'t available right now. Add your own API key in Settings to keep talking.'**
+  String get chatErrorFreeTierDown;
+
+  /// No description provided for @chatErrorQuota.
+  ///
+  /// In en, this message translates to:
+  /// **'You\'ve used up today\'s free messages. Add your own API key in Settings to keep going.'**
+  String get chatErrorQuota;
+
+  /// No description provided for @chatErrorNetwork.
+  ///
+  /// In en, this message translates to:
+  /// **'Can\'t reach the server. Please check your internet connection.'**
+  String get chatErrorNetwork;
+
+  /// No description provided for @chatErrorNoKey.
+  ///
+  /// In en, this message translates to:
+  /// **'An API key is needed. Add one in Settings, or switch to the free tier.'**
+  String get chatErrorNoKey;
+
+  /// No description provided for @chatErrorUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'Something went wrong. Please try again in a moment.'**
+  String get chatErrorUnknown;
+
+  /// No description provided for @chatErrorEmptyResponse.
+  ///
+  /// In en, this message translates to:
+  /// **'The AI didn\'t send a reply. Try sending it again, or say it a different way.'**
+  String get chatErrorEmptyResponse;
+
+  /// No description provided for @handsFreeStoppedError.
+  ///
+  /// In en, this message translates to:
+  /// **'Hands-free turned off because the AI couldn\'t respond.'**
+  String get handsFreeStoppedError;
 }
 
 class _AppLocalizationsDelegate

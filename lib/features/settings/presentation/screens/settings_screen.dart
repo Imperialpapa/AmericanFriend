@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:permission_handler/permission_handler.dart' show openAppSettings;
 import 'package:eng_friend/core/constants/app_constants.dart';
 import 'package:eng_friend/core/constants/level_constants.dart';
 import 'package:eng_friend/core/theme/app_colors.dart';
@@ -11,11 +12,11 @@ import 'package:eng_friend/core/theme/app_typography.dart';
 import 'package:eng_friend/core/widgets/alex_avatar.dart';
 import 'package:eng_friend/core/widgets/banner_ad_widget.dart';
 import 'package:eng_friend/core/widgets/kf_xp_bar.dart';
-import 'package:eng_friend/features/chat/presentation/providers/suggestion_provider.dart';
 import 'package:eng_friend/features/level/presentation/providers/level_provider.dart';
 import 'package:eng_friend/features/report/presentation/screens/weekly_report_screen.dart';
 import 'package:eng_friend/features/settings/domain/entities/user_settings.dart';
 import 'package:eng_friend/features/settings/presentation/providers/settings_provider.dart';
+import 'package:eng_friend/features/settings/presentation/screens/privacy_policy_screen.dart';
 import 'package:eng_friend/features/streak/presentation/providers/streak_provider.dart';
 import 'package:eng_friend/di/service_providers.dart';
 import 'package:eng_friend/features/vocabulary/presentation/providers/vocabulary_provider.dart';
@@ -116,6 +117,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     settings: settings,
                     notifier: notifier,
                     palette: palette,
+                    handsFreeAllowed: ref.watch(handsFreeAllowedProvider),
                   ),
                   _SectionTitle(l.settingsSectionApp, palette: palette),
                   _AppGroup(
@@ -785,39 +787,50 @@ class _LanguageInlineRow extends StatelessWidget {
     final l = AppLocalizations.of(context);
     final picked = await showModalBottomSheet<AppLanguage>(
       context: context,
+      isScrollControlled: true,
       builder: (ctx) {
+        final maxHeight = MediaQuery.of(ctx).size.height * 0.75;
         return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(KFSpacing.x4),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: KFSpacing.x3, vertical: KFSpacing.x2),
-                  child: Text(
-                    isNative
-                        ? l.settingsRowNativeLanguage
-                        : l.settingsRowTargetLanguage,
-                    style: KFTypography.h2(color: palette.ink),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxHeight: maxHeight),
+            child: Padding(
+              padding: const EdgeInsets.all(KFSpacing.x4),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: KFSpacing.x3, vertical: KFSpacing.x2),
+                    child: Text(
+                      isNative
+                          ? l.settingsRowNativeLanguage
+                          : l.settingsRowTargetLanguage,
+                      style: KFTypography.h2(color: palette.ink),
+                    ),
                   ),
-                ),
-                ...AppLanguage.values.map((lang) {
-                  final isCurrent = lang == current;
-                  final isDisabled = lang == disabled;
-                  return ListTile(
-                    enabled: !isDisabled,
-                    title: Text(lang.label,
-                        style: KFTypography.body(
-                            color: isDisabled ? palette.ink3 : palette.ink)),
-                    trailing: isCurrent
-                        ? Icon(Icons.check, color: palette.sage)
-                        : null,
-                    onTap: () => Navigator.pop(ctx, lang),
-                  );
-                }),
-              ],
+                  Flexible(
+                    child: ListView(
+                      shrinkWrap: true,
+                      children: AppLanguage.values.map((lang) {
+                        final isCurrent = lang == current;
+                        final isDisabled = lang == disabled;
+                        return ListTile(
+                          enabled: !isDisabled,
+                          title: Text(lang.label,
+                              style: KFTypography.body(
+                                  color:
+                                      isDisabled ? palette.ink3 : palette.ink)),
+                          trailing: isCurrent
+                              ? Icon(Icons.check, color: palette.sage)
+                              : null,
+                          onTap: () => Navigator.pop(ctx, lang),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         );
@@ -1143,7 +1156,7 @@ class _AiGroup extends StatelessWidget {
   String _providerName(AiProviderType p) => switch (p) {
         AiProviderType.freeTier => 'Free (no key)',
         AiProviderType.gemini => 'Google Gemini',
-        AiProviderType.groq => 'Groq (Llama 3.3)',
+        AiProviderType.groq => 'Groq',
         AiProviderType.claude => 'Claude',
         AiProviderType.openai => 'OpenAI',
       };
@@ -1185,7 +1198,7 @@ class _AiGroup extends StatelessWidget {
                   return ListTile(
                     title: Text(_providerName(p),
                         style: KFTypography.body(color: palette.ink)),
-                    subtitle: Text(_providerDescription(p),
+                    subtitle: Text(_providerDescription(l, p),
                         style: KFTypography.meta(color: palette.ink3)),
                     trailing: selected
                         ? Icon(Icons.check, color: palette.sage)
@@ -1204,12 +1217,14 @@ class _AiGroup extends StatelessWidget {
     );
   }
 
-  String _providerDescription(AiProviderType p) => switch (p) {
-        AiProviderType.freeTier => 'No API key required · 20 msg/day',
-        AiProviderType.gemini => 'Free tier · 1,500 req/day',
-        AiProviderType.groq => 'Free · 14,400 req/day, ultra fast',
-        AiProviderType.claude => 'Paid · highest quality',
-        AiProviderType.openai => 'Paid · GPT-4o',
+  // 쿼터 수치·모델명을 넣지 말 것 — 제공자·서버가 예고 없이 바꾸면 문구가 거짓이 된다(BUG #9).
+  String _providerDescription(AppLocalizations l, AiProviderType p) =>
+      switch (p) {
+        AiProviderType.freeTier => l.settingsProviderDescFree,
+        AiProviderType.gemini => l.settingsProviderDescGemini,
+        AiProviderType.groq => l.settingsProviderDescGroq,
+        AiProviderType.claude => l.settingsProviderDescClaude,
+        AiProviderType.openai => l.settingsProviderDescOpenai,
       };
 
   void _pickModel(BuildContext context) {
@@ -1294,48 +1309,32 @@ class _ConversationGroup extends StatelessWidget {
         _InlineRow(
           icon: Icons.lightbulb_outline,
           title: l.settingsSuggestionTiming,
+          subtitle: l.settingsSuggestionTimingSub,
           palette: palette,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: Row(
             children: [
-              SegmentedButton<SuggestionMode>(
-                segments: [
-                  ButtonSegment(
-                    value: SuggestionMode.immediate,
-                    label: Text(l.settingsSuggestionImmediate),
-                    icon: const Icon(Icons.flash_on, size: 16),
-                  ),
-                  ButtonSegment(
-                    value: SuggestionMode.delayed,
-                    label: Text(l.settingsSuggestionDelayed),
-                    icon: const Icon(Icons.timer_outlined, size: 16),
-                  ),
-                ],
-                selected: {settings.suggestionMode},
-                onSelectionChanged: (s) =>
-                    notifier.setSuggestionMode(s.first),
-                showSelectedIcon: false,
-              ),
-              if (settings.suggestionMode == SuggestionMode.delayed) ...[
-                const SizedBox(height: KFSpacing.x2),
-                Row(
-                  children: [
-                    Text('${settings.suggestionDelaySec}s',
-                        style: KFTypography.meta(color: palette.ink3)),
-                    Expanded(
-                      child: Slider(
-                        value: settings.suggestionDelaySec.toDouble(),
-                        min: 1,
-                        max: 15,
-                        divisions: 14,
-                        label: '${settings.suggestionDelaySec}s',
-                        onChanged: (v) =>
-                            notifier.setSuggestionDelay(v.round()),
-                      ),
-                    ),
-                  ],
+              SizedBox(
+                width: 56,
+                child: Text(
+                  settings.suggestionDelaySec == 0
+                      ? l.settingsSuggestionImmediate
+                      : '${settings.suggestionDelaySec}s',
+                  style: KFTypography.meta(color: palette.ink3),
                 ),
-              ],
+              ),
+              Expanded(
+                child: Slider(
+                  value: settings.suggestionDelaySec.toDouble(),
+                  min: 0,
+                  max: 15,
+                  divisions: 15,
+                  label: settings.suggestionDelaySec == 0
+                      ? l.settingsSuggestionImmediate
+                      : '${settings.suggestionDelaySec}s',
+                  onChanged: (v) =>
+                      notifier.setSuggestionDelay(v.round()),
+                ),
+              ),
             ],
           ),
         ),
@@ -1416,10 +1415,14 @@ class _VoiceGroup extends StatelessWidget {
   final SettingsNotifier notifier;
   final KFPalette palette;
 
+  /// 서버 원격 스위치가 핸즈프리를 껐으면 false — 항목을 숨긴다(tobe Q-05).
+  final bool handsFreeAllowed;
+
   const _VoiceGroup({
     required this.settings,
     required this.notifier,
     required this.palette,
+    required this.handsFreeAllowed,
   });
 
   @override
@@ -1428,6 +1431,15 @@ class _VoiceGroup extends StatelessWidget {
     return _Group(
       palette: palette,
       children: [
+        if (handsFreeAllowed)
+          _SwitchRow(
+            icon: Icons.hearing_outlined,
+            title: l.settingsHandsFree,
+            subtitle: l.settingsHandsFreeSub,
+            value: settings.handsFreeEnabled,
+            onChanged: notifier.setHandsFreeEnabled,
+            palette: palette,
+          ),
         _SwitchRow(
           icon: Icons.volume_up_outlined,
           title: l.settingsReadTargetAloud(settings.targetLanguage.displayName),
@@ -1481,15 +1493,33 @@ class _VoiceGroup extends StatelessWidget {
           title: l.settingsMicPause,
           subtitle: l.settingsMicPauseSub,
           palette: palette,
-          child: SegmentedButton<int>(
-            segments: [
-              ButtonSegment(value: 3, label: Text(l.settingsMicPauseQuick)),
-              ButtonSegment(value: 5, label: Text(l.settingsMicPauseNormal)),
-              ButtonSegment(value: 8, label: Text(l.settingsMicPausePatient)),
+          child: Row(
+            children: [
+              SizedBox(
+                width: 56,
+                child: Text(
+                  settings.sttPauseSeconds == 0
+                      ? l.settingsSuggestionImmediate
+                      : '${settings.sttPauseSeconds}s',
+                  style: KFTypography.meta(color: palette.ink3),
+                ),
+              ),
+              Expanded(
+                child: Slider(
+                  value: settings.sttPauseSeconds
+                      .clamp(0, 15)
+                      .toDouble(),
+                  min: 0,
+                  max: 15,
+                  divisions: 15,
+                  label: settings.sttPauseSeconds == 0
+                      ? l.settingsSuggestionImmediate
+                      : '${settings.sttPauseSeconds}s',
+                  onChanged: (v) =>
+                      notifier.setSttPauseSeconds(v.round()),
+                ),
+              ),
             ],
-            selected: {_nearestPauseOption(settings.sttPauseSeconds)},
-            onSelectionChanged: (s) => notifier.setSttPauseSeconds(s.first),
-            showSelectedIcon: false,
           ),
         ),
         _SwitchRow(
@@ -1502,12 +1532,6 @@ class _VoiceGroup extends StatelessWidget {
         ),
       ],
     );
-  }
-
-  int _nearestPauseOption(int seconds) {
-    if (seconds <= 3) return 3;
-    if (seconds <= 6) return 5;
-    return 8;
   }
 
   String _speedLabel(AppLocalizations l, double rate) {
@@ -1549,15 +1573,27 @@ class _AppGroup extends ConsumerWidget {
               : l.settingsDailyReminderOff,
           value: settings.reminderEnabled,
           onChanged: (v) async {
-            await notifier.setReminderEnabled(v);
-            if (v) {
-              await NotificationService.initialize();
+            if (!v) {
+              await notifier.setReminderEnabled(false);
+              await NotificationService.cancelAll();
+              return;
+            }
+            // 권한과 예약이 모두 성공한 뒤에만 ON으로 저장한다 — 실패하면 토글이 OFF로 남는다.
+            final granted = await NotificationService.requestPermission();
+            if (!granted) {
+              if (context.mounted) _showReminderPermissionDenied(context);
+              return;
+            }
+            try {
               await NotificationService.scheduleDailyReminder(
                 hour: settings.reminderHour,
                 minute: settings.reminderMinute,
+                l10n: l,
               );
-            } else {
-              await NotificationService.cancelAll();
+              await notifier.setReminderEnabled(true);
+            } catch (e) {
+              debugPrint('[Settings] reminder schedule failed: $e');
+              if (context.mounted) _showReminderFailed(context);
             }
           },
           palette: palette,
@@ -1578,10 +1614,16 @@ class _AppGroup extends ConsumerWidget {
               );
               if (picked != null) {
                 await notifier.setReminderTime(picked.hour, picked.minute);
-                await NotificationService.scheduleDailyReminder(
-                  hour: picked.hour,
-                  minute: picked.minute,
-                );
+                try {
+                  await NotificationService.scheduleDailyReminder(
+                    hour: picked.hour,
+                    minute: picked.minute,
+                    l10n: l,
+                  );
+                } catch (e) {
+                  debugPrint('[Settings] reminder reschedule failed: $e');
+                  if (context.mounted) _showReminderFailed(context);
+                }
               }
             },
           ),
@@ -1593,7 +1635,47 @@ class _AppGroup extends ConsumerWidget {
           palette: palette,
           onTap: onFeedback,
         ),
+        _Row(
+          icon: Icons.privacy_tip_outlined,
+          title: l.settingsPrivacyPolicy,
+          palette: palette,
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const PrivacyPolicyScreen()),
+          ),
+        ),
+        _Row(
+          icon: Icons.description_outlined,
+          title: l.settingsOpenSourceLicenses,
+          palette: palette,
+          onTap: () => showLicensePage(
+            context: context,
+            applicationName: AppConstants.appName,
+            applicationVersion: AppConstants.appVersion,
+          ),
+        ),
       ],
+    );
+  }
+
+  // 거부된 알림 권한은 앱 안에서 다시 켤 수 없다(다시 묻지 않음) — OS 설정으로 보낸다.
+  void _showReminderPermissionDenied(BuildContext context) {
+    final l = AppLocalizations.of(context);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(l.settingsReminderPermissionDenied),
+        duration: const Duration(seconds: 6),
+        action: SnackBarAction(
+          label: l.commonSettings,
+          onPressed: openAppSettings,
+        ),
+      ),
+    );
+  }
+
+  void _showReminderFailed(BuildContext context) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+          content: Text(AppLocalizations.of(context).settingsReminderFailed)),
     );
   }
 }

@@ -35,6 +35,10 @@ class TtsSpeakingStarted extends PipelineEvent {
   TtsSpeakingStarted(this.sentence);
 }
 
+/// 미사용. AI 턴 종료는 [PipelineEvent]로 전달할 수 없다 —
+/// processTextInput의 async* 스트림은 AiResponseComplete 직후 닫히는데
+/// 그 시점엔 TtsQueue에 아직 읽을 문장이 남아 있기 때문.
+/// 턴 종료는 TtsQueue.stateStream의 TtsQueueState.turnDone으로 관측할 것.
 class TtsSpeakingDone extends PipelineEvent {}
 
 // 에러

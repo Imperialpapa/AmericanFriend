@@ -9,11 +9,12 @@ import 'package:eng_friend/core/theme/app_radii.dart';
 import 'package:eng_friend/core/theme/app_shadows.dart';
 import 'package:eng_friend/core/theme/app_spacing.dart';
 import 'package:eng_friend/core/theme/app_typography.dart';
+import 'package:eng_friend/core/widgets/ai_disclosure_note.dart';
 import 'package:eng_friend/core/widgets/alex_avatar.dart';
-import 'package:eng_friend/core/widgets/banner_ad_widget.dart';
 import 'package:eng_friend/di/service_providers.dart';
 import 'package:eng_friend/features/level/presentation/providers/level_provider.dart';
 import 'package:eng_friend/features/settings/presentation/providers/settings_provider.dart';
+import 'package:eng_friend/features/settings/presentation/screens/privacy_policy_screen.dart';
 import 'package:eng_friend/services/ai/ai_provider_type.dart';
 import 'package:eng_friend/l10n/app_localizations.dart';
 import 'package:eng_friend/services/language/app_language.dart';
@@ -81,8 +82,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                 child: _pageContent(palette),
               ),
             ),
+            // 배너 없음: AdMob은 '다음' 버튼 근처 배치를 권하지 않는다(tobe P-06).
             _ctaSection(palette),
-            const BannerAdWidget(),
           ],
         ),
       ),
@@ -274,6 +275,21 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               fontSize: 15,
               height: 1.5,
             ),
+          ),
+          const SizedBox(height: KFSpacing.x4),
+          const AiDisclosureNote(),
+          const SizedBox(height: KFSpacing.x2),
+          // 무료 티어는 키 입력 없이 바로 대화로 가므로 전송 사실을 여기서 알린다(tobe P-02).
+          Text(
+            l.onboardPrivacyNotice,
+            textAlign: TextAlign.center,
+            style: KFTypography.meta(color: palette.ink3),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const PrivacyPolicyScreen()),
+            ),
+            child: Text(l.settingsPrivacyPolicy),
           ),
         ],
       ),

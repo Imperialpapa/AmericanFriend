@@ -2,8 +2,10 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:eng_friend/core/constants/app_constants.dart';
 import 'package:eng_friend/features/chat/domain/entities/message.dart';
+import 'package:eng_friend/features/chat/domain/entities/pronunciation_result.dart';
 import 'package:eng_friend/features/chat/domain/entities/suggestion.dart';
 import 'package:eng_friend/features/level/domain/entities/level_assessment.dart';
+import 'package:eng_friend/services/ai/ai_json.dart';
 import 'package:eng_friend/services/ai/ai_service.dart';
 import 'package:eng_friend/services/ai/prompts/level_prompts.dart';
 import 'package:eng_friend/services/ai/prompts/suggestion_prompt.dart';
@@ -27,6 +29,27 @@ class FreeTierRateLimitException implements Exception {
       'Daily free limit reached ($used/$limit). Resets at ${resetAt ?? "UTC midnight"}.';
 }
 
+/// 무료 티어 프록시/업스트림 장애.
+///
+/// 사용자 잘못이 아니고 재시도해도 대개 소용없다. 본인 API 키를 등록하면 즉시 우회 가능.
+/// (BUG_HISTORY #9: 제공사가 모델을 셧다운해 프록시가 404를 뱉은 사례)
+class FreeTierUnavailableException implements Exception {
+  final int? statusCode;
+  final bool isNetwork;
+
+  /// 사용자에게 보여줄 문구가 아니라, 문의·진단용 원문.
+  final String technicalDetail;
+
+  const FreeTierUnavailableException({
+    required this.technicalDetail,
+    this.statusCode,
+    this.isNetwork = false,
+  });
+
+  @override
+  String toString() => technicalDetail;
+}
+
 /// 프록시를 통한 무료 티어 AI 서비스.
 /// Groq와 같은 OpenAI 호환 스키마를 쓰지만, 인증은 deviceId 헤더.
 class FreeTierAiService implements AiService {
@@ -34,17 +57,18 @@ class FreeTierAiService implements AiService {
   final String deviceId;
   final Dio _dio;
 
-  FreeTierAiService({required this.baseUrl, required this.deviceId})
-      : _dio = Dio(BaseOptions(
-          baseUrl: baseUrl,
-          connectTimeout: const Duration(seconds: 30),
-          receiveTimeout: const Duration(seconds: 60),
-          headers: {
-            'x-device-id': deviceId,
-            'Content-Type': 'application/json',
-            'User-Agent': 'KoreanFriend/${AppConstants.appVersion}',
-          },
-        ));
+  FreeTierAiService({required this.baseUrl, required this.deviceId, Dio? dio})
+      : _dio = dio ??
+            Dio(BaseOptions(
+              baseUrl: baseUrl,
+              connectTimeout: const Duration(seconds: 30),
+              receiveTimeout: const Duration(seconds: 60),
+              headers: {
+                'x-device-id': deviceId,
+                'Content-Type': 'application/json',
+                'User-Agent': 'KoreanFriend/${AppConstants.appVersion}',
+              },
+            ));
 
   FreeTierRateLimitException? _rateLimitFrom(DioException e) {
     final statusCode = e.response?.statusCode;
@@ -66,8 +90,24 @@ class FreeTierAiService implements AiService {
   Never _throwError(DioException e) {
     final rl = _rateLimitFrom(e);
     if (rl != null) throw rl;
-    final statusCode = e.response?.statusCode;
-    throw Exception('Free tier error ($statusCode): ${e.message}');
+
+    final offline = switch (e.type) {
+      DioExceptionType.connectionError ||
+      DioExceptionType.connectionTimeout ||
+      DioExceptionType.receiveTimeout ||
+      DioExceptionType.sendTimeout =>
+        true,
+      _ => false,
+    };
+
+    // 원문(technicalDetail)은 버리지 않는다 — UI는 친절한 문구를 보여주되
+    // "복사" 버튼으로 원문을 넘겨야 사용자가 문의할 때 진단이 가능하다.
+    throw FreeTierUnavailableException(
+      statusCode: e.response?.statusCode,
+      isNetwork: offline,
+      technicalDetail: 'Free tier error (${e.response?.statusCode}): '
+          '${e.message ?? e.type.name}',
+    );
   }
 
   @override
@@ -80,7 +120,7 @@ class FreeTierAiService implements AiService {
       final response = await _dio.post('/api/v1/chat/completions', data: {
         'messages': [
           {'role': 'system', 'content': systemPrompt},
-          ...conversationHistory.map((m) => {
+          ...nonEmptyHistory(conversationHistory).map((m) => {
                 'role': m.role == MessageRole.user ? 'user' : 'assistant',
                 'content': m.content,
               }),
@@ -107,7 +147,7 @@ class FreeTierAiService implements AiService {
           'stream': true,
           'messages': [
             {'role': 'system', 'content': systemPrompt},
-            ...conversationHistory.map((m) => {
+            ...nonEmptyHistory(conversationHistory).map((m) => {
                   'role': m.role == MessageRole.user ? 'user' : 'assistant',
                   'content': m.content,
                 }),
@@ -119,11 +159,17 @@ class FreeTierAiService implements AiService {
       _throwError(e);
     }
 
-    final stream = response.data.stream as Stream<List<int>>;
+    // 멀티바이트 문자가 청크 경계에 걸리면 utf8.decode가 FormatException을 던져
+    // 스트림이 통째로 죽는다(한글·일본어는 3바이트라 흔하다).
+    // 스트리밍 디코더는 경계를 넘어 이어붙여 준다.
+    // .transform(utf8.decoder)는 안 된다 — Dio 본문은 Stream<Uint8List>라 런타임 타입
+    // 검사에서 모든 응답이 TypeError로 끝난다(BUG #13).
+    final stream =
+        utf8.decoder.bind(response.data.stream as Stream<List<int>>);
     String buffer = '';
 
     await for (final chunk in stream) {
-      buffer += utf8.decode(chunk);
+      buffer += chunk;
       final lines = buffer.split('\n');
       buffer = lines.removeLast();
 
@@ -166,21 +212,14 @@ class FreeTierAiService implements AiService {
         ],
       });
       final choices = response.data['choices'] as List;
-      final text = choices.first['message']['content'] as String;
-      final json = jsonDecode(text) as Map<String, dynamic>;
-      return LevelAssessment(
-        currentLevel: 0,
-        suggestedLevel: json['suggestedLevel'] as int,
-        reasoning: json['reasoning'] as String? ?? '',
-      );
+      return parseLevelAssessment(choices.first['message']['content'] as String);
     } catch (_) {
-      return const LevelAssessment(
-          currentLevel: 0, suggestedLevel: 5, reasoning: 'Assessment failed');
+      return const LevelAssessment.failed();
     }
   }
 
   @override
-  Future<Map<String, dynamic>> evaluatePronunciation({
+  Future<PronunciationResult> evaluatePronunciation({
     required String prompt,
   }) async {
     try {
@@ -190,14 +229,10 @@ class FreeTierAiService implements AiService {
         ],
       });
       final choices = response.data['choices'] as List;
-      var text = choices.first['message']['content'] as String;
-      text = text
-          .replaceAll(RegExp(r'```json\s*'), '')
-          .replaceAll(RegExp(r'```\s*'), '')
-          .trim();
-      return jsonDecode(text) as Map<String, dynamic>;
-    } catch (e) {
-      return {'score': 0, 'feedback': [], 'overall': 'Evaluation failed: $e'};
+      return PronunciationResult.fromJson(
+          extractJson(choices.first['message']['content'] as String));
+    } on DioException catch (e) {
+      _throwError(e);
     }
   }
 
@@ -210,7 +245,7 @@ class FreeTierAiService implements AiService {
     int count = 2,
     String? lastAiMessage,
   }) async {
-    final messages = conversationHistory
+    final messages = nonEmptyHistory(conversationHistory)
         .map((m) => {
               'role': m.role == MessageRole.user ? 'user' : 'assistant',
               'content': m.content,
@@ -232,14 +267,7 @@ class FreeTierAiService implements AiService {
         'messages': messages,
       });
       final choices = response.data['choices'] as List;
-      final text = choices.first['message']['content'] as String;
-      final jsonList = jsonDecode(text) as List;
-      return jsonList
-          .map((item) => Suggestion(
-                text: item['text'] as String,
-                koreanHint: item['koreanHint'] as String?,
-              ))
-          .toList();
+      return parseSuggestions(choices.first['message']['content'] as String);
     } catch (_) {
       return [];
     }

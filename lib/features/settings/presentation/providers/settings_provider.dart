@@ -5,8 +5,8 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 import 'package:eng_friend/features/settings/domain/entities/user_settings.dart';
-import 'package:eng_friend/features/chat/presentation/providers/suggestion_provider.dart';
 import 'package:eng_friend/services/ai/ai_provider_type.dart';
+import 'package:eng_friend/services/ai/model_migrations.dart';
 import 'package:eng_friend/services/language/app_language.dart';
 import 'package:eng_friend/di/service_providers.dart';
 
@@ -17,8 +17,8 @@ const _groqKeyKey = 'groq_api_key';
 const _aiProviderKey = 'ai_provider';
 const _nativeLanguageKey = 'native_language';
 const _targetLanguageKey = 'target_language';
-const _suggestionModeKey = 'suggestion_mode';
 const _suggestionDelayKey = 'suggestion_delay';
+// removed: _suggestionModeKey ('suggestion_mode') — merged into delaySec (0=immediate)
 const _ttsSpeechRateKey = 'tts_speech_rate';
 const _showNativeHintKey = 'show_native_hint';
 const _nativeTtsEnabledKey = 'native_tts_enabled';
@@ -35,7 +35,9 @@ const _reminderHourKey = 'reminder_hour';
 const _reminderMinuteKey = 'reminder_minute';
 const _sttPauseSecondsKey = 'stt_pause_seconds';
 const _autoSendVoiceKey = 'auto_send_voice';
+const _chatFontScaleKey = 'chat_font_scale';
 const _freeTierDeviceIdKey = 'free_tier_device_id';
+const _handsFreeEnabledKey = 'hands_free_enabled';
 
 final secureStorageProvider = Provider<FlutterSecureStorage>(
   (ref) => const FlutterSecureStorage(),
@@ -82,8 +84,17 @@ class SettingsNotifier extends StateNotifier<UserSettings> {
     final providerStr = _prefs.getString(_aiProviderKey) ?? 'freeTier';
     final nativeLangStr = _prefs.getString(_nativeLanguageKey);
     final targetLangStr = _prefs.getString(_targetLanguageKey);
-    final modeStr = _prefs.getString(_suggestionModeKey);
-    final delay = _prefs.getInt(_suggestionDelayKey) ?? 5;
+    // 마이그레이션: 이전 버전의 'suggestion_mode' = 'immediate'였으면 delay = 0,
+    // 그 외(저장 없음 또는 'delayed')는 저장된 delay 또는 기본값 사용.
+    final legacyMode = _prefs.getString('suggestion_mode');
+    int delay = _prefs.getInt(_suggestionDelayKey) ?? 0;
+    if (legacyMode == 'immediate') {
+      delay = 0;
+      await _prefs.setInt(_suggestionDelayKey, 0);
+    }
+    if (legacyMode != null) {
+      await _prefs.remove('suggestion_mode');
+    }
     final rate = _prefs.getDouble(_ttsSpeechRateKey) ?? 0.5;
     // 기존 show_korean_hint에서 마이그레이션
     final showNativeHint = _prefs.getBool(_showNativeHintKey)
@@ -101,8 +112,10 @@ class SettingsNotifier extends StateNotifier<UserSettings> {
     final reminderEnabled = _prefs.getBool(_reminderEnabledKey) ?? false;
     final reminderHour = _prefs.getInt(_reminderHourKey) ?? 20;
     final reminderMinute = _prefs.getInt(_reminderMinuteKey) ?? 0;
-    final sttPauseSeconds = _prefs.getInt(_sttPauseSecondsKey) ?? 5;
+    final sttPauseSeconds = _prefs.getInt(_sttPauseSecondsKey) ?? 2;
     final autoSendVoice = _prefs.getBool(_autoSendVoiceKey) ?? true;
+    final chatFontScale = _prefs.getDouble(_chatFontScaleKey) ?? 1.0;
+    final handsFreeEnabled = _prefs.getBool(_handsFreeEnabledKey) ?? false;
 
     // free tier device UUID — 최초 실행 시 생성 후 영구 보관
     String freeTierDeviceId = _prefs.getString(_freeTierDeviceIdKey) ?? '';
@@ -142,9 +155,6 @@ class SettingsNotifier extends StateNotifier<UserSettings> {
       targetLanguage: targetLangStr != null
           ? AppLanguage.fromCode(targetLangStr)
           : AppLanguage.englishUS,
-      suggestionMode: modeStr == 'delayed'
-          ? SuggestionMode.delayed
-          : SuggestionMode.immediate,
       suggestionDelaySec: delay,
       ttsSpeechRate: rate,
       showNativeHint: showNativeHint,
@@ -164,8 +174,24 @@ class SettingsNotifier extends StateNotifier<UserSettings> {
       reminderMinute: reminderMinute,
       sttPauseSeconds: sttPauseSeconds,
       autoSendVoice: autoSendVoice,
+      chatFontScale: chatFontScale,
       freeTierDeviceId: freeTierDeviceId,
+      handsFreeEnabled: handsFreeEnabled,
     );
+
+    // 은퇴한 모델 ID 교정. 상태 엔드포인트가 죽어 있어도 내장 매핑은 여기서 적용된다
+    // (서버 매핑은 main.dart의 _syncRemoteStatus가 나중에 다시 적용).
+    // 교정 실패로 앱 시작이 막히면 본말전도라 삼킨다.
+    try {
+      await applyModelMigrations();
+    } catch (e) {
+      debugPrint('[Settings] local model migration skipped: $e');
+    }
+  }
+
+  Future<void> setHandsFreeEnabled(bool value) async {
+    await _prefs.setBool(_handsFreeEnabledKey, value);
+    state = state.copyWith(handsFreeEnabled: value);
   }
 
   Future<void> setClaudeApiKey(String key) async {
@@ -193,14 +219,10 @@ class SettingsNotifier extends StateNotifier<UserSettings> {
     state = state.copyWith(aiProvider: provider);
   }
 
-  Future<void> setSuggestionMode(SuggestionMode mode) async {
-    await _prefs.setString(_suggestionModeKey, mode.name);
-    state = state.copyWith(suggestionMode: mode);
-  }
-
   Future<void> setSuggestionDelay(int seconds) async {
-    await _prefs.setInt(_suggestionDelayKey, seconds);
-    state = state.copyWith(suggestionDelaySec: seconds);
+    final clamped = seconds.clamp(0, 15);
+    await _prefs.setInt(_suggestionDelayKey, clamped);
+    state = state.copyWith(suggestionDelaySec: clamped);
   }
 
   Future<void> setTtsSpeechRate(double rate) async {
@@ -263,6 +285,35 @@ class SettingsNotifier extends StateNotifier<UserSettings> {
     }
   }
 
+  /// 「죽은 model ID → 살아있는 ID」 매핑을 저장된 설정에 적용한다.
+  /// [server]가 비어 있어도 앱 내장 매핑(localModelMigrations)은 항상 적용된다.
+  ///
+  /// BUG_HISTORY #9 대응: 제공자가 모델을 셧다운하면 그 모델을 고른 사용자는
+  /// 앱을 다시 받기 전까지 대화가 안 된다. 이 경로가 있으면 Vercel 환경변수
+  /// 하나만 바꿔서 이미 설치된 앱들을 앱 릴리스 없이 복구할 수 있다.
+  /// 판정 규칙은 modelMigrationTarget 참고(기본값 사용자 포함, 카탈로그에 있는 대상만 저장).
+  Future<void> applyModelMigrations([
+    Map<String, String> server = const {},
+  ]) async {
+    for (final entry in <(AiProviderType, String?)>[
+      (AiProviderType.claude, state.claudeModelId),
+      (AiProviderType.openai, state.openaiModelId),
+      (AiProviderType.gemini, state.geminiModelId),
+      (AiProviderType.groq, state.groqModelId),
+    ]) {
+      final (provider, stored) = entry;
+      final target = modelMigrationTarget(
+        provider: provider,
+        stored: stored,
+        server: server,
+      );
+      if (target == null) continue;
+      debugPrint('[Settings] model migration (${provider.name}): '
+          '${stored ?? 'default'} -> $target');
+      await setModelId(provider, target);
+    }
+  }
+
   Future<void> setAvatarEnabled(bool enabled) async {
     await _prefs.setBool(_avatarEnabledKey, enabled);
     state = state.copyWith(avatarEnabled: enabled);
@@ -280,13 +331,25 @@ class SettingsNotifier extends StateNotifier<UserSettings> {
   }
 
   Future<void> setSttPauseSeconds(int seconds) async {
-    await _prefs.setInt(_sttPauseSecondsKey, seconds);
-    state = state.copyWith(sttPauseSeconds: seconds);
+    final clamped = seconds.clamp(0, 15);
+    await _prefs.setInt(_sttPauseSecondsKey, clamped);
+    state = state.copyWith(sttPauseSeconds: clamped);
   }
 
   Future<void> setAutoSendVoice(bool enabled) async {
     await _prefs.setBool(_autoSendVoiceKey, enabled);
     state = state.copyWith(autoSendVoice: enabled);
+  }
+
+  /// 핀치 제스처용 — persist=false이면 디스크 저장 없이 메모리만 갱신 (실시간 반영용),
+  /// persist=true면 디스크에 저장 (제스처 종료 시).
+  /// 범위: 0.5(현재 기본의 1/2) ~ 2.8(현재 최대의 2배)
+  void setChatFontScale(double scale, {bool persist = true}) {
+    final clamped = scale.clamp(0.5, 2.8);
+    if (persist) {
+      _prefs.setDouble(_chatFontScaleKey, clamped); // fire-and-forget
+    }
+    state = state.copyWith(chatFontScale: clamped);
   }
 }
 

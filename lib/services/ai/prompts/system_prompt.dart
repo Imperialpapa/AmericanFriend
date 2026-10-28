@@ -49,15 +49,24 @@ GRAMMAR CORRECTION:
 - Maximum 2 corrections per response
 - If no errors, do NOT add any 💡 lines
 - Example: 💡 "I go to school yesterday" → "I went to school yesterday"
+${_naturalnessTipRule(userLevel)}
 
 RULES:
 - Always respond primarily in $target
 - Naturally correct grammar mistakes by rephrasing in your response AND add explicit 💡 corrections at the end
 - Keep responses conversational and concise
 - Match the conversation's mood and energy
-- NEVER use emojis, emoticons, or special symbols (→, ★, ♥, etc.) in your conversational responses — only in the 💡 correction format
+- NEVER use emojis, emoticons, or special symbols (→, ★, ♥, etc.) in your conversational responses — only in the 💡 correction format and 💬 naturalness tip format
 - Do not use markdown formatting (*bold*, _italic_) — write naturally as in real spoken conversation
+- If the user asks whether they are talking to a human or an AI, always answer honestly that you are an AI, even during role-play
 ''';
+  }
+
+  /// TEMPORARILY DISABLED — debugging "AI 응답이 ... 에서 멈춤" 현상.
+  /// NATURALNESS TIP 블록을 시스템 프롬프트에 넣었더니 회귀 발생 의심.
+  /// 빈 문자열 반환으로 비활성화 후 정상 응답 복귀 확인되면 다듬어서 재도입.
+  static String _naturalnessTipRule(int level) {
+    return '';
   }
 
   static String _nativeHintRule({
@@ -179,7 +188,7 @@ TOPIC FOCUS MODE — "$title":
 - Use vocabulary and expressions naturally relevant to this situation
 - If the user tries to change the topic, gently guide them back: "Let's keep practicing this scenario a bit more!"
 - Introduce useful $target phrases and expressions specific to this situation
-- Do NOT break character unless the user explicitly asks to end the topic
+- Do NOT break character unless the user explicitly asks to end the topic, or asks whether you are a human or an AI (then say you are an AI)
 ''';
   }
 }

@@ -1,26 +1,31 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:permission_handler/permission_handler.dart' show openAppSettings;
 import 'package:eng_friend/core/constants/app_constants.dart';
+import 'package:eng_friend/core/error/redact_secrets.dart';
 import 'package:eng_friend/core/theme/app_colors.dart';
 import 'package:eng_friend/core/theme/app_radii.dart';
 import 'package:eng_friend/core/theme/app_spacing.dart';
 import 'package:eng_friend/core/theme/app_typography.dart';
+import 'package:eng_friend/core/widgets/ai_disclosure_note.dart';
 import 'package:eng_friend/core/widgets/alex_avatar.dart';
+import 'package:eng_friend/core/widgets/app_notice_banner.dart';
 import 'package:eng_friend/core/widgets/banner_ad_widget.dart';
+import 'package:eng_friend/di/service_providers.dart';
 import 'package:eng_friend/features/chat/domain/entities/message.dart';
+import 'package:eng_friend/features/chat/presentation/providers/activity_recorder_provider.dart';
 import 'package:eng_friend/features/chat/presentation/providers/chat_provider.dart';
 import 'package:eng_friend/features/chat/presentation/widgets/chat_header.dart';
 import 'package:eng_friend/features/chat/presentation/widgets/chat_input_bar.dart';
 import 'package:eng_friend/features/chat/presentation/widgets/message_bubble.dart';
 import 'package:eng_friend/features/chat/presentation/widgets/mission_strip.dart';
 import 'package:eng_friend/features/chat/presentation/widgets/suggestion_chips.dart';
-import 'package:eng_friend/features/level/presentation/providers/level_provider.dart';
 import 'package:eng_friend/features/mission/presentation/providers/mission_provider.dart';
 import 'package:eng_friend/features/settings/presentation/providers/settings_provider.dart';
 import 'package:eng_friend/features/settings/presentation/screens/settings_screen.dart';
 import 'package:eng_friend/features/streak/presentation/providers/streak_provider.dart';
-import 'package:eng_friend/features/topic/presentation/providers/topic_provider.dart';
 import 'package:eng_friend/features/voice/presentation/providers/voice_provider.dart';
 import 'package:eng_friend/l10n/app_localizations.dart';
 
@@ -35,11 +40,23 @@ class ChatScreen extends ConsumerStatefulWidget {
 class _ChatScreenState extends ConsumerState<ChatScreen> {
   final ScrollController _scrollController = ScrollController();
 
+  /// 핀치 제스처 시작 시점의 chatFontScale. null이면 제스처 비활성.
+  double? _scaleStartValue;
+
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(voiceProvider.notifier).initialize();
+    // 음성·핸즈프리·칩 전송까지 집계하려면 채팅 상태를 구독하는 쪽이 살아 있어야 한다.
+    ref.read(activityRecorderProvider);
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await ref.read(voiceProvider.notifier).initialize();
+      if (!mounted) return;
+      // 사용자가 이전에 핸즈프리를 켜뒀으면 채팅 진입과 동시에 루프 시작.
+      // 원격 스위치는 아직 조회 중이면 true다 — 꺼져 있으면 아래 listen이 멈춘다.
+      if (ref.read(settingsProvider).handsFreeEnabled &&
+          ref.read(handsFreeAllowedProvider)) {
+        await ref.read(voiceProvider.notifier).startHandsFree();
+      }
     });
   }
 
@@ -61,19 +78,40 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     });
   }
 
+  // ---- 두 손가락 핀치로 메시지 폰트 크기 조절 ----
+  void _onScaleStart(ScaleStartDetails details) {
+    if (details.pointerCount >= 2) {
+      _scaleStartValue = ref.read(settingsProvider).chatFontScale;
+    } else {
+      _scaleStartValue = null;
+    }
+  }
+
+  void _onScaleUpdate(ScaleUpdateDetails details) {
+    final start = _scaleStartValue;
+    if (start == null || details.pointerCount < 2) return;
+    final newScale = start * details.scale;
+    ref
+        .read(settingsProvider.notifier)
+        .setChatFontScale(newScale, persist: false);
+  }
+
+  void _onScaleEnd(ScaleEndDetails details) {
+    if (_scaleStartValue == null) return;
+    _scaleStartValue = null;
+    // 마지막 값을 디스크에 저장
+    final cur = ref.read(settingsProvider).chatFontScale;
+    ref.read(settingsProvider.notifier).setChatFontScale(cur, persist: true);
+  }
+
   @override
   Widget build(BuildContext context) {
     final palette = KFPalette.of(context);
     final chatState = ref.watch(chatProvider);
-
-    // 레벨 변경 시 채팅에 반영
-    ref.listen(levelProvider, (prev, next) {
-      if (prev?.currentLevel != next.currentLevel) {
-        ref.read(chatProvider.notifier).updateLevel(next.currentLevel);
-      }
-    });
-
     final l = AppLocalizations.of(context);
+    final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
+    final handsFreeActive =
+        ref.watch(voiceProvider.select((s) => s.handsFreeActive));
 
     // streak 목표 달성 축하
     ref.listen(streakProvider, (prev, next) {
@@ -101,8 +139,55 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       }
     });
 
+    // 설정 화면에서 핸즈프리를 켜고 돌아온 경우 즉시 반영.
+    // (채팅 화면 initState는 이미 지나갔으므로 자동 시작 경로를 못 탄다)
+    ref.listen(settingsProvider.select((s) => s.handsFreeEnabled), (prev, next) {
+      if (prev == next) return;
+      final notifier = ref.read(voiceProvider.notifier);
+      final active = ref.read(voiceProvider).handsFreeActive;
+      // 입력바 토글이 이미 상태를 바꾼 뒤 설정을 저장하는 경로와 중복 실행되지 않도록
+      if (next && !active && ref.read(handsFreeAllowedProvider)) {
+        notifier.startHandsFree();
+      }
+      if (!next && active) notifier.stopHandsFree();
+    });
+
+    // 서버가 핸즈프리를 끄면(tobe Q-05) 돌고 있던 루프도 멈춘다. 사용자 선호는 그대로
+    // 두어, 스위치가 다시 켜지면 다음 실행부터 원래대로 시작한다.
+    ref.listen(handsFreeAllowedProvider, (prev, next) {
+      if (!next && ref.read(voiceProvider).handsFreeActive) {
+        ref.read(voiceProvider.notifier).stopHandsFree();
+      }
+    });
+
+    // 핸즈프리 오류/자동종료 안내
+    ref.listen(voiceProvider.select((s) => s.voiceError), (prev, next) {
+      if (next == null || next == prev) return;
+      final message = switch (next) {
+        'stt_unavailable' => l.handsFreeSttUnavailable,
+        'hands_free_idle' => l.handsFreeStoppedIdle,
+        'hands_free_quota' => l.handsFreeStoppedQuota,
+        'hands_free_error' => l.handsFreeStoppedError,
+        _ => next,
+      };
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          duration: const Duration(seconds: 6),
+          // 마이크 권한 문제는 앱 안에서 못 고친다 — OS 설정으로 보내준다.
+          action: next == 'stt_unavailable'
+              ? SnackBarAction(
+                  label: l.handsFreeOpenSettings,
+                  onPressed: openAppSettings,
+                )
+              : null,
+        ),
+      );
+      ref.read(voiceProvider.notifier).clearVoiceError();
+    });
+
     // 메시지 변경 시 자동 스크롤
-    ref.listen(chatProvider, (prev, next) {
+    ref.listen<ChatState>(chatProvider, (prev, next) {
       if (prev?.messages.length != next.messages.length ||
           prev?.currentAiResponse != next.currentAiResponse) {
         _scrollToBottom();
@@ -115,19 +200,38 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         children: [
           const ChatHeader(),
 
-          // 에러 표시
-          if (chatState.error != null) _buildErrorBanner(context, chatState.error!),
+          // 서버 공지 / 업데이트 안내 (제공자 장애 등을 앱 배포 없이 알리는 통로)
+          const AppNoticeBanner(),
 
-          // 메시지 영역 + Mission Strip
+          // 에러 표시
+          if (chatState.error != null)
+            _buildErrorBanner(context, chatState.error!, chatState.errorKind),
+
+          // 메시지 영역 + Mission Strip — 두 손가락 핀치로 폰트 크기 조절
           Expanded(
-            child: chatState.messages.isEmpty && !chatState.isAiTyping
-                ? _buildWelcomeMessage()
-                : Column(
-                    children: [
-                      const MissionStrip(),
-                      Expanded(child: _buildMessageList(chatState)),
-                    ],
-                  ),
+            child: RawGestureDetector(
+              behavior: HitTestBehavior.translucent,
+              gestures: <Type, GestureRecognizerFactory>{
+                ScaleGestureRecognizer:
+                    GestureRecognizerFactoryWithHandlers<ScaleGestureRecognizer>(
+                  () => ScaleGestureRecognizer(),
+                  (ScaleGestureRecognizer instance) {
+                    instance
+                      ..onStart = _onScaleStart
+                      ..onUpdate = _onScaleUpdate
+                      ..onEnd = _onScaleEnd;
+                  },
+                ),
+              },
+              child: chatState.messages.isEmpty && !chatState.isAiTyping
+                  ? _buildWelcomeMessage()
+                  : Column(
+                      children: [
+                        const MissionStrip(),
+                        Expanded(child: _buildMessageList(chatState)),
+                      ],
+                    ),
+            ),
           ),
 
           // 입력 바 + 배너 광고
@@ -137,14 +241,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 ChatInputBar(
-                  onSendText: (text) {
-                    ref.read(chatProvider.notifier).sendMessage(text);
-                    ref.read(streakProvider.notifier).recordMessage();
-                    ref.read(topicProvider.notifier).recordTurn();
-                    ref.read(missionProvider.notifier).recordTurn();
-                  },
+                  // 스트릭·토픽·미션 집계는 activityRecorderProvider가 한다 (BUG #10).
+                  onSendText: (text) =>
+                      ref.read(chatProvider.notifier).sendMessage(text),
                 ),
-                const BannerAdWidget(),
+                // 키보드가 열리면 배너가 키보드 바로 위·입력창 바로 아래에 붙고, 핸즈프리 중엔
+                // 화면을 안 보고 말하다 오클릭하기 쉽다 — 둘 다 숨긴다(tobe P-06).
+                BannerAdWidget(
+                  visible: !keyboardOpen && !handsFreeActive,
+                  reserveSpace: true,
+                  separated: true,
+                ),
               ],
             ),
           ),
@@ -153,9 +260,24 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     );
   }
 
-  Widget _buildErrorBanner(BuildContext context, String error) {
+  /// 사용자에게는 사람 말로 된 안내를, 원문은 "복사" 버튼으로만 넘긴다.
+  /// (이전엔 Dio 내부 예외 문자열이 그대로 화면에 덤프되어, 사용자가 자기 폰 문제인지
+  ///  네트워크 문제인지 앱이 망가진 건지 구분할 수 없었다.)
+  Widget _buildErrorBanner(
+    BuildContext context,
+    String error,
+    ChatErrorKind? kind,
+  ) {
     final palette = KFPalette.of(context);
     final l = AppLocalizations.of(context);
+    final message = switch (kind) {
+      ChatErrorKind.freeTierDown => l.chatErrorFreeTierDown,
+      ChatErrorKind.quota => l.chatErrorQuota,
+      ChatErrorKind.network => l.chatErrorNetwork,
+      ChatErrorKind.noKey => l.chatErrorNoKey,
+      ChatErrorKind.emptyResponse => l.chatErrorEmptyResponse,
+      _ => l.chatErrorUnknown,
+    };
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -166,14 +288,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           Icon(Icons.error_outline, size: 20, color: palette.coral),
           const SizedBox(width: 8),
           Expanded(
-            child: SelectableText(
-              error,
+            child: Text(
+              message,
               style: KFTypography.meta(color: palette.ink),
             ),
           ),
           TextButton(
             onPressed: () {
-              Clipboard.setData(ClipboardData(text: error));
+              Clipboard.setData(ClipboardData(text: redactSecrets(error)));
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(content: Text(l.commonCopied)),
               );
@@ -209,8 +331,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         }
 
         // Streaming AI response
+        // 스트리밍 말풍선과 완료 말풍선은 같은 index에 그려진다. key가 없으면 State가
+        // 재사용되어 완료 말풍선의 initialDrawerOpen이 무시됐다(교정 드로어가 안 열림).
         if (index == chatState.messages.length && hasStreaming) {
           return MessageBubble(
+            key: const ValueKey('streaming'),
             content: chatState.currentAiResponse.isEmpty
                 ? '...'
                 : chatState.currentAiResponse,
@@ -228,10 +353,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             index == chatState.messages.length - 1;
 
         return MessageBubble(
+          key: ValueKey(message.id),
           content: message.content,
           isUser: isUser,
           initialDrawerOpen: isLastAi,
           showAvatar: showAvatar,
+          messageId: message.id,
+          prevUserText: isUser ? null : _prevUserText(chatState, index),
         );
       },
     );
@@ -241,6 +369,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     if (index == 0) return true;
     final prev = chatState.messages[index - 1];
     return prev.role == MessageRole.user;
+  }
+
+  /// 신고 맥락용: 이 AI 답 바로 앞의 사용자 메시지.
+  String? _prevUserText(ChatState chatState, int index) {
+    for (var i = index - 1; i >= 0; i--) {
+      final m = chatState.messages[i];
+      if (m.role == MessageRole.user) return m.content;
+    }
+    return null;
   }
 
   Widget _buildWelcomeMessage() {
@@ -267,6 +404,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             textAlign: TextAlign.center,
             style: KFTypography.body(color: palette.ink2).copyWith(height: 1.5),
           ),
+          const SizedBox(height: KFSpacing.x3),
+          const AiDisclosureNote(),
           if (!hasApiKey) ...[
             const SizedBox(height: KFSpacing.x6),
             Container(

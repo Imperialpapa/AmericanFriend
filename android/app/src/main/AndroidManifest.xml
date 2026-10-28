@@ -1,6 +1,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- flutter_local_notifications 16+는 예약 알림에 필요한 권한·리시버를 앱이 직접 선언해야 한다(README
+         "AndroidManifest.xml setup"). 없으면 일일 리마인더가 울리지 않고 재부팅 후 예약도 사라진다. -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
     <application
         android:label="Korean Friend"
         android:name="${applicationName}"
@@ -27,7 +30,18 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
-        <!-- AdMob App ID (test ID for development, replace with real ID for production) -->
+        <receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver" />
+        <receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED"/>
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+                <action android:name="com.htc.intent.action.QUICKBOOT_POWERON"/>
+            </intent-filter>
+        </receiver>
+        <!-- AdMob App ID: 프로덕션 App ID이며 모든 빌드(debug 포함)가 같이 쓴다. 테스트 광고 여부는
+             App ID가 아니라 광고 단위(ad_constants.dart: debug 또는 ADS_FORCE_TEST)와
+             테스트 기기 등록(ADMOB_TEST_DEVICE_IDS)으로 정해진다. -->
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
             android:value="ca-app-pub-3130573171479694~3056823655"/>
@@ -50,6 +64,13 @@
         <intent>
             <action android:name="android.intent.action.SENDTO"/>
             <data android:scheme="mailto"/>
+        </intent>
+        <!-- Required for speech_to_text on Android 11+ (API 30+) to discover
+             the on-device SpeechRecognizer service. Without this, release
+             builds get isRecognitionAvailable()=false and the mic button
+             does nothing. -->
+        <intent>
+            <action android:name="android.speech.RecognitionService"/>
         </intent>
     </queries>
 </manifest>
