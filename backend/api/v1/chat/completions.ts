@@ -21,7 +21,8 @@ import {
 } from '../../../lib/ratelimit';
 import { callGemini } from '../../../lib/gemini';
 import { callOpenAiCompat } from '../../../lib/openai_compat';
-import { parseChatRequest } from '../../../lib/chat_request';
+import { parseChatRequest, type ChatRequest } from '../../../lib/chat_request';
+import { recordAdmitted, recordUpstreamFailure, recordWall } from '../../../lib/stats';
 
 export const config = { runtime: 'edge' };
 
@@ -54,16 +55,34 @@ export default async function handler(req: Request): Promise<Response> {
   const upstream = resolveUpstream();
   if (upstream instanceof Response) return upstream;
 
-  const admitted = await admit(req, deviceId);
+  const admitted = await admit(req, deviceId, body.stream);
   if (admitted instanceof Response) return admitted;
   // 업스트림이 첫 바이트 전에 실패하면 차감 일부를 되돌린다(tobe S-06, 범위는 refundFailedCall).
-  const refundFailed = (status: number | null) =>
-    admitted.charge
-      ? refundFailedCall(admitted.charge.redis, admitted.charge.keys, status)
-      : Promise.resolve();
+  const refundFailed = async (status: number | null) => {
+    if (!admitted.charge) return;
+    const { redis, keys } = admitted.charge;
+    await Promise.all([
+      refundFailedCall(redis, keys, status),
+      recordUpstreamFailure(redis, status),
+    ]);
+  };
 
   const rlHeaders: Record<string, string> = { ...admitted.headers, ...CORS_HEADERS };
 
+  // 집계는 업스트림 호출과 동시에 돈다 — 첫 바이트를 늦추지 않는다. 실패해도 resolve한다.
+  const [response] = await Promise.all([
+    relay(upstream, body, rlHeaders, refundFailed),
+    admitted.stats,
+  ]);
+  return response;
+}
+
+async function relay(
+  upstream: Upstream,
+  body: ChatRequest,
+  rlHeaders: Record<string, string>,
+  refundFailed: (status: number | null) => Promise<void>
+): Promise<Response> {
   try {
     const { provider, model, key } = upstream;
     let result;
@@ -158,6 +177,8 @@ interface Admission {
   /** null이면 차감하지 않은 요청(모니터) — 환불할 것도 없다. */
   charge: { redis: UpstashEnv; keys: ChargedKeys } | null;
   headers: Record<string, string>;
+  /** 일별 집계(lib/stats.ts). 모니터는 세지 않는다. 항상 resolve한다. */
+  stats: Promise<void>;
 }
 
 function limiterUnavailable(e: any): Response {
@@ -214,11 +235,15 @@ async function admitMonitor(globalLimit: number): Promise<Admission | Response> 
   }
   // 실사용자는 INCR 뒤 `> limit`이면 거절되므로, 올리기 전 값이 limit 이상이면 전원 거절 중이다.
   if (globalUsed >= globalLimit) return freeTierBusy();
-  return { charge: null, headers: {} };
+  return { charge: null, headers: {}, stats: Promise.resolve() };
 }
 
 /** 한도 판정. 통과하면 Admission, 거절이면 그대로 돌려줄 Response. */
-async function admit(req: Request, deviceId: string): Promise<Admission | Response> {
+async function admit(
+  req: Request,
+  deviceId: string,
+  stream: boolean
+): Promise<Admission | Response> {
   const limits = {
     device: parseInt(process.env.FREE_DAILY_LIMIT ?? '20', 10) || 20,
     ip: envInt('FREE_IP_DAILY_LIMIT', 150),
@@ -264,6 +289,7 @@ async function admit(req: Request, deviceId: string): Promise<Admission | Respon
 
   const rl = admission.device;
   if (admission.kind === 'device_limited') {
+    if (admission.firstRejection) await recordWall(redis);
     return json(
       {
         error: {
@@ -290,5 +316,6 @@ async function admit(req: Request, deviceId: string): Promise<Admission | Respon
       'X-RateLimit-Remaining': String(rl.remaining),
       'X-RateLimit-Reset': rl.resetAt,
     },
+    stats: recordAdmitted(redis, req, stream, admission.firstToday),
   };
 }

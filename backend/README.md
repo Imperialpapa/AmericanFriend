@@ -26,6 +26,11 @@ Upstream LLM
 - `GET  /api/v1/quota` — 현재 기기 사용량 조회 (`x-device-id` 헤더 필요)
 - `POST /api/v1/chat/completions` — 채팅 (OpenAI 호환)
 - `POST /api/v1/report` — AI 응답 신고. Upstash 리스트 `reports`(최근 2000건)에 저장, 확인은 Upstash 콘솔 CLI `LRANGE reports 0 49`
+- `GET  /api/v1/metrics?days=14` — 무료 티어 일별 집계(운영자 전용, `x-monitor-token` 헤더). 날짜(UTC)별 기기 수·요청 종류·
+  앱 버전·한도 도달·업스트림 실패. 기기 ID·IP는 저장하지 않고 숫자만(`lib/stats.ts`, 120일 보관)
+  ```powershell
+  curl.exe -s -H "x-monitor-token: <MONITOR_TOKEN>" "https://<your-app>.vercel.app/api/v1/metrics?days=14"
+  ```
 
 ## 최초 1회 배포
 
@@ -71,7 +76,7 @@ Vercel 프로젝트 → **Settings → Environment Variables**에서 추가:
 | `FREE_IP_DAILY_LIMIT` | `150` | IP(IPv6는 /64)당 일 한도. 초과 시 429 `ip_rate_limited` |
 | `FREE_GLOBAL_DAILY_LIMIT` | `900` | 전체 일 한도(비용 상한). 초과 시 503 `free_tier_busy`. `0` = 무료 티어 차단. Groq Free(조직 1K RPD)에서는 900을 넘기지 않는다 — 아래 "비용 감" |
 | `MONITOR_DEVICE_ID` | 32자 이상 랜덤 | 모니터 전용 device-id. 카운터를 올리지 않지만 Upstash 장애(500)·전역 한도 소진(503)은 실사용자와 같이 받는다. GitHub secret `MONITOR_DEVICE_ID`와 같은 값. 32자 미만이면 무시 |
-| `MONITOR_TOKEN` | 32자 이상 랜덤 | `/api/v1/status?probe=1`의 `x-monitor-token` 헤더 값. 없으면 probe는 401 |
+| `MONITOR_TOKEN` | 32자 이상 랜덤 | `/api/v1/status?probe=1`과 `/api/v1/metrics`의 `x-monitor-token` 헤더 값. 없으면 둘 다 401 |
 | `REPORT_DAILY_LIMIT` | `20` | 기기당 일 신고 한도(채팅 한도와 별개) |
 | `STATUS_FLAGS_JSON` | (비움) | 기능 원격 스위치. `{"handsfree_enabled": false}`면 앱이 핸즈프리 버튼·설정 항목·자동 시작을 끈다. 비우면 앱 기본값(켜짐). 앱은 시작할 때 읽고 캐시한다 |
 
@@ -176,13 +181,14 @@ npx vercel logs --follow
 
 | 요청 | 명령 수 |
 |---|---|
-| 채팅 통과 | 3 (INCR 전역·IP·기기) + 그날 처음 생긴 키마다 EXPIRE 1 |
-| 채팅 거절(IP·전역·기기 한도) | 5 (INCR 3 + DECR 2). 같은 인스턴스에 같은 키로 다시 오면 0 |
-| 업스트림 실패 환불 | 통과 + DECR 1(기기). 5xx·네트워크 오류면 +1(전역). IP는 환불하지 않는다 |
+| 채팅 통과 | 3 (INCR 전역·IP·기기) + 그날 처음 생긴 키마다 EXPIRE 1 + 집계 1 (기기의 그날 첫 요청이면 +3) |
+| 채팅 거절(IP·전역·기기 한도) | 5 (INCR 3 + DECR 2). 같은 인스턴스에 같은 키로 다시 오면 0. 기기 한도 첫 거절은 집계 +2 |
+| 업스트림 실패 환불 | 통과 + DECR 1(기기). 5xx·네트워크 오류면 +1(전역). IP는 환불하지 않는다. 집계 +2 |
 | `/quota`, 모니터 | 1 (GET) |
+| `/metrics` | 조회한 일수만큼 HGETALL |
 
-월 추정 ≈ `FREE_GLOBAL_DAILY_LIMIT × 3 × 30` + (일 활성 기기 + IP) × 30 + 모니터 1,440 + `/quota`·신고.
-기본 상한 900이면 통과분은 8.1만(16%)이다. 업스트림 플랜을 올려 상한도 올릴 땐 `상한 × 3 × 30`이 35만(70%)을 넘지 않게(≈ 3,900 이하), 넘으면 Pay-as-you-go로 바꾼다.
+월 추정 ≈ `FREE_GLOBAL_DAILY_LIMIT × 4 × 30` + (일 활성 기기 × 4 + IP) × 30 + 모니터 1,440 + `/quota`·신고.
+기본 상한 900이면 통과분은 10.8만(22%)이다. 업스트림 플랜을 올려 상한도 올릴 땐 `상한 × 3 × 30`이 35만(70%)을 넘지 않게(≈ 3,900 이하), 넘으면 Pay-as-you-go로 바꾼다.
 Upstash 콘솔 Usage에서 월 사용량을 확인하고, 사용량 알림을 설정할 수 있으면 70%로 둔다.
 
 업스트림이 4xx(모델 셧다운 404, 413, 429 등)로 실패한 요청은 IP·전역 한도를 쓴다 — 매번 실패하는 요청으로 한도를 우회하지 못하게.
@@ -193,4 +199,4 @@ Upstash 콘솔 Usage에서 월 사용량을 확인하고, 사용량 알림을 �
 
 - [ ] Play Integrity API 검증
 - [ ] 여러 업스트림 자동 failover (Gemini → Groq → OpenRouter)
-- [ ] Analytics / 사용 통계
+- [x] 일별 집계 `/api/v1/metrics`(무료 티어만) — 재방문율(D1/D7)은 기기별 기록이 필요해 아직 없다

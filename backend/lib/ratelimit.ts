@@ -23,7 +23,7 @@ export interface UpstashEnv {
 // 날짜 키라 자정이 지나면 새 키를 쓰고, 옛 키는 48h 뒤 만료로 정리된다.
 const DAY_TTL_SEC = 60 * 60 * 48;
 
-function utcDate(): string {
+export function utcDate(): string {
   const now = new Date();
   const yyyy = now.getUTCFullYear();
   const mm = String(now.getUTCMonth() + 1).padStart(2, '0');
@@ -166,11 +166,13 @@ export interface ChargedKeys {
   device: string;
 }
 
+// firstToday: 이 기기의 그날 첫 차감. firstRejection: 기기 한도를 넘긴 첫 시도(캐시 거절은 false).
+// 둘 다 일별 집계(stats.ts)에만 쓴다.
 export type AdmitResult =
-  | { kind: 'ok'; device: RateLimitResult; charged: ChargedKeys }
+  | { kind: 'ok'; device: RateLimitResult; charged: ChargedKeys; firstToday: boolean }
   | { kind: 'ip_limited' }
   | { kind: 'global_limited' }
-  | { kind: 'device_limited'; device: RateLimitResult };
+  | { kind: 'device_limited'; device: RateLimitResult; firstRejection: boolean };
 
 // 오늘 한도에 걸린 카운터 키. 거절 요청은 개수 제한이 없어, 매번 Upstash를
 // 부르면(건당 5명령) 한 명이 월 명령 한도를 태우고 리미터가 fail-closed로 무료 티어
@@ -214,7 +216,11 @@ export async function admitFreeTier(
   if (isLimited(iKey)) return { kind: 'ip_limited' };
   if (isLimited(gKey)) return { kind: 'global_limited' };
   if (isLimited(dKey)) {
-    return { kind: 'device_limited', device: deviceResult(limits.device + 1, limits.device) };
+    return {
+      kind: 'device_limited',
+      device: deviceResult(limits.device + 1, limits.device),
+      firstRejection: false,
+    };
   }
 
   const [globalUsed, ipUsed, deviceUsed] = await incrementDaily(env, [gKey, iKey, dKey]);
@@ -233,9 +239,14 @@ export async function admitFreeTier(
   if (!device.allowed) {
     await refund(env, [gKey, iKey]);
     markLimited(dKey);
-    return { kind: 'device_limited', device };
+    return { kind: 'device_limited', device, firstRejection: deviceUsed === limits.device + 1 };
   }
-  return { kind: 'ok', device, charged: { global: gKey, ip: iKey, device: dKey } };
+  return {
+    kind: 'ok',
+    device,
+    charged: { global: gKey, ip: iKey, device: dKey },
+    firstToday: deviceUsed === 1,
+  };
 }
 
 /**
